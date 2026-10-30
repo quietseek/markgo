@@ -22,10 +22,10 @@ const notes = lines
   .slice(start + 1, end)
   .join('\n')
   .trim()
-// 每个版本的说明需包含这四个小节，缺少时提前报错，避免发布不完整的说明
-const missing = ['修复问题', '新增功能', '优化改进', '下载地址'].filter((h) => !new RegExp(`^###\\s+${h}\\s*$`, 'm').test(notes))
-if (missing.length) {
-  console.error(`CHANGELOG.md 中 ${tag} 的小节缺少：${missing.join('、')}`)
+// 修复问题、新增功能、优化改进按需填写（没有就不写），下载地址必须有
+const has = (h) => new RegExp(`^###\\s+${h}\\s*$`, 'm').test(notes)
+if (!has('下载地址') || !['修复问题', '新增功能', '优化改进'].some(has)) {
+  console.error(`CHANGELOG.md 中 ${tag} 的小节需包含「下载地址」，以及「修复问题」「新增功能」「优化改进」中至少一项`)
   process.exit(1)
 }
 
