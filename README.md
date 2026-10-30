@@ -1,4 +1,10 @@
-# MarkGo
+<h1 align="center">MarkGo</h1>
+
+<div align="center"><a href="https://github.com/quietseek/markgo/actions/workflows/build.yml"><img alt="Build" src="https://github.com/quietseek/markgo/actions/workflows/build.yml/badge.svg"></a> <a href="https://github.com/quietseek/markgo/releases"><img alt="Release" src="https://img.shields.io/github/v/release/quietseek/markgo"></a> <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue"></a> <img alt="Go" src="https://img.shields.io/github/go-mod/go-version/quietseek/markgo"> <img alt="Platforms" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey"></div>
+
+<p align="center">
+🇨🇳 <a href="./README.md">简体中文</a> | 🇺🇸 <a href="./README.en.md">English</a>
+</p>
 
 MarkGo 是一款面向内容创作者的桌面端 Markdown 写作与笔记应用。它以本地文件夹作为笔记库，提供基于 Tiptap 的所见即所得编辑体验，并集成了 AI 写作辅助、图床上传与排版主题，写完即可复制排版内容或一键发布。
 
@@ -12,17 +18,19 @@ MarkGo 是一款面向内容创作者的桌面端 Markdown 写作与笔记应用
 - [AI 写作](#ai-写作)
 - [图床配置](#图床配置)
 - [发布](#发布)
+- [数学公式](#数学公式)
 - [键盘快捷键](#键盘快捷键)
 - [开发指南](#开发指南)
 - [版本发布](#版本发布)
+- [参与贡献](#参与贡献)
 - [许可与致谢](#许可与致谢)
 
 ## 功能概览
 
 | 模块 | 说明 |
 | --- | --- |
-| 笔记库 | 以任意本地文件夹作为笔记库，文件均为标准 `.md` 格式；支持新建、重命名、移到废纸篓、在文件管理器中显示；编辑内容自动保存 |
-| 编辑器 | 基于 Tiptap 3 的所见即所得编辑：标题、列表、任务列表、表格（行列工具条）、代码块（语言选择、语法高亮、一键复制）、Mermaid 图表（实时渲染，可复制为图片或导出 PNG / SVG）、引用、高亮、链接、图片、数学公式（KaTeX）；支持 `/` 命令菜单、顶部快捷操作栏（可在设置中关闭）、文档开头 YAML 元信息（front matter）的折叠显示与编辑、选区格式工具栏、查找替换、Typora 风格快捷键、Markdown 源码模式、大纲导航、专注模式与打字机模式 |
+| 笔记库 | 以任意本地文件夹作为笔记库，文件均为标准 `.md` 格式，不含笔记的文件夹不显示；笔记库以外的文件在新窗口中单独打开；支持新建、重命名、移到废纸篓、在文件管理器中显示；编辑内容自动保存 |
+| 编辑器 | 基于 Tiptap 3 的所见即所得编辑：标题、列表、任务列表、表格（行列工具条）、代码块（语言选择、语法高亮、一键复制、格式化）、Mermaid 图表（实时渲染，可复制为图片或导出 PNG / SVG）、引用、高亮、上下标、链接、图片、数学公式（KaTeX）；支持 `/` 命令菜单、顶部快捷操作栏（可在设置中关闭）、文档开头 YAML 元信息（front matter）在侧边栏「信息」中查看与编辑、选区格式工具栏、查找替换、Typora 风格快捷键、Markdown 源码模式、大纲导航、专注模式与打字机模式 |
 | 排版 | 内置 15 种排版主题，主题直接作用于编辑区，所见即所得；支持字号、段距调整及外链转文末脚注；编辑区宽度提供「标准 / 宽屏 / 铺满」三种预设 |
 | 图片 | 支持粘贴、拖拽和命令插入；可上传至 PicGo / PicList 图床，或保存到文档同级的 `assets` 目录；支持 AI 生图；图片操作条可把本地图片上传到图床、把网络图片存到本地、替换图片、编辑说明文字 |
 | AI 写作 | 通过 Agent Client Protocol（ACP）连接本机 AI Agent；提供对话助手、按风格从话题生成大纲并写成新文档、选区内联改写与续写、自然语言生成公式；Agent 的修改须经差异审阅后方可应用 |
@@ -48,10 +56,19 @@ MarkGo 是一款面向内容创作者的桌面端 Markdown 写作与笔记应用
 
 ## 快速上手
 
-1. 启动后通过「文件 → 打开文件夹」（`⌘⇧O`）选择一个目录作为笔记库。
-2. 使用 `⌘N` 新建笔记。在编辑区输入 `/` 可调出命令菜单，选中文字后可使用格式工具栏。
-3. 在底部状态栏选择排版主题、调整字号与段距，并切换编辑区宽度。选择「原生样式」时，编辑区使用默认样式，发布时仍应用所选主题。
+### 写作、排版与发布
+
+1. 启动后通过「文件 → 打开文件夹」（`⌘⇧O`）选择一个目录作为笔记库。笔记库以外的 Markdown 文件（「打开文件」`⌘O`、双击或拖到程序图标）会在新窗口中单独打开。
+2. 使用 `⌘N` 新建笔记。在编辑区输入 `/` 可调出命令菜单，选中文字后可使用格式工具栏。侧边栏的「信息」页可查看和编辑文档开头的元信息（标题、日期、标签等），并显示字数与阅读时长。
+3. 在底部状态栏选择排版主题、调整字号与段距，切换编辑区宽度与图片插入方式（图床 / 本地）。选择「原生样式」时，编辑区使用默认样式，发布时仍应用所选主题。
 4. 完成写作后，点击状态栏右侧的图标按钮，可复制排版内容或发布。
+
+### 用 AI 写一篇文章
+
+1. 按 [AI 写作 → 配置](#配置) 安装并连接一个 Agent，在「设置 → 写作」中设置写作风格、篇幅（短文 / 中篇 / 长文）与目标读者。
+2. 按 `⌘J` 打开 AI 助手，点击「写文章」，输入话题并选择风格与篇幅，点击「生成大纲」。
+3. 在对话中与 Agent 讨论、修改大纲；满意后点击「开始写作」，MarkGo 会以建议标题新建文档，由 Agent 直接写入初稿。
+4. 用选区「AI」菜单润色或改写段落，再按上面的步骤排版发布。
 
 ## AI 写作
 
@@ -197,6 +214,9 @@ Wails 3 · Go · React · TypeScript · Vite · Tiptap 3（`@tiptap/markdown`）
 
 前端界面只依赖 `window.markgo` 接口（`frontend/src/shared/types.ts` 中的 `MarkGoApi`）。`frontend/src/bridge.ts` 用 Wails 运行时实现它：方法经 `Call.ByName('main.Bridge.<方法>')` 调用 Go 端 `Bridge` 服务，Agent 会话、菜单、打开文件等由 Go 端通过 Wails 事件推送。
 
+<details>
+<summary>目录结构</summary>
+
 ```
 main.go                      # 应用入口：窗口、单实例、文件关联、/mg-asset/ 本地图片中间件
 bridge.go                    # 绑定到前端的 Bridge 服务（对应 window.markgo 的每个方法）
@@ -221,6 +241,8 @@ frontend/
 build/                       # Wails 构建配置（config.yml）、各平台图标与打包脚本
 ```
 
+</details>
+
 Windows 与 Linux 使用无边框窗口，标题栏与窗口按钮由前端绘制，菜单快捷键由 `bridge.ts` 处理；macOS 使用系统菜单栏与红绿灯按钮。
 
 ## 版本发布
@@ -236,8 +258,23 @@ GitHub Actions 会在每次推送时执行类型检查与测试。推送 `v*` �
    git push --follow-tags
    ```
 
+## 参与贡献
+
+欢迎通过 [Issues](https://github.com/quietseek/markgo/issues) 反馈问题或提出建议，也欢迎提交 Pull Request：
+
+1. Fork 仓库并从 `main` 创建分支。
+2. 按 [开发指南](#开发指南) 准备环境，用 `wails3 dev` 验证改动。
+3. 提交前运行测试与类型检查：
+
+   ```bash
+   go test ./internal/...
+   cd frontend && npm test && npm run typecheck
+   ```
+
+4. 面向用户的改动请在 [`CHANGELOG.md`](CHANGELOG.md) 的「未发布」小节中补充说明。
+
 ## 许可与致谢
 
-本项目基于 MIT License 发布。
+本项目基于 [MIT License](LICENSE) 发布。
 
-排版主题及公众号兼容处理（`frontend/src/lib/themes.ts`、`render.ts`）移植自 [MarkNice](https://github.com/willmove/marknice)，© 2026 Willmove，遵循 MIT License。
+排版主题及公众号兼容处理移植自 [MarkNice](https://github.com/willmove/marknice)，© 2026 Willmove，遵循 MIT License。
