@@ -7,7 +7,7 @@ import { Search, getSearch, gotoMatch, replaceAll, replaceCurrent, setSearch } f
 const make = (md: string) => new Editor({ extensions: [StarterKit, Markdown, Search], content: md, contentType: 'markdown' })
 
 describe('find & replace', () => {
-  it('finds across formatting, respects case, replaces', () => {
+  it('finds across formatting, respects case, replaces', async () => {
     const ed = make('Hello **wor**ld, hello world\n\n# World')
     setSearch(ed, 'world', false)
     expect(getSearch(ed.state).matches).toHaveLength(3)
@@ -22,5 +22,8 @@ describe('find & replace', () => {
     expect(ed.getMarkdown()).toContain('hello earth')
     expect(ed.getMarkdown()).toContain('# moon')
     expect(getSearch(ed.state).matches).toHaveLength(0)
+    // 等编辑器的延时任务执行完再销毁，避免它们在测试环境（jsdom）销毁后才运行
+    await new Promise((r) => setTimeout(r, 100))
+    ed.destroy()
   })
 })
