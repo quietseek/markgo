@@ -1,0 +1,157 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: '1.26'
+  NODE_VERSION: '24'
+  WAILS_VERSION: v3.0.0
+
+jobs:
+  check:
+    name: Lint & test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: go.sum
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install Linux webview headers
+        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
+      - name: Frontend typecheck & test
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run typecheck
+          npm test
+          npm run build
+      - name: Go vet
+        run: |
+          go vet ./...
+          GOOS=windows go vet ./...
+      - name: Go test
+        run: go test -race ./...
+
+  package:
+    name: Package (${{ matrix.name }})
+    needs: check
+    # main 分支推送只做检查；打 tag 或手动触发时才打包
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            os: macos-latest
+          - name: Windows
+            os: windows-latest
+          - name: Linux
+            os: ubuntu-24.04
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: go.sum
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Read version
+        id: version
+        run: |
+          version=$(sed -n 's/^const Version = "\(.*\)"/\1/p' main.go)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_REF" == refs/tags/v* && "v$version" != "$GITHUB_REF_NAME" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match version $version in main.go"
+            exit 1
+          fi
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libfuse2t64 file
+
+      - name: Install NSIS
+        if: runner.os == 'Windows'
+        run: command -v makensis || choco install nsis -y
+
+      - name: Package macOS
+        if: runner.os == 'macOS'
+        run: |
+          wails3 task darwin:package:universal
+          wails3 task darwin:create:dmg
+          mkdir -p dist
+          mv bin/*.dmg "dist/MarkGo-${{ steps.version.outputs.version }}-mac-universal.dmg"
+
+      - name: Package Windows
+        if: runner.os == 'Windows'
+        run: |
+          export PATH="$PATH:/c/Program Files (x86)/NSIS"
+          wails3 task windows:package
+          mkdir -p dist
+          ls bin
+          mv bin/*installer*.exe "dist/MarkGo-${{ steps.version.outputs.version }}-win-x64-setup.exe"
+
+      - name: Package Linux
+        if: runner.os == 'Linux'
+        run: |
+          wails3 task linux:create:appimage
+          wails3 task linux:create:deb
+          mkdir -p dist
+          ls bin
+          mv bin/*.AppImage "dist/MarkGo-${{ steps.version.outputs.version }}-linux-x86_64.AppImage"
+          mv bin/*.deb "dist/MarkGo-${{ steps.version.outputs.version }}-linux-amd64.deb"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: MarkGo-${{ matrix.name }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: GitHub Release
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Release notes from CHANGELOG.md
+        run: node scripts/release-notes.mjs "$GITHUB_REF_NAME" > release-notes.md
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v3
+        with:
+          files: artifacts/*
+          body_path: release-notes.md

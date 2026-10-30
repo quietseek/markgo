@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MsixPackagingToolTemplate
+    xmlns="http://schemas.microsoft.com/msix/packaging/msixpackagingtool/template/2022">
+    <Settings
+        AllowTelemetry="false"
+        ApplyACLsToPackageFiles="true"
+        GenerateCommandLineFile="true"
+        AllowPromptForPassword="false">
+    </Settings>
+    <Installer
+        Path="markgo"
+        Arguments=""
+        InstallLocation="C:\Program Files\quietseek\MarkGo">
+    </Installer>
+    <PackageInformation
+        PackageName="MarkGo"
+        PackageDisplayName="MarkGo"
+        PublisherName="CN=quietseek"
+        PublisherDisplayName="quietseek"
+        Version="0.7.0.0"
+        PackageDescription="简洁的桌面 Markdown 写作与笔记应用">
+        <Capabilities>
+            <Capability Name="runFullTrust" />
+            
+        </Capabilities>
+        <Applications>
+            <Application
+                Id="ai.markgo.app"
+                Description="简洁的桌面 Markdown 写作与笔记应用"
+                DisplayName="MarkGo"
+                ExecutableName="markgo"
+                EntryPoint="Windows.FullTrustApplication">
+                
+            </Application>
+        </Applications>
+        <Resources>
+            <Resource Language="en-us" />
+        </Resources>
+        <Dependencies>
+            <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.19041.0" />
+        </Dependencies>
+        <Properties>
+            <Framework>false</Framework>
+            <DisplayName>MarkGo</DisplayName>
+            <PublisherDisplayName>quietseek</PublisherDisplayName>
+            <Description>简洁的桌面 Markdown 写作与笔记应用</Description>
+            <Logo>Assets\AppIcon.png</Logo>
+        </Properties>
+    </PackageInformation>
+    <SaveLocation PackagePath="markgo.msix" />
+    <PackageIntegrity>
+        <CertificatePath></CertificatePath>
+    </PackageIntegrity>
+</MsixPackagingToolTemplate>
