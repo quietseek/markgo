@@ -2,6 +2,33 @@
 
 每个版本发布时，GitHub Release 的说明取自本文件对应版本的小节，按「修复问题、新增功能、优化改进、下载地址」组织，没有内容的小节不写。发版前请先在这里补充内容。
 
+## v0.2.0
+
+### 新增功能
+
+- **单独打开的文档使用新窗口**：打开不在当前笔记库中的文件（「打开文件」、双击、拖到程序图标）时在新窗口中编辑，已打开的文件直接切换到对应窗口；笔记库中的文件仍在主窗口打开
+- **侧边栏「信息」**：在「大纲」右侧新增「信息」页，集中查看与编辑元信息（YAML front matter），并显示字数、阅读时长、标题与图片数量、文件位置；编辑区中的元信息收为一行摘要，点击跳转到「信息」
+- **代码块格式化**：JavaScript、TypeScript、JSON、CSS / SCSS / Less、HTML、Markdown、YAML、GraphQL、SQL 代码块可一键格式化
+- **上下标**：支持 `H~2~O`、`x^2^` 写法，选区工具栏可设置上标 / 下标，复制与发布时同样生效
+
+### 优化改进
+
+- 打开文件夹后不再列出不含 Markdown 笔记的文件夹（如只放图片的 assets），完全空的文件夹保留
+- 状态栏的图片插入方式改为与编辑区宽度相同的胶囊切换，可直接在「图床 / 本地」间切换
+- AI 写作的篇幅改为短文 / 中篇 / 长文（长文约 1 万字），界面不再突出字数，Agent 以内容完整为准
+
+### 下载地址
+
+| 系统 | 安装包 |
+| --- | --- |
+| macOS（Apple 芯片与 Intel 通用） | [MarkGo-0.2.0-mac-universal.dmg](https://github.com/quietseek/markgo/releases/download/v0.2.0/MarkGo-0.2.0-mac-universal.dmg) |
+| Windows 10 / 11 | [MarkGo-0.2.0-win-x64-setup.exe](https://github.com/quietseek/markgo/releases/download/v0.2.0/MarkGo-0.2.0-win-x64-setup.exe) |
+| Linux（AppImage） | [MarkGo-0.2.0-linux-x86_64.AppImage](https://github.com/quietseek/markgo/releases/download/v0.2.0/MarkGo-0.2.0-linux-x86_64.AppImage) |
+| Linux（Debian / Ubuntu） | [MarkGo-0.2.0-linux-amd64.deb](https://github.com/quietseek/markgo/releases/download/v0.2.0/MarkGo-0.2.0-linux-amd64.deb) |
+
+> Windows 需要 WebView2 运行时（系统通常已自带，安装程序会自动补装）；Linux 需要 GTK 4 与 WebKitGTK 6.0（Ubuntu 24.04+ / Debian 13+）。
+> 安装包未经代码签名：macOS 首次打开如提示「已损坏」或「无法验证开发者」，请在终端执行 `xattr -cr /Applications/MarkGo.app`；Windows 如出现 SmartScreen 提示，点击「更多信息 → 仍要运行」。
+
 ## v0.1.0
 
 ### 新增功能
