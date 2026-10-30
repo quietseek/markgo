@@ -17,7 +17,7 @@
         PackageDisplayName="MarkGo"
         PublisherName="CN=quietseek"
         PublisherDisplayName="quietseek"
-        Version="0.7.0.0"
+        Version="0.1.0.0"
         PackageDescription="简洁的桌面 Markdown 写作与笔记应用">
         <Capabilities>
             <Capability Name="runFullTrust" />

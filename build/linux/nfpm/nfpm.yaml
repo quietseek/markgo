@@ -6,7 +6,7 @@
 name: "markgo"
 arch: ${GOARCH}
 platform: "linux"
-version: "0.7.0"
+version: "0.1.0"
 section: "default"
 priority: "extra"
 maintainer: "quietseek <quietseek@users.noreply.github.com>"

@@ -227,12 +227,12 @@ Windows 与 Linux 使用无边框窗口，标题栏与窗口按钮由前端绘�
 
 GitHub Actions 会在每次推送时执行类型检查与测试。推送 `v*` 标签（或手动触发工作流）后，会自动打包三个平台的安装包；推送标签时还会创建 GitHub Release。
 
-1. 在 [`CHANGELOG.md`](CHANGELOG.md) 中添加新版本的小节，例如 `## v0.8.0`。Release 说明取自该小节，如果缺少这一小节，发布任务会失败。
+1. 在 [`CHANGELOG.md`](CHANGELOG.md) 中添加新版本的小节，例如 `## v0.1.1`。Release 说明取自该小节，如果缺少这一小节，发布任务会失败。
 2. 同步更新版本号：`main.go` 中的 `Version`、`build/config.yml` 的 `info.version`（随后执行 `wails3 task common:update:build-assets`）、`frontend/package.json`。
 3. 提交并推送标签：
 
    ```bash
-   git tag v0.8.0
+   git tag v0.1.1
    git push --follow-tags
    ```
 

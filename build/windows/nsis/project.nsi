@@ -22,7 +22,7 @@ Unicode true
 ## !define INFO_PROJECTNAME    "my-project" # Default "MarkGo"
 ## !define INFO_COMPANYNAME    "My Company" # Default "quietseek"
 ## !define INFO_PRODUCTNAME    "My Product Name" # Default "MarkGo"
-## !define INFO_PRODUCTVERSION "1.0.0"     # Default "0.7.0"
+## !define INFO_PRODUCTVERSION "1.0.0"     # Default "0.1.0"
 ## !define INFO_COPYRIGHT      "(c) Now, My Company" # Default "© 2026 quietseek"
 ###
 ## !define PRODUCT_EXECUTABLE  "Application.exe"      # Default "${INFO_PROJECTNAME}.exe"
