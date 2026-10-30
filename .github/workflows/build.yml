@@ -91,12 +91,13 @@ jobs:
             exit 1
           fi
 
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
-
+      # wails3 CLI 在 Linux 上同样链接 GTK / WebKitGTK，需先安装
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libfuse2t64 file
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
 
       - name: Install NSIS
         if: runner.os == 'Windows'
