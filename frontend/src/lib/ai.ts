@@ -42,7 +42,7 @@ export function runChannel(input: PromptInput, onText: (text: string) => void): 
   })
 }
 
-let seq = 0
+let seq = Math.floor(Math.random() * 1e9)
 
 /** 一次性请求：新建独立会话，返回清理后的完整回复 */
 export async function askOnce(instruction: string, source: string): Promise<string> {

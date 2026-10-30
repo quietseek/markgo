@@ -6,6 +6,7 @@
 import { Marked } from 'marked'
 import { texToSvg } from './math-svg'
 import { INLINE_MATH_RE } from './math-re'
+import { SUB_RE, SUP_RE } from './sub-sup'
 import { themes, tokenHeadingOptions, tokenHeadingStyle, type Theme } from './themes'
 
 export interface RenderOptions {
@@ -40,6 +41,34 @@ marked.use({
         if (m) return { type: 'inlineMath', raw: m[0], text: m[1].trim() }
       },
       renderer: (token) => `<span data-math="inline">${texToSvg(token.text, false)}</span>`
+    },
+    {
+      // 上下标须先于删除线识别：GFM 会把单个 ~ 包裹的文字也当作删除线
+      name: 'subscript',
+      level: 'inline',
+      start: (src: string) => {
+        const i = src.search(/~(?!~)/)
+        return i < 0 ? undefined : i
+      },
+      tokenizer(src: string) {
+        const m = src.match(SUB_RE)
+        if (m) return { type: 'subscript', raw: m[0], tokens: this.lexer.inlineTokens(m[1]) }
+      },
+      renderer(token) {
+        return `<sub>${this.parser.parseInline(token.tokens!)}</sub>`
+      }
+    },
+    {
+      name: 'superscript',
+      level: 'inline',
+      start: (src: string) => (src.includes('^') ? src.indexOf('^') : undefined),
+      tokenizer(src: string) {
+        const m = src.match(SUP_RE)
+        if (m) return { type: 'superscript', raw: m[0], tokens: this.lexer.inlineTokens(m[1]) }
+      },
+      renderer(token) {
+        return `<sup>${this.parser.parseInline(token.tokens!)}</sup>`
+      }
     }
   ]
 })

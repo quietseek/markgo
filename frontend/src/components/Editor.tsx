@@ -42,6 +42,8 @@ import {
   Sparkles,
   SquareCode,
   Strikethrough,
+  Subscript as SubscriptIcon,
+  Superscript as SuperscriptIcon,
   Table as TableIcon,
   Trash2,
   Wand2,
@@ -60,7 +62,8 @@ import { MathPopover, type MathTarget } from './MathPopover'
 import { FindBar } from './FindBar'
 import { MultilineBlockMath, StrictInlineMath, looksLikeLatex } from '../lib/math'
 import { Search, TyporaKeymap } from '../lib/editor-ext'
-import { FrontMatter } from '../lib/front-matter'
+import { FrontMatter, replaceFrontMatter } from '../lib/front-matter'
+import { Subscript, Superscript } from '../lib/sub-sup'
 
 const lowlight = createLowlight(common)
 const bubbleMenuKey = new PluginKey('markgoBubbleMenu')
@@ -116,6 +119,8 @@ export interface EditorHandle {
   replaceDocument(md: string): void
   /** 打开查找（replace 为 true 时同时显示替换） */
   openFind(replace: boolean): void
+  /** 替换文档开头的元信息；null 为删除 */
+  setFrontMatter(yaml: string | null): void
 }
 
 interface Props {
@@ -131,6 +136,8 @@ interface Props {
   onOpenImageSettings(): void
   onChange(md: string): void
   onHeadings(headings: HeadingInfo[]): void
+  /** 查看元信息（在侧边栏「信息」中）；edit 为 true 时直接进入编辑 */
+  onOpenFrontMatter(edit: boolean): void
 }
 
 export interface HeadingInfo {
@@ -181,9 +188,11 @@ interface SlashItem {
 }
 
 export const Editor = forwardRef<EditorHandle, Props>(function Editor(
-  { docPath, initialMarkdown, sourceMode, typewriter, showToolbar, imageGen, onOpenImageSettings, onChange, onHeadings },
+  { docPath, initialMarkdown, sourceMode, typewriter, showToolbar, imageGen, onOpenImageSettings, onChange, onHeadings, onOpenFrontMatter },
   ref
 ) {
+  const onOpenFrontMatterRef = useRef(onOpenFrontMatter)
+  onOpenFrontMatterRef.current = onOpenFrontMatter
   const [source, setSource] = useState(initialMarkdown)
   const [slash, setSlash] = useState<{ query: string; from: number; top: number; left: number } | null>(null)
   const [slashIndex, setSlashIndex] = useState(0)
@@ -272,9 +281,11 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
       TyporaKeymap.configure({ onMathBlock: () => newMathRef.current(true), onFind: (replace) => openFindRef.current(replace) }),
       Search,
       Markdown.configure({ markedOptions: { gfm: true } }),
-      FrontMatterBlock,
+      FrontMatterBlock.configure({ onOpen: () => onOpenFrontMatterRef.current(false) }),
       LocalImage.configure({ allowBase64: true }),
       Highlight,
+      Subscript,
+      Superscript,
       TableKit.configure({ table: { resizable: false } }),
       TaskList,
       TaskItem.configure({ nested: true }),
@@ -526,6 +537,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
           })
           const date = new Date().toLocaleDateString('sv-SE')
           e.chain().insertFrontMatter(`title: ${title}\ndate: ${date}\ntags: []`).run()
+          onOpenFrontMatterRef.current(true)
         }
       },
       { key: 'img', label: '图片', hint: 'image img tp', icon: <ImageIcon size={16} />, run: (e) => pickImage(e) },
@@ -595,7 +607,14 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
           onChangeRef.current(md)
         } else editor?.commands.setContent(md, { contentType: 'markdown' })
       },
-      openFind: (replace) => openFindRef.current(replace)
+      openFind: (replace) => openFindRef.current(replace),
+      setFrontMatter(yaml) {
+        if (sourceMode) {
+          const md = replaceFrontMatter(source, yaml)
+          setSource(md)
+          onChangeRef.current(md)
+        } else editor?.commands.setFrontMatter(yaml)
+      }
     }),
     [editor, sourceMode, source, pickImage]
   )
@@ -694,6 +713,12 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
           </BubbleBtn>
           <BubbleBtn active={editor.isActive('highlight')} onClick={() => editor.chain().focus().toggleHighlight().run()} title="高亮">
             <Highlighter size={15} />
+          </BubbleBtn>
+          <BubbleBtn active={editor.isActive('superscript')} onClick={() => editor.chain().focus().unsetSubscript().toggleSuperscript().run()} title="上标 x^2^">
+            <SuperscriptIcon size={15} />
+          </BubbleBtn>
+          <BubbleBtn active={editor.isActive('subscript')} onClick={() => editor.chain().focus().unsetSuperscript().toggleSubscript().run()} title="下标 H~2~O">
+            <SubscriptIcon size={15} />
           </BubbleBtn>
           <BubbleBtn active={editor.isActive('code')} onClick={() => editor.chain().focus().toggleCode().run()} title="行内代码">
             <Code size={15} />

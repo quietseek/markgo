@@ -616,7 +616,7 @@ function WritingSettings({ writing, onChange }: { writing: AppSettings['writing'
         <Row label="篇幅">
           <Segmented
             value={writing.length}
-            options={WRITING_LENGTHS.map((l) => [l.key, `${l.label} · ${l.words} 字`] as const)}
+            options={WRITING_LENGTHS.map((l) => [l.key, l.label] as const)}
             onChange={(length) => onChange({ length })}
           />
         </Row>

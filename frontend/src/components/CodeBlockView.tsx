@@ -1,9 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { NodeViewContent, NodeViewWrapper, type Editor, type ReactNodeViewProps } from '@tiptap/react'
-import { Check, ChevronDown, Copy, Download, Search } from 'lucide-react'
+import { Braces, Check, ChevronDown, Copy, Download, Search } from 'lucide-react'
 import { renderMermaidSvg, svgToPng } from '../lib/mermaid'
 import { toast } from '../lib/toast'
+import { canFormat, formatCode } from '../lib/format-code'
 
 /** 常用语言放前面，其余按名称排列 */
 const POPULAR = ['plaintext', 'mermaid', 'javascript', 'typescript', 'python', 'java', 'go', 'rust', 'bash', 'json', 'sql', 'html', 'css', 'markdown', 'yaml']
@@ -90,6 +91,30 @@ export function CodeBlockView({ node, updateAttributes, extension, editor, getPo
   const popular = POPULAR.filter((l) => l === 'html' || l === 'mermaid' || all.includes(l))
   const rest = all.filter((l) => !POPULAR.includes(l) && l !== 'xml').concat('xml').sort((a, b) => label(a).localeCompare(label(b)))
 
+  const format = async () => {
+    const code = node.textContent
+    if (!code.trim()) return
+    try {
+      const out = await formatCode(code, lang)
+      const pos = getPos()
+      // 等待期间块可能已被修改或删除，此时放弃
+      if (out === code || typeof pos !== 'number' || editor.state.doc.nodeAt(pos)?.textContent !== code) return
+      const current = editor.state.doc.nodeAt(pos)!
+      editor
+        .chain()
+        .command(({ tr, state }) => {
+          const from = pos + 1
+          const to = from + current.content.size
+          if (out) tr.replaceWith(from, to, state.schema.text(out))
+          else tr.delete(from, to)
+          return true
+        })
+        .run()
+    } catch (err) {
+      toast(`无法格式化：${(err as Error).message.split('\n')[0]}`, 'error')
+    }
+  }
+
   const editCode = () => {
     const pos = getPos()
     if (typeof pos === 'number') editor.chain().focus().setTextSelection(pos + 1 + node.content.size).run()
@@ -103,6 +128,11 @@ export function CodeBlockView({ node, updateAttributes, extension, editor, getPo
           <ChevronDown size={12} />
         </button>
         {isMermaid && <MermaidExport code={node.textContent} open={exporting} onOpen={setExporting} />}
+        {canFormat(lang) && editor.isEditable && (
+          <button title="格式化代码" onClick={format}>
+            <Braces size={13} />
+          </button>
+        )}
         <button
           title="复制代码"
           onClick={() => {

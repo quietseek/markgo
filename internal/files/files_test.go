@@ -33,6 +33,29 @@ func TestListTreeSortsDirsFirstNaturally(t *testing.T) {
 	}
 }
 
+func TestListTreeSkipsFoldersWithoutNotes(t *testing.T) {
+	root := t.TempDir()
+	os.MkdirAll(filepath.Join(root, "assets"), 0o755)
+	os.WriteFile(filepath.Join(root, "assets", "a.png"), nil, 0o644)
+	os.MkdirAll(filepath.Join(root, "src", "deep"), 0o755)
+	os.WriteFile(filepath.Join(root, "src", "deep", "main.go"), nil, 0o644)
+	os.MkdirAll(filepath.Join(root, "posts", "img"), 0o755)
+	os.WriteFile(filepath.Join(root, "posts", "img", "b.png"), nil, 0o644)
+	os.WriteFile(filepath.Join(root, "posts", "hello.md"), nil, 0o644)
+	os.MkdirAll(filepath.Join(root, "新建文件夹"), 0o755)
+	tree := ListTree(root, false)
+	var names []string
+	for _, n := range tree {
+		names = append(names, n.Name)
+	}
+	if len(names) != 2 || names[0] != "posts" || names[1] != "新建文件夹" {
+		t.Fatalf("names=%v", names)
+	}
+	if posts := tree[0].Children; len(posts) != 1 || posts[0].Name != "hello.md" {
+		t.Fatalf("posts=%v", posts)
+	}
+}
+
 func TestCreateAndRename(t *testing.T) {
 	dir := t.TempDir()
 	a, err := CreateEntry(dir, "草稿", "file")
@@ -94,5 +117,22 @@ func TestRenameDoesNotOverwriteCaseVariant(t *testing.T) {
 	}
 	if raw, _ := os.ReadFile(upper); string(raw) != "A" {
 		t.Fatal("existing file was overwritten")
+	}
+}
+
+func TestIsInside(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "notes")
+	cases := map[string]bool{
+		filepath.Join(root, "a.md"):               true,
+		filepath.Join(root, "sub", "b.md"):        true,
+		root:                                      false,
+		filepath.Join(root+"2", "c.md"):           false,
+		filepath.Join(filepath.Dir(root), "d.md"): false,
+		filepath.Join(root, "..", "e.md"):         false,
+	}
+	for p, want := range cases {
+		if got := IsInside(p, root); got != want {
+			t.Errorf("IsInside(%q) = %v, want %v", p, got, want)
+		}
 	}
 }

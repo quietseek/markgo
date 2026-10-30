@@ -18,6 +18,8 @@
     "@tiptap/extension-image": "^3.32.0",
     "@tiptap/extension-list": "^3.32.0",
     "@tiptap/extension-mathematics": "^3.32.0",
+    "@tiptap/extension-subscript": "^3.32.1",
+    "@tiptap/extension-superscript": "^3.32.1",
     "@tiptap/extension-table": "^3.32.0",
     "@tiptap/extensions": "^3.32.0",
     "@tiptap/markdown": "^3.32.0",
@@ -32,8 +34,10 @@
     "marked": "^17.0.6",
     "mathjax-full": "^3.2.2",
     "mermaid": "^11.17.2",
+    "prettier": "^3.9.10",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "sql-formatter": "^15.9.0"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import {
   ChevronDown,
   ChevronRight,
@@ -17,7 +17,15 @@ import type { FileNode } from '@shared/types'
 import type { HeadingInfo } from './Editor'
 import { basename, dirname, isInside } from '../lib/assets'
 
+export type SidebarTab = 'files' | 'outline' | 'info'
+
 interface Props {
+  tab: SidebarTab
+  onTab(tab: SidebarTab): void
+  /** 单独打开文档的窗口：不显示文件列表 */
+  docWindow: boolean
+  /** 「信息」页内容 */
+  info: ReactNode
   workspace?: string
   recentWorkspaces: string[]
   tree: FileNode[]
@@ -46,7 +54,7 @@ interface Props {
 type Menu = { x: number; y: number; node: FileNode | null }
 
 export function Sidebar(props: Props) {
-  const [tab, setTab] = useState<'files' | 'outline'>('files')
+  const tab = props.docWindow && props.tab === 'files' ? 'outline' : props.tab
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [menu, setMenu] = useState<Menu | null>(null)
   const [renaming, setRenaming] = useState<string | null>(null)
@@ -179,15 +187,24 @@ export function Sidebar(props: Props) {
   return (
     <aside className="sidebar">
       <div className="sidebar-tabs">
-        <button className={tab === 'files' ? 'active' : ''} onClick={() => setTab('files')}>
-          文件
-        </button>
-        <button className={tab === 'outline' ? 'active' : ''} onClick={() => setTab('outline')}>
-          大纲
-        </button>
+        {(
+          [
+            ['files', '文件'],
+            ['outline', '大纲'],
+            ['info', '信息']
+          ] as const
+        )
+          .filter(([key]) => !props.docWindow || key !== 'files')
+          .map(([key, label]) => (
+            <button key={key} className={tab === key ? 'active' : ''} onClick={() => props.onTab(key)}>
+              {label}
+            </button>
+          ))}
       </div>
 
-      {tab === 'files' ? (
+      {tab === 'info' ? (
+        props.info
+      ) : tab === 'files' ? (
         props.workspace ? (
           <>
             <div className="sidebar-head">

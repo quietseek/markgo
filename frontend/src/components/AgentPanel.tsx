@@ -102,9 +102,9 @@ export function AgentPanel({ settings, docPath, getSelection, syncDoc, onSetting
     await newChat()
     setComposing(false)
     setWriting({ brief, phase: 'outline' })
-    const words = WRITING_LENGTHS.find((l) => l.key === length)?.words
+    const label = WRITING_LENGTHS.find((l) => l.key === length)?.label
     await ask(outlinePrompt(brief, settings.writing), {
-      display: `写一篇文章：${topic}\n${style.name} · 约 ${words} 字，先拟大纲`,
+      display: `写一篇文章：${topic}\n${style.name} · ${label}，先拟大纲`,
       docContent: await syncDoc()
     })
   }
@@ -345,8 +345,8 @@ function WritingCard({
       <label>篇幅</label>
       <div className="writing-chips">
         {WRITING_LENGTHS.map((l) => (
-          <button key={l.key} className={l.key === length ? 'active' : ''} onClick={() => setLength(l.key)}>
-            {l.label} · {l.words} 字
+          <button key={l.key} className={l.key === length ? 'active' : ''} title={`约 ${l.words} 字`} onClick={() => setLength(l.key)}>
+            {l.label}
           </button>
         ))}
       </div>

@@ -31,7 +31,8 @@ func IsNote(name string) bool {
 	return slices.Contains(noteExts, strings.ToLower(filepath.Ext(name)))
 }
 
-// ListTree 列出笔记库中的文件夹与笔记：文件夹在前，按中文拼音与数字自然排序
+// ListTree 列出笔记库中的文件夹与笔记：文件夹在前，按中文拼音与数字自然排序。
+// 不含笔记的文件夹（如只放图片的 assets）不列出；完全空的文件夹保留，以便显示刚新建的文件夹
 func ListTree(root string, showHidden bool) []FileNode {
 	col := collate.New(language.SimplifiedChinese, collate.Numeric)
 	return listTree(root, showHidden, 0, col)
@@ -60,7 +61,11 @@ func listTree(root string, showHidden bool, depth int, col *collate.Collator) []
 			}
 		}
 		if isDir {
-			nodes = append(nodes, FileNode{Name: name, Path: full, Type: "dir", Children: listTree(full, showHidden, depth+1, col)})
+			children := listTree(full, showHidden, depth+1, col)
+			if len(children) == 0 && !isEmptyDir(full) {
+				continue
+			}
+			nodes = append(nodes, FileNode{Name: name, Path: full, Type: "dir", Children: children})
 		} else if IsNote(name) {
 			nodes = append(nodes, FileNode{Name: name, Path: full, Type: "file"})
 		}
@@ -75,6 +80,17 @@ func listTree(root string, showHidden bool, depth int, col *collate.Collator) []
 		return col.CompareString(a.Name, b.Name)
 	})
 	return nodes
+}
+
+func isEmptyDir(p string) bool {
+	entries, err := os.ReadDir(p)
+	return err == nil && len(entries) == 0
+}
+
+// IsInside 文件是否位于目录之内
+func IsInside(file, dir string) bool {
+	rel, err := filepath.Rel(dir, file)
+	return err == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
 }
 
 func exists(p string) bool {

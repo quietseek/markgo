@@ -6,14 +6,17 @@ export interface WritingBrief {
   length: WritingLength
 }
 
-const words = (length: WritingLength) => WRITING_LENGTHS.find((l) => l.key === length)?.words ?? 1500
+const lengthHint = (length: WritingLength) => {
+  const l = WRITING_LENGTHS.find((x) => x.key === length) ?? WRITING_LENGTHS[1]
+  return `${l.label}，约 ${l.words} 字（以内容完整为准，不必严格控制字数）`
+}
 
 function requirements(brief: WritingBrief, config: WritingConfig) {
   return [
     `话题：${brief.topic}`,
     `写作风格：${brief.style.name}——${brief.style.description}`,
     config.audience.trim() && `目标读者：${config.audience.trim()}`,
-    `篇幅：约 ${words(brief.length)} 字`,
+    `篇幅：${lengthHint(brief.length)}`,
     config.extra.trim() && `补充要求：${config.extra.trim()}`
   ]
     .filter(Boolean)
@@ -28,7 +31,7 @@ ${requirements(brief, config)}
 
 请按以下格式回复：
 1. 第一行用「# 」给出建议标题；
-2. 用多级列表列出各部分的要点，每部分注明大致字数；
+2. 用多级列表列出各部分的要点；
 3. 最后用一两句话说明整体思路。
 
 之后我们会讨论并修改大纲，等我确认后再开始写作。`

@@ -75,6 +75,11 @@ function updateLastAgent(fn: (item: Extract<ChatItem, { kind: 'agent' }>) => Ext
   set({ items: [...state.items, created] })
 }
 
+/** 单独打开文档的窗口只处理本窗口发起的频道（内联 AI 等），对话与写入审阅由主窗口处理 */
+export function handleChannelEvent(e: AgentEvent) {
+  if (e.type !== 'status' && e.type !== 'write' && e.channel !== 'chat') channelListeners.get(e.channel)?.(e)
+}
+
 export function handleAgentEvent(e: AgentEvent) {
   if (e.type === 'status') {
     set({ status: e.status, info: e.info ?? state.info, error: e.error })

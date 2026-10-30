@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Code2, FileCode, PanelLeft, Sparkles } from 'lucide-react'
 import { MAX_RECENT_WORKSPACES, type AppSettings, type FileNode, type WriteProposal } from '@shared/types'
 import { Editor, type EditorHandle, type HeadingInfo } from './components/Editor'
-import { Sidebar } from './components/Sidebar'
+import { Sidebar, type SidebarTab } from './components/Sidebar'
+import { DocInfo } from './components/DocInfo'
 import { SettingsDialog } from './components/SettingsDialog'
 import { WindowControls } from './components/WindowControls'
 import { ShortcutsDialog } from './components/ShortcutsDialog'
@@ -11,10 +12,10 @@ import { PublishDialog } from './components/PublishDialog'
 import { Toasts } from './components/Toasts'
 import { AgentPanel } from './components/AgentPanel'
 import { LayoutControls, PublishActions } from './components/LayoutControls'
-import { EditorWidthSwitch } from './components/EditorWidthSwitch'
+import { EditorWidthSwitch, ImageModeSwitch } from './components/EditorWidthSwitch'
 import { buildEditorThemeCss, resolveEditorTheme } from './lib/editor-theme'
 import { DiffReview } from './components/DiffReview'
-import { handleAgentEvent, resolveProposal, useAgentState } from './lib/agent-store'
+import { handleAgentEvent, handleChannelEvent, resolveProposal, useAgentState } from './lib/agent-store'
 import { basename } from './lib/assets'
 import { countWords, extractTitle, renderWechat } from './lib/render'
 import { prepareMermaid } from './lib/mermaid'
@@ -23,6 +24,10 @@ import { WELCOME_MD } from './lib/welcome'
 
 const api = window.markgo
 const isMac = api.platform === 'darwin'
+/** 单独打开文档的窗口：只编辑这一个文件，笔记库、AI 对话等在主窗口中 */
+const docWindow = api.window.docPath
+/** 文档窗口中交给主窗口处理的菜单动作 */
+const MAIN_ONLY_ACTIONS = ['new-file', 'open-folder', 'toggle-ai', 'ai-new-chat']
 
 interface Doc {
   path: string
@@ -46,6 +51,9 @@ export function App() {
   const [update, setUpdate] = useState<UpdateState>({ checking: false })
   const agent = useAgentState()
   const [saveState, setSaveState] = useState<SaveState>('saved')
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>('files')
+  /** 侧边栏「信息」待进入元信息编辑 */
+  const [metaEdit, setMetaEdit] = useState(false)
   const [systemDark, setSystemDark] = useState(() => matchMedia('(prefers-color-scheme: dark)').matches)
 
   const editorRef = useRef<EditorHandle>(null)
@@ -98,7 +106,8 @@ export function App() {
       api.ai.markSaved(path, content)
       setSaveState('saved')
       setSourceMode(false)
-      if (!isScratch) api.settings.set({ lastFile: path })
+      if (docWindow) api.window.docMoved(path)
+      else if (!isScratch) api.settings.set({ lastFile: path })
       else api.settings.set({ lastFile: undefined })
     },
     [flushSave]
@@ -135,15 +144,25 @@ export function App() {
     setTree([])
   }, [updateSettings])
 
+  /** 笔记库中的文件在主窗口打开，其余单独开一个窗口（由 Go 端判断） */
   const openFileDialog = useCallback(async () => {
     const p = await api.fs.openFile()
-    if (p) loadDoc(p)
-  }, [loadDoc])
+    if (p && p !== latest.current.doc?.path) await api.app.openDocument(p)
+  }, [])
 
   useEffect(() => {
     ;(async () => {
       const s = await api.settings.get()
       setSettings(s)
+      if (docWindow) {
+        setSidebarTab('outline')
+        try {
+          await loadDoc(docWindow)
+        } catch (err) {
+          toast(`无法打开文件：${(err as Error).message}`, 'error')
+        }
+        return
+      }
       if (s.lastWorkspace) refreshTree(s.lastWorkspace)
       try {
         // 从桌面等外部打开时优先显示该文件
@@ -165,6 +184,18 @@ export function App() {
       window.clearTimeout(saveTimer.current)
       saveTimer.current = window.setTimeout(flushSave, 800)
     },
+    [flushSave]
+  )
+
+  useEffect(() => api.settings.onChange(setSettings), [])
+
+  // 文档窗口关闭前先写盘
+  useEffect(
+    () =>
+      api.window.onCloseRequest(async () => {
+        await flushSave()
+        api.window.confirmClose()
+      }),
     [flushSave]
   )
 
@@ -315,11 +346,11 @@ export function App() {
     return md
   }, [flushSave])
 
-  useEffect(() => api.ai.onEvent(handleAgentEvent), [])
+  useEffect(() => api.ai.onEvent(docWindow ? handleChannelEvent : handleAgentEvent), [])
 
   // 让 Agent 读取到编辑器中的实时内容（包括尚未保存的修改）
   useEffect(() => {
-    if (doc) api.ai.setActiveDoc(doc.path, markdown)
+    if (doc && !docWindow) api.ai.setActiveDoc(doc.path, markdown)
   }, [doc, markdown])
 
   const proposal = agent.proposals[0]
@@ -406,7 +437,14 @@ export function App() {
     about: () => setDialog('about'),
     'check-update': openUpdate
   }
-  useEffect(() => api.onMenu((action) => handlers.current[action]?.()), [])
+  useEffect(
+    () =>
+      api.onMenu((action) => {
+        if (docWindow && MAIN_ONLY_ACTIONS.includes(action)) api.window.runInMain(action)
+        else handlers.current[action]?.()
+      }),
+    []
+  )
   useEffect(() => api.onOpenPath((p) => loadDoc(p)), [loadDoc])
   useEffect(() => api.onOpenWorkspace((dir) => openWorkspace(dir)), [openWorkspace])
 
@@ -417,6 +455,28 @@ export function App() {
   }
 
   const words = useMemo(() => countWords(markdown), [markdown])
+
+  /** 在侧边栏「信息」中查看元信息；由 / 命令新插入时直接进入编辑 */
+  const openFrontMatter = useCallback(
+    (edit: boolean) => {
+      if (!settings?.showSidebar) updateSettings({ showSidebar: true })
+      setFocusMode(false)
+      setSidebarTab('info')
+      // 编辑器的 onChange 有防抖，先同步最新内容，侧边栏才能读到刚插入的元信息
+      const md = editorRef.current?.getMarkdown()
+      if (md != null && md !== latest.current.markdown) onEditorChange(md)
+      if (edit) setMetaEdit(true)
+    },
+    [settings?.showSidebar, updateSettings, onEditorChange]
+  )
+  const setFrontMatter = useCallback(
+    (yaml: string | null) => {
+      editorRef.current?.setFrontMatter(yaml)
+      const md = editorRef.current?.getMarkdown()
+      if (md != null && md !== latest.current.markdown) onEditorChange(md)
+    },
+    [onEditorChange]
+  )
 
   // 编辑器主题：把排版主题转换为作用于所见即所得的样式表
   const editorThemeKey = settings ? resolveEditorTheme(settings.editorTheme, settings.themeKey) : null
@@ -438,7 +498,7 @@ export function App() {
 
   const title = doc.isScratch ? '未命名草稿' : basename(doc.path).replace(/\.(md|markdown|txt)$/i, '')
   const showSidebar = settings.showSidebar && !focusMode
-  const showAgent = settings.showAgent && !focusMode
+  const showAgent = settings.showAgent && !focusMode && !docWindow
   // 所选按钮样式与平台原生一致时由系统绘制，否则自绘（自绘按钮的样式与位置即时生效）
   const customControls = api.window.nativeControls
     ? null
@@ -476,6 +536,20 @@ export function App() {
       <div className="workbench">
         {showSidebar && (
           <Sidebar
+            tab={sidebarTab}
+            onTab={setSidebarTab}
+            docWindow={!!docWindow}
+            info={
+              <DocInfo
+                markdown={markdown}
+                words={words}
+                path={doc.isScratch ? undefined : doc.path}
+                editRequested={metaEdit}
+                onEditStarted={() => setMetaEdit(false)}
+                onChange={setFrontMatter}
+                onReveal={(p) => api.fs.reveal(p)}
+              />
+            }
             workspace={settings.lastWorkspace}
             recentWorkspaces={settings.recentWorkspaces}
             tree={tree}
@@ -522,6 +596,7 @@ export function App() {
             onOpenImageSettings={() => setDialog('settings-image')}
             onChange={onEditorChange}
             onHeadings={setHeadings}
+            onOpenFrontMatter={openFrontMatter}
           />
           <footer className="statusbar">
             <button
@@ -534,27 +609,25 @@ export function App() {
             <span>{words.toLocaleString()} 字</span>
             {sourceMode ? <span>Markdown 源码</span> : <LayoutControls settings={settings} onChange={updateSettings} />}
             <EditorWidthSwitch value={settings.editorWidth} onChange={(editorWidth) => updateSettings({ editorWidth })} />
-            <span
-              className="link"
-              onClick={() => setDialog('settings')}
-              title="图片插入方式"
-            >
-              图片：{settings.imageUploadMode === 'picgo' ? 'PicGo 图床' : '本地目录'}
-            </span>
+            <ImageModeSwitch value={settings.imageUploadMode} onChange={(imageUploadMode) => updateSettings({ imageUploadMode })} />
             <span className="grow" />
             <span className="muted" title={doc.path}>
               {doc.isScratch ? '草稿自动保存在应用数据目录 · ⌘S 另存为' : { saved: '已保存', saving: '保存中…', unsaved: '编辑中' }[saveState]}
             </span>
             <PublishActions onCopy={copyToWechat} onPublish={openPublish} />
-            <span className="status-sep" />
-            <button
-              className={`icon-btn sm has-dot${showAgent ? ' on active' : ''}`}
-              title="AI 助手 ⌘J"
-              onClick={() => handlers.current['toggle-ai']()}
-            >
-              <Sparkles size={15} />
-              {agent.running && <span className="tab-dot" />}
-            </button>
+            {!docWindow && (
+              <>
+                <span className="status-sep" />
+                <button
+                  className={`icon-btn sm has-dot${showAgent ? ' on active' : ''}`}
+                  title="AI 助手 ⌘J"
+                  onClick={() => handlers.current['toggle-ai']()}
+                >
+                  <Sparkles size={15} />
+                  {agent.running && <span className="tab-dot" />}
+                </button>
+              </>
+            )}
           </footer>
         </main>
 

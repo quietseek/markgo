@@ -103,10 +103,11 @@ export interface WritingStyle {
 
 export type WritingLength = 'short' | 'medium' | 'long'
 
+/** words 只作为给 Agent 的篇幅参考，界面上不突出字数 */
 export const WRITING_LENGTHS: { key: WritingLength; label: string; words: number }[] = [
-  { key: 'short', label: '短文', words: 800 },
-  { key: 'medium', label: '中篇', words: 1500 },
-  { key: 'long', label: '长文', words: 3000 }
+  { key: 'short', label: '短文', words: 1000 },
+  { key: 'medium', label: '中篇', words: 3000 },
+  { key: 'long', label: '长文', words: 10000 }
 ]
 
 export interface WritingConfig {
@@ -361,6 +362,8 @@ export interface MarkGoApi {
   settings: {
     get(): Promise<AppSettings>
     set(patch: Partial<AppSettings>): Promise<AppSettings>
+    /** 其他窗口修改了设置 */
+    onChange(cb: (settings: AppSettings) => void): () => void
   }
   fs: {
     openFolder(): Promise<string | null>
@@ -429,6 +432,8 @@ export interface MarkGoApi {
     /** 启动时取走待打开的文件（从桌面等外部打开 MarkGo 时） */
     takeOpenPath(): Promise<string | null>
     checkUpdate(): Promise<UpdateCheck>
+    /** 打开文档：笔记库中的文件在主窗口打开，其余单独开一个窗口 */
+    openDocument(path: string): Promise<void>
   }
   window: {
     setDark(dark: boolean): void
@@ -438,6 +443,15 @@ export interface MarkGoApi {
     /** 本次启动是否使用系统原生窗口按钮（切换需重启） */
     nativeControls: boolean
     onMaximizeChange(cb: (maximized: boolean) => void): () => void
+    /** 单独打开的文档窗口：地址中带有要打开的文件 */
+    docPath: string | null
+    /** 文档窗口关闭前请求保存，保存后调用 confirmClose */
+    onCloseRequest(cb: () => void): () => void
+    confirmClose(): void
+    /** 在主窗口中执行菜单动作 */
+    runInMain(action: string): void
+    /** 文档窗口中的文件被另存或重命名 */
+    docMoved(path: string): void
   }
   onMenu(cb: (action: string) => void): () => void
   onOpenPath(cb: (path: string) => void): () => void

@@ -11,7 +11,7 @@ import (
 )
 
 func (b *Bridge) sendMenu(action string) func(*application.Context) {
-	return func(*application.Context) { b.emit("menu", action) }
+	return func(*application.Context) { b.sendToFocused("menu", action) }
 }
 
 // buildAppMenu macOS 菜单栏；Windows / Linux 为无边框窗口，快捷键由前端处理（frontend/src/bridge.ts）
@@ -116,7 +116,7 @@ func (b *Bridge) buildTrayMenu() *application.Menu {
 	run := func(action string) func(*application.Context) {
 		return func(*application.Context) {
 			b.showWindow()
-			b.emit("menu", action)
+			emitTo(b.window, "menu", action)
 		}
 	}
 	lastSep := true
@@ -148,7 +148,7 @@ func (b *Bridge) buildTrayMenu() *application.Menu {
 				dir := dir
 				sub.Add(filepath.Base(dir)).SetTooltip(dir).OnClick(func(*application.Context) {
 					b.showWindow()
-					b.emit("open-workspace", dir)
+					emitTo(b.window, "open-workspace", dir)
 				})
 			}
 		default:

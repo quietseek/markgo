@@ -128,3 +128,14 @@ describe('mermaid', () => {
     expect(html).toContain('let a')
   })
 })
+
+describe('sub / superscript', () => {
+  it('renders ~x~ and ^x^ without breaking strikethrough', () => {
+    const html = renderWechat('H~2~O，x^2^，~~删除~~，x^2 + y^2', { themeKey: themeList[0].key })
+    const body = parse(html)
+    expect(body.querySelector('sub')?.textContent).toBe('2')
+    expect(body.querySelector('sup')?.textContent).toBe('2')
+    expect(body.querySelector('del, s')?.textContent).toBe('删除')
+    expect(body.textContent).toContain('x^2 + y^2')
+  })
+})

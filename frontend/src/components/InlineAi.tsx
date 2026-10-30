@@ -38,7 +38,8 @@ export interface InlineAiRequest {
   left: number
 }
 
-let channelSeq = 0
+// 每个窗口各自计数，随机起点避免多个窗口的频道重名
+let channelSeq = Math.floor(Math.random() * 1e9)
 
 type Phase = 'ask' | 'running' | 'done' | 'error'
 

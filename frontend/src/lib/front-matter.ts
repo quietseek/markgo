@@ -9,6 +9,20 @@ const looksLikeYaml = (yaml: string) => {
   return !first || /^[\w$"'-][^:\n]*:(\s|$)/.test(first)
 }
 
+/** 取 Markdown 开头的元信息（YAML 原文）；没有时返回 null */
+export function extractFrontMatter(md: string): string | null {
+  const m = md.match(FRONT_MATTER_RE)
+  return m && looksLikeYaml(m[1] ?? '') ? (m[1] ?? '') : null
+}
+
+/** 替换、添加（yaml 为字符串）或删除（null）Markdown 开头的元信息 */
+export function replaceFrontMatter(md: string, yaml: string | null): string {
+  const m = md.match(FRONT_MATTER_RE)
+  const body = m && looksLikeYaml(m[1] ?? '') ? md.slice(m[0].length).replace(/^\s*\n/, '') : md
+  if (yaml === null) return body
+  return `---\n${yaml}\n---\n\n${body}`
+}
+
 export interface FrontMatterEntry {
   key: string
   /** 列表（[a, b] 或 - a）解析为数组，其余保留原文 */
@@ -46,6 +60,8 @@ declare module '@tiptap/core' {
     frontMatter: {
       /** 在文档开头插入元信息（已存在时不重复插入） */
       insertFrontMatter: (yaml: string) => ReturnType
+      /** 替换文档开头的元信息；yaml 为 null 时删除，文档中没有时插入 */
+      setFrontMatter: (yaml: string | null) => ReturnType
     }
   }
 }
@@ -61,9 +77,9 @@ export const FrontMatter = Node.create({
     return { yaml: { default: '' } }
   },
 
-  addStorage() {
-    /** 由命令插入时，节点挂载后直接进入编辑状态 */
-    return { editOnMount: false }
+  addOptions() {
+    /** 点击编辑区中的元信息摘要：在侧边栏「信息」中查看与编辑 */
+    return { onOpen: () => {} } as { onOpen(): void }
   },
 
   parseHTML() {
@@ -101,8 +117,20 @@ export const FrontMatter = Node.create({
         ({ state, tr, dispatch }) => {
           if (state.doc.firstChild?.type.name === this.name) return false
           if (dispatch) {
-            this.storage.editOnMount = true
             tr.insert(0, this.type.create({ yaml }))
+          }
+          return true
+        },
+      setFrontMatter:
+        (yaml) =>
+        ({ state, tr, dispatch }) => {
+          const first = state.doc.firstChild
+          const existing = first?.type.name === this.name ? first : null
+          if (!existing && yaml === null) return false
+          if (dispatch) {
+            if (existing && yaml === null) tr.delete(0, existing.nodeSize)
+            else if (existing) tr.setNodeMarkup(0, undefined, { yaml })
+            else tr.insert(0, this.type.create({ yaml }))
           }
           return true
         }

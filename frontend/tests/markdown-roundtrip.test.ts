@@ -6,15 +6,32 @@ import Image from '@tiptap/extension-image'
 import Highlight from '@tiptap/extension-highlight'
 import { TableKit } from '@tiptap/extension-table'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
+import { Subscript, Superscript } from '../src/lib/sub-sup'
 
 const make = (md: string) =>
   new Editor({
-    extensions: [StarterKit, Markdown, Image, Highlight, TableKit, TaskList, TaskItem.configure({ nested: true })],
+    extensions: [StarterKit, Markdown, Image, Highlight, Subscript, Superscript, TableKit, TaskList, TaskItem.configure({ nested: true })],
     content: md,
     contentType: 'markdown'
   })
 
 describe('tiptap markdown round trip', () => {
+  it('parses and keeps subscript and superscript', () => {
+    const ed = make('H~2~O 与 x^2^，~~删除~~，x^2 + y^2 不变')
+    const html = ed.getHTML()
+    expect(html).toContain('<sub>2</sub>')
+    expect(html).toContain('<sup>2</sup>')
+    expect(html).toContain('<s>删除</s>')
+    expect(ed.getMarkdown()).toBe('H~2~O 与 x^2^，~~删除~~，x^2 + y^2 不变')
+  })
+
+  it('falls back to html tags for sub / sup with spaces', () => {
+    const ed = make('a')
+    ed.commands.setContent('<p>a<sup>b c</sup></p>')
+    expect(ed.getMarkdown()).toBe('a<sup>b c</sup>')
+    expect(make('a<sup>b c</sup>').getMarkdown()).toBe('a<sup>b c</sup>')
+  })
+
   it('keeps common markdown structures', () => {
     const md = [
       '# 标题',
