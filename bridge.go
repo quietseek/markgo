@@ -350,8 +350,8 @@ func (b *Bridge) shutdown() {
 
 // ---------- 打开文件 ----------
 
-// openPath 打开文档：笔记库中的文件（或主窗口正在编辑的文件）在主窗口中打开，其余单独开一个窗口；
-// 主窗口前端尚未就绪（例如双击文件启动应用）时由主窗口打开
+// openPath 在主窗口中打开文档；笔记库之外的文档由前端把笔记库切换到其所在文件夹。
+// 主窗口前端尚未就绪（例如双击文件启动应用）时排队，等前端就绪后取走
 func (b *Bridge) openPath(file string) {
 	b.openMu.Lock()
 	defer b.openMu.Unlock()
@@ -359,17 +359,11 @@ func (b *Bridge) openPath(file string) {
 		b.pending = file
 		return
 	}
-	ws := b.store.Get().LastWorkspace
-	doc, _ := b.activeDoc.Load().(string)
-	if (ws != "" && files.IsInside(file, ws)) || (doc != "" && samePath(doc, file)) {
-		b.showWindow()
-		emitTo(b.window, "open-path", file)
-		return
-	}
-	b.openDocWindow(file)
+	b.showWindow()
+	emitTo(b.window, "open-path", file)
 }
 
-// OpenDocument 前端「打开文件」：按 openPath 的规则决定在哪个窗口打开
+// OpenDocument 前端「打开文件」：在主窗口中打开
 func (b *Bridge) OpenDocument(file string) { b.openPath(file) }
 
 func (b *Bridge) onSecondInstance(args []string, cwd string) {

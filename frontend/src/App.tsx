@@ -16,7 +16,7 @@ import { buildEditorThemeCss, resolveEditorTheme } from './lib/editor-theme'
 import { DiffReview } from './components/DiffReview'
 import { getAgentState, handleAgentEvent, handleChannelEvent, lastDraftText, resolveProposal, useAgentState } from './lib/agent-store'
 import { extractDraft } from './lib/writing'
-import { basename } from './lib/assets'
+import { basename, dirname, isInside } from './lib/assets'
 import { countWords, extractTitle, renderWechat } from './lib/render'
 import { prepareMermaid } from './lib/mermaid'
 import { toast } from './lib/toast'
@@ -99,25 +99,6 @@ export function App() {
     }
   }, [])
 
-  const loadDoc = useCallback(
-    async (path: string, isScratch = false) => {
-      await flushSave()
-      let content = await api.fs.read(path)
-      if (isScratch && !content.trim()) content = WELCOME_MD
-      setDoc((prev) => ({ path, isScratch, initial: content, version: (prev?.version || 0) + 1 }))
-      setMarkdown(content)
-      api.ai.markSaved(path, content)
-      setSaveState('saved')
-      setSourceMode(false)
-      if (docWindow) api.window.docMoved(path)
-      else if (!isScratch) api.settings.set({ lastFile: path })
-      else api.settings.set({ lastFile: undefined })
-    },
-    [flushSave]
-  )
-
-  const openScratch = useCallback(async () => loadDoc(await api.fs.scratchPath(), true), [loadDoc])
-
   const refreshTree = useCallback(async (root?: string) => {
     const ws = root ?? (await api.settings.get()).lastWorkspace
     setTree(ws ? await api.fs.listTree(ws) : [])
@@ -137,6 +118,29 @@ export function App() {
     [refreshTree, updateSettings]
   )
 
+  const loadDoc = useCallback(
+    async (path: string, isScratch = false) => {
+      await flushSave()
+      let content = await api.fs.read(path)
+      if (isScratch && !content.trim()) content = WELCOME_MD
+      setDoc((prev) => ({ path, isScratch, initial: content, version: (prev?.version || 0) + 1 }))
+      setMarkdown(content)
+      api.ai.markSaved(path, content)
+      setSaveState('saved')
+      setSourceMode(false)
+      if (docWindow) api.window.docMoved(path)
+      else if (!isScratch) {
+        await api.settings.set({ lastFile: path })
+        // 打开笔记库之外的文档时，侧栏切换到文档所在的文件夹
+        const ws = (await api.settings.get()).lastWorkspace
+        if (!ws || !isInside(path, ws)) await openWorkspace(dirname(path))
+      } else api.settings.set({ lastFile: undefined })
+    },
+    [flushSave, openWorkspace]
+  )
+
+  const openScratch = useCallback(async () => loadDoc(await api.fs.scratchPath(), true), [loadDoc])
+
   const openFolder = useCallback(async () => {
     const dir = await api.fs.openFolder()
     if (dir) await openWorkspace(dir)
@@ -147,7 +151,7 @@ export function App() {
     setTree([])
   }, [updateSettings])
 
-  /** 笔记库中的文件在主窗口打开，其余单独开一个窗口（由 Go 端判断） */
+  /** 在主窗口打开（文档窗口中也转交主窗口） */
   const openFileDialog = useCallback(async () => {
     const p = await api.fs.openFile()
     if (p && p !== latest.current.doc?.path) await api.app.openDocument(p)

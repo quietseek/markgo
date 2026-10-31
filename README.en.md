@@ -32,7 +32,7 @@ It runs on macOS, Windows and Linux. Built with [Wails 3](https://v3.wails.io) (
 
 | Module | Description |
 | --- | --- |
-| Notebook | Any local folder can be a notebook, and every note is a plain `.md` file; folders without notes are hidden; files outside the notebook open in their own window; create, rename, move to trash and reveal in the file manager; edits are saved automatically |
+| Notebook | Any local folder can be a notebook, and every note is a plain `.md` file; folders without notes are hidden; opening a file outside the notebook switches to its folder; create, rename, move to trash and reveal in the file manager; edits are saved automatically |
 | Editor | WYSIWYG editing on Tiptap 3: headings, lists, task lists, tables (row/column toolbar), code blocks (language picker, syntax highlighting, one-click copy, formatting), Mermaid diagrams (live rendering, copy as image or export PNG / SVG), blockquotes, highlights, sub/superscript, links, images and math (KaTeX); `/` command menu, top quick-action bar (can be turned off in settings), collapsible YAML front matter display and editing (hidden while a layout theme is applied), selection toolbar, find and replace, Typora-style shortcuts, Markdown source mode, outline navigation, focus mode and typewriter mode |
 | Layout | 15 built-in layout themes applied directly to the editor; adjustable font size and paragraph spacing; external links can be turned into end-of-article footnotes; three editor width presets: 「标准 / 宽屏 / 铺满」(Standard / Wide / Full); 「原生样式」(Native style) offers font, font size, line height and paragraph spacing settings, and the status bar switches between system / dark / light appearance |
 | Images | Paste, drag and drop, or insert via command; upload to a PicGo / PicList image host, or save to an `assets` folder next to the document; AI image generation; the image toolbar can upload local images to the host, save remote images locally, replace an image and edit its caption |
@@ -63,7 +63,7 @@ Once installed, when a new version is available, click 「立即更新」(Update
 
 ### Write, style and publish
 
-1. After launching, choose a folder as your notebook via 「文件 → 打开文件夹」(File → Open Folder, `⌘⇧O`). Markdown files outside the notebook (opened with 「打开文件」(Open File) `⌘O`, by double-clicking, or by dropping onto the app icon) open in a separate window.
+1. After launching, choose a folder as your notebook via 「文件 → 打开文件夹」(File → Open Folder, `⌘⇧O`). Markdown files outside the notebook (opened with 「打开文件」(Open File) `⌘O`, by double-clicking, or by dropping onto the app icon) open in the main window, and the sidebar switches to that file's folder.
 2. Press `⌘N` to create a note. Type `/` in the editor for the command menu; select text to bring up the formatting toolbar. The `/` command 「元信息」(Front matter) adds a title, date, tags and so on at the top of the document; expand it to edit under 「原生样式」(Native style).
 3. In the bottom status bar, pick a layout theme, adjust font size and paragraph spacing, and switch the editor width and the image insertion mode (「图床 / 本地」, image host / local). With 「原生样式」(Native style), the editor uses the default look while publishing still applies the selected theme.
 4. When you are done, use the icon buttons on the right of the status bar to copy the styled content or publish.
