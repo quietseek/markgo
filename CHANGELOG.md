@@ -2,6 +2,33 @@
 
 每个版本发布时，GitHub Release 的说明取自本文件对应版本的小节，按「修复问题、新增功能、优化改进、下载地址」组织，没有内容的小节不写。发版前请先在这里补充内容。
 
+## v0.4.3
+
+### 修复问题
+
+- 修复导入 Typora 主题时，资源文件夹与主题文件名不同（如 drake-light.css 使用的 drake 文件夹）而没有一并导入、导致字体和图片缺失的问题：现在会自动导入主题样式表中引用到的文件夹
+
+### 新增功能
+
+- Typora 主题支持一次选择多个 .css 文件导入
+- 新增「从文件夹批量导入」：选择 Typora 的主题文件夹（或任意包含主题的文件夹），自动导入其中所有主题，跳过 base.user.css 等自定义覆盖文件
+- 新增「打开主题目录」，可在文件管理器中手动添加或删除主题文件，回到应用后列表自动刷新
+
+### 优化改进
+
+- 删除主题时一并删除它独用的资源文件夹，仍被其他主题使用的文件夹会保留
+
+### 下载地址
+
+| 系统 | 安装包 |
+| --- | --- |
+| macOS（Apple 芯片与 Intel 通用） | [MarkGo-0.4.3-mac-universal.dmg](https://github.com/quietseek/markgo/releases/download/v0.4.3/MarkGo-0.4.3-mac-universal.dmg) |
+| Windows 10 / 11 | [MarkGo-0.4.3-win-x64-setup.exe](https://github.com/quietseek/markgo/releases/download/v0.4.3/MarkGo-0.4.3-win-x64-setup.exe) |
+| Linux（Debian / Ubuntu） | [MarkGo-0.4.3-linux-amd64.deb](https://github.com/quietseek/markgo/releases/download/v0.4.3/MarkGo-0.4.3-linux-amd64.deb) |
+
+> Windows 需要 WebView2 运行时（系统通常已自带，安装程序会自动补装）；Linux 需要 GTK 4 与 WebKitGTK 6.0（Ubuntu 24.04+ / Debian 13+）。
+> 安装包未经代码签名：macOS 首次打开如提示「已损坏」或「无法验证开发者」，请在终端执行 `xattr -cr /Applications/MarkGo.app`；Windows 如出现 SmartScreen 提示，点击「更多信息 → 仍要运行」。
+
 ## v0.4.2
 
 ### 修复问题
