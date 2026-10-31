@@ -44,9 +44,6 @@ func installKind() update.Kind {
 			return update.KindWindows
 		}
 	case "linux":
-		if os.Getenv("APPIMAGE") != "" {
-			return update.KindAppImage
-		}
 		if strings.HasPrefix(exe, "/usr/") {
 			if _, err := exec.LookPath("dpkg"); err == nil {
 				return update.KindDeb
@@ -99,19 +96,12 @@ func (b *Bridge) installUpdate() error {
 		return errors.New("当前安装方式不支持自动更新，请前往下载页手动安装")
 	}
 
-	// AppImage 下载到原文件旁边，安装时原子替换；其余下载到临时目录
-	dir := ""
-	if kind == update.KindAppImage {
-		dir = filepath.Dir(os.Getenv("APPIMAGE"))
-	} else {
-		tmp, err := os.MkdirTemp("", "markgo-update-")
-		if err != nil {
-			return err
-		}
-		dir = tmp
+	dir, err := os.MkdirTemp("", "markgo-update-")
+	if err != nil {
+		return err
 	}
 	dest := filepath.Join(dir, "."+c.Asset.Name+".download")
-	err := update.Download(c.Asset.URL, dest, func(received, total int64) {
+	err = update.Download(c.Asset.URL, dest, func(received, total int64) {
 		b.emit("update:progress", updateProgress{Phase: "download", Received: received, Total: total})
 	})
 	if err != nil {
@@ -131,16 +121,6 @@ func (b *Bridge) installUpdate() error {
 		if err := installMac(dest); err != nil {
 			return err
 		}
-	case update.KindAppImage:
-		target := os.Getenv("APPIMAGE")
-		if err := os.Chmod(dest, 0o755); err != nil {
-			return err
-		}
-		if err := os.Rename(dest, target); err != nil {
-			os.Remove(dest)
-			return fmt.Errorf("无法替换 %s：%v", target, err)
-		}
-		b.relaunchPath = target
 	case update.KindDeb:
 		// pkexec 弹出系统的管理员授权窗口
 		if out, err := exec.Command("pkexec", "dpkg", "-i", dest).CombinedOutput(); err != nil {

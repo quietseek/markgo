@@ -94,7 +94,7 @@ jobs:
       # wails3 CLI 在 Linux 上同样链接 GTK / WebKitGTK，需先安装
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libfuse2t64 file
+        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev file
 
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
@@ -123,11 +123,9 @@ jobs:
       - name: Package Linux
         if: runner.os == 'Linux'
         run: |
-          wails3 task linux:create:appimage
           wails3 task linux:create:deb
           mkdir -p dist
           ls bin
-          mv bin/*.AppImage "dist/MarkGo-${{ steps.version.outputs.version }}-linux-x86_64.AppImage"
           mv bin/*.deb "dist/MarkGo-${{ steps.version.outputs.version }}-linux-amd64.deb"
 
       - uses: actions/upload-artifact@v7

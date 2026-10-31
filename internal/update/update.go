@@ -40,22 +40,20 @@ type Asset struct {
 	Size int64  `json:"size"`
 }
 
-// Kind 安装方式：mac（.app）、windows（NSIS 安装包）、appimage、deb；空字符串表示不支持自动更新
+// Kind 安装方式：mac（.app）、windows（NSIS 安装包）、deb；空字符串表示不支持自动更新
 type Kind string
 
 const (
-	KindMac      Kind = "mac"
-	KindWindows  Kind = "windows"
-	KindAppImage Kind = "appimage"
-	KindDeb      Kind = "deb"
+	KindMac     Kind = "mac"
+	KindWindows Kind = "windows"
+	KindDeb     Kind = "deb"
 )
 
 // 各安装方式对应的 Release 安装包后缀（与 .github/workflows/build.yml 的命名一致）
 var assetSuffix = map[Kind]string{
-	KindMac:      "-mac-universal.dmg",
-	KindWindows:  "-win-x64-setup.exe",
-	KindAppImage: "-linux-x86_64.AppImage",
-	KindDeb:      "-linux-amd64.deb",
+	KindMac:     "-mac-universal.dmg",
+	KindWindows: "-win-x64-setup.exe",
+	KindDeb:     "-linux-amd64.deb",
 }
 
 // PickAsset 按安装方式选出安装包

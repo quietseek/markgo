@@ -29,7 +29,7 @@ func TestPickAsset(t *testing.T) {
 		{Name: "MarkGo-0.3.0-linux-x86_64.AppImage"},
 		{Name: "MarkGo-0.3.0-linux-amd64.deb"},
 	}
-	for kind, want := range map[Kind]string{KindMac: "dmg", KindWindows: "exe", KindAppImage: "AppImage", KindDeb: "deb"} {
+	for kind, want := range map[Kind]string{KindMac: "dmg", KindWindows: "exe", KindDeb: "deb"} {
 		if a := PickAsset(assets, kind); a == nil || !strings.HasSuffix(a.Name, want) {
 			t.Errorf("%s: %v", kind, a)
 		}
