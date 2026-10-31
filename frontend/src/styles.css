@@ -3612,3 +3612,30 @@ textarea {
   background: var(--primary);
   color: var(--primary-fg);
 }
+
+/* ---------- Typora 主题 ---------- */
+.typora-theme-list {
+  display: flex;
+  flex-direction: column;
+  padding: 2px 14px 10px;
+}
+.typora-theme-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 0 4px 0 10px;
+  border-radius: 6px;
+  color: var(--text-strong);
+  font-size: 13px;
+}
+.typora-theme-item:hover {
+  background: var(--surface-hover);
+}
+.typora-theme-item span {
+  flex: 1;
+}
+.typora-theme-item small {
+  color: var(--text-muted);
+  font-size: 12px;
+}

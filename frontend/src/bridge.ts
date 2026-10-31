@@ -126,6 +126,12 @@ export async function installBridge(): Promise<void> {
       set: (patch) => call('SetSettings', Object.fromEntries(Object.entries(patch).map(([k, v]) => [k, v === undefined ? null : v]))),
       onChange: (cb) => on<AppSettings>('settings:changed', cb)
     },
+    themes: {
+      list: () => call('ListThemes'),
+      import: () => call('ImportTheme'),
+      remove: (id) => call('RemoveTheme', id),
+      onChange: (cb) => on<null>('themes:changed', () => cb())
+    },
     fs: {
       openFolder: () => orNull(call('OpenFolder')),
       openFile: () => orNull(call('OpenFile')),

@@ -21,6 +21,7 @@ import { countWords, extractTitle, renderWechat } from './lib/render'
 import { prepareMermaid } from './lib/mermaid'
 import { toast } from './lib/toast'
 import { WELCOME_MD } from './lib/welcome'
+import { useTyporaTheme } from './lib/use-typora-theme'
 
 const api = window.markgo
 const isMac = api.platform === 'darwin'
@@ -77,7 +78,10 @@ export function App() {
     mq.addEventListener('change', onChange)
     return () => mq.removeEventListener('change', onChange)
   }, [])
-  const dark = settings?.appearance === 'dark' || (settings?.appearance !== 'light' && systemDark)
+  const baseDark = settings?.appearance === 'dark' || (settings?.appearance !== 'light' && systemDark)
+  // 浅色 / 深色外观各自可选用一个 Typora 主题；深浅以主题自身的背景色为准
+  const typora = useTyporaTheme(settings ? (baseDark ? settings.darkTheme : settings.lightTheme) : undefined)
+  const dark = typora ? typora.dark : baseDark
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? 'dark' : 'light'
     api.window.setDark(dark)
@@ -591,10 +595,10 @@ export function App() {
         )}
 
         <main
-          className={`editor-pane width-${settings.editorWidth}${proposal ? ' reviewing' : ''}${editorThemeKey && !sourceMode ? ' mk-themed' : ''}`}
-          // 字体、字号、行距与段距只作用于原生样式；套用排版主题时由主题决定
+          className={`editor-pane width-${settings.editorWidth}${proposal ? ' reviewing' : ''}${editorThemeKey && !sourceMode ? ' mk-themed' : ''}${typora && !editorThemeKey ? ' mk-typora' : ''}`}
+          // 字体、字号、行距与段距只作用于原生样式；套用排版主题或 Typora 主题时由主题决定
           style={
-            editorThemeKey
+            editorThemeKey || typora
               ? undefined
               : ({
                   '--ed-font': EDITOR_FONTS[settings.editorFont] ?? EDITOR_FONTS.sans,

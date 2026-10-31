@@ -18,10 +18,11 @@ import (
 	"github.com/quietseek/markgo/internal/files"
 	"github.com/quietseek/markgo/internal/platform"
 	"github.com/quietseek/markgo/internal/settings"
+	"github.com/quietseek/markgo/internal/themes"
 )
 
 // Version 应用版本，发布时与 build/config.yml、frontend/package.json 保持一致
-const Version = "0.3.1"
+const Version = "0.4.0"
 
 const appName = "MarkGo"
 
@@ -35,6 +36,7 @@ const isMac = runtime.GOOS == "darwin"
 
 func main() {
 	store := settings.New(platform.DataDir(appName), runtime.GOOS, settings.NewKeyringBox(appName))
+	themeDir = filepath.Join(store.Dir(), "themes")
 	b := newBridge(store)
 
 	app := application.New(application.Options{
@@ -111,9 +113,23 @@ func noteFromArgs(args []string, cwd string) string {
 	return ""
 }
 
+// 导入的 Typora 主题所在目录
+var themeDir string
+
 // 编辑器 / 预览中显示本地图片：/mg-asset/<encodeURIComponent(absPath)>，仅允许图片文件
 func assetMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Typora 主题文件：/mg-theme/<相对主题目录的路径>
+		if rel, ok := strings.CutPrefix(r.URL.Path, themes.URLPrefix); ok {
+			file, ok := themes.Resolve(themeDir, rel)
+			if !ok {
+				http.Error(w, "forbidden", http.StatusForbidden)
+				return
+			}
+			w.Header().Set("Cache-Control", "no-cache")
+			http.ServeFile(w, r, file)
+			return
+		}
 		if !strings.HasPrefix(r.URL.Path, files.AssetPrefix) {
 			next.ServeHTTP(w, r)
 			return
@@ -140,13 +156,11 @@ func sniffsAsImage(file string) bool {
 	return strings.HasPrefix(http.DetectContentType(head[:n]), "image/")
 }
 
-// relaunch 重新启动应用；exe 为空时使用当前程序
-func relaunch(exe string) {
-	if exe == "" {
-		var err error
-		if exe, err = os.Executable(); err != nil {
-			return
-		}
+// relaunch 重新启动应用
+func relaunch() {
+	exe, err := os.Executable()
+	if err != nil {
+		return
 	}
 	// macOS 通过 open 重新打开 .app，保证以正常应用身份启动
 	if isMac {

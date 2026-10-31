@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Blocks, ChevronDown, FileText, Image, PenLine, Send, Settings2, Trash2 } from 'lucide-react'
-import { AGENT_PRESETS, IMAGE_GEN_PROVIDERS, TRAY_MENU_ITEMS, WRITING_LENGTHS, WRITING_STYLE_PRESETS, type AgentProfile, type AppSettings } from '@shared/types'
+import { Blocks, ChevronDown, FileText, Image, PenLine, Plus, Send, Settings2, Trash2 } from 'lucide-react'
+import { AGENT_PRESETS, IMAGE_GEN_PROVIDERS, TRAY_MENU_ITEMS, WRITING_LENGTHS, WRITING_STYLE_PRESETS, type AgentProfile, type AppSettings, type TyporaThemeInfo } from '@shared/types'
 import { Modal } from './Modal'
 import { toast } from '../lib/toast'
 import { EDITOR_WIDTHS } from './EditorWidthSwitch'
@@ -114,7 +114,7 @@ export function SettingsDialog({ settings, initialTab = 'general', onSave, onClo
           {tab === 'general' && (
             <>
               <Group title="外观">
-                <Row label="主题" desc="界面的浅色 / 深色外观">
+                <Row label="主题" desc="界面的浅色 / 深色外观；跟随系统时按系统外观选用下方的主题">
                   <Segmented
                     value={draft.appearance}
                     options={[
@@ -125,6 +125,7 @@ export function SettingsDialog({ settings, initialTab = 'general', onSave, onClo
                     onChange={(appearance) => set({ appearance })}
                   />
                 </Row>
+                <TyporaThemes draft={draft} set={set} />
               </Group>
               <Group title="窗口">
                 <Row label="关闭窗口时">
@@ -211,7 +212,7 @@ export function SettingsDialog({ settings, initialTab = 'general', onSave, onClo
                 </Row>
               </Group>
               <Group title="原生样式">
-                <Row label="字体" desc="编辑区选择「原生样式」时的正文排版；套用排版主题时由主题决定">
+                <Row label="字体" desc="编辑区选择「原生样式」时的正文排版；套用排版主题或 Typora 主题时由主题决定">
                   <Segmented
                     value={draft.editorFont}
                     options={[
@@ -333,6 +334,72 @@ export function SettingsDialog({ settings, initialTab = 'general', onSave, onClo
         </div>
       </div>
     </Modal>
+  )
+}
+
+/** 浅色 / 深色外观选用的 Typora 主题，以及导入、删除主题 */
+function TyporaThemes({ draft, set }: { draft: AppSettings; set(patch: Partial<AppSettings>): void }) {
+  const [themes, setThemes] = useState<TyporaThemeInfo[]>([])
+  const reload = () => window.markgo.themes.list().then(setThemes)
+  useEffect(() => {
+    reload()
+  }, [])
+
+  const importTheme = async () => {
+    try {
+      const t = await window.markgo.themes.import()
+      if (!t) return
+      await reload()
+      toast(`已导入 Typora 主题「${t.name}」，可在上方选用`, 'success')
+    } catch (err) {
+      toast(`导入失败：${(err as Error).message ?? err}`, 'error')
+    }
+  }
+  const remove = async (t: TyporaThemeInfo) => {
+    if (!confirm(`删除 Typora 主题「${t.name}」？`)) return
+    await window.markgo.themes.remove(t.id)
+    const patch: Partial<AppSettings> = {}
+    if (draft.lightTheme === t.id) patch.lightTheme = ''
+    if (draft.darkTheme === t.id) patch.darkTheme = ''
+    if (Object.keys(patch).length) set(patch)
+    reload()
+  }
+  const picker = (value: string, builtin: string, onChange: (v: string) => void) => (
+    <select className="select" value={themes.some((t) => t.id === value) ? value : ''} onChange={(e) => onChange(e.target.value)}>
+      <option value="">{builtin}</option>
+      {themes.map((t) => (
+        <option key={t.id} value={t.id}>
+          Typora · {t.name}
+        </option>
+      ))}
+    </select>
+  )
+
+  return (
+    <>
+      <Row label="浅色主题">{picker(draft.lightTheme, '内置浅色', (lightTheme) => set({ lightTheme }))}</Row>
+      <Row label="深色主题">{picker(draft.darkTheme, '内置深色', (darkTheme) => set({ darkTheme }))}</Row>
+      <Row label="Typora 主题" desc="导入 Typora 的 .css 主题文件（连同旁边的同名资源文件夹），用于界面配色与原生样式的编辑区">
+        <button className="btn" onClick={importTheme}>
+          <Plus size={14} /> 导入主题…
+        </button>
+      </Row>
+      {themes.length > 0 && (
+        <div className="typora-theme-list">
+          {themes.map((t) => (
+            <div key={t.id} className="typora-theme-item">
+              <span>{t.name}</span>
+              {(draft.lightTheme === t.id || draft.darkTheme === t.id) && (
+                <small>{[draft.lightTheme === t.id && '浅色', draft.darkTheme === t.id && '深色'].filter(Boolean).join(' / ')}使用中</small>
+              )}
+              <button className="icon-btn sm" title="删除主题" onClick={() => remove(t)}>
+                <Trash2 size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   )
 }
 

@@ -1,5 +1,10 @@
 export type ImageUploadMode = 'picgo' | 'local'
 
+export interface TyporaThemeInfo {
+  id: string
+  name: string
+}
+
 export interface AppSettings {
   /** 图片插入方式：PicGo 图床上传，或复制到文档同级 assets 目录 */
   imageUploadMode: ImageUploadMode
@@ -20,6 +25,10 @@ export interface AppSettings {
   editorTheme: string
   /** 应用界面外观 */
   appearance: 'system' | 'light' | 'dark'
+  /** 浅色外观使用的 Typora 主题 id；空为内置浅色 */
+  lightTheme: string
+  /** 深色外观使用的 Typora 主题 id；空为内置深色 */
+  darkTheme: string
   /** 编辑区顶部显示快捷操作栏 */
   showToolbar: boolean
   /** 打字机模式：光标所在行保持在视口中部 */
@@ -216,6 +225,8 @@ export const defaultSettings: AppSettings = {
   showSidebar: true,
   editorTheme: 'default',
   appearance: 'system',
+  lightTheme: '',
+  darkTheme: '',
   editorWidth: 'wide',
   editorFont: 'sans',
   editorFontSize: 16,
@@ -410,6 +421,14 @@ export interface MarkGoApi {
     exists(path: string): Promise<boolean>
     /** 未命名草稿的持久化路径（位于用户数据目录） */
     scratchPath(): Promise<string>
+  }
+  /** 导入的 Typora 主题 */
+  themes: {
+    list(): Promise<TyporaThemeInfo[]>
+    /** 选择 .css 文件导入；取消时返回 null */
+    import(): Promise<TyporaThemeInfo | null>
+    remove(id: string): Promise<void>
+    onChange(cb: () => void): () => void
   }
   image: {
     /** 上传本地文件路径列表 */

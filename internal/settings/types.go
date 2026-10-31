@@ -58,6 +58,8 @@ type AppSettings struct {
 	ShowSidebar       bool           `json:"showSidebar"`
 	EditorTheme       string         `json:"editorTheme"`
 	Appearance        string         `json:"appearance"`
+	LightTheme        string         `json:"lightTheme"`
+	DarkTheme         string         `json:"darkTheme"`
 	ShowToolbar       bool           `json:"showToolbar"`
 	Typewriter        bool           `json:"typewriter"`
 	EditorWidth       string         `json:"editorWidth"`

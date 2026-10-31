@@ -46,16 +46,15 @@ type Bridge struct {
 	// 用户确认退出（菜单、托盘、⌘Q）后为 true；此前点关闭按钮按「关闭行为」设置处理
 	quitting atomic.Bool
 	relaunch atomic.Bool
-	// 自动更新进行中；relaunchPath 为更新后重新启动的程序（AppImage 的位置），空则用当前程序
-	updating     atomic.Bool
-	relaunchPath string
-	trayMu       sync.Mutex
-	tray         *application.SystemTray
-	openMu       sync.Mutex
-	pending      string // 前端就绪前收到的待打开文件（双击 / 拖到图标 / 命令行），由前端启动时取走
-	ready        bool
-	activeDoc    atomic.Value // string
-	dark         atomic.Bool
+	// 自动更新进行中
+	updating  atomic.Bool
+	trayMu    sync.Mutex
+	tray      *application.SystemTray
+	openMu    sync.Mutex
+	pending   string // 前端就绪前收到的待打开文件（双击 / 拖到图标 / 命令行），由前端启动时取走
+	ready     bool
+	activeDoc atomic.Value // string
+	dark      atomic.Bool
 
 	// 单独打开（不在笔记库中）的文档各自一个窗口：文件路径 -> 窗口
 	docMu      sync.Mutex
@@ -339,7 +338,7 @@ func (b *Bridge) promptRelaunch() {
 
 func (b *Bridge) relaunchIfRequested() {
 	if b.relaunch.Load() {
-		relaunch(b.relaunchPath)
+		relaunch()
 	}
 }
 

@@ -121,7 +121,7 @@ export function CodeBlockView({ node, updateAttributes, extension, editor, getPo
   }
 
   return (
-    <NodeViewWrapper className={`code-block${isMermaid ? ' mermaid' : ''}${showCode ? '' : ' code-hidden'}`}>
+    <NodeViewWrapper className={`code-block md-fences${isMermaid ? ' mermaid' : ''}${showCode ? '' : ' code-hidden'}`}>
       <div className={`code-block-head${picking || exporting ? ' open' : ''}`} contentEditable={false}>
         <button ref={triggerRef} className="code-lang" title="代码语言" onClick={() => setPicking((v) => !v)}>
           {label(lang)}
