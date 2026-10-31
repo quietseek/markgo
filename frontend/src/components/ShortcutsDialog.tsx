@@ -17,6 +17,7 @@ const GROUPS: { title: string; items: [string, string][] }[] = [
       ['打开文件夹', 'Mod+Shift+O'],
       ['保存', 'Mod+S'],
       ['另存为', 'Mod+Shift+S'],
+      ['导出', 'Mod+Shift+P'],
       ['设置', 'Mod+,']
     ]
   },

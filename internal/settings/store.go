@@ -9,7 +9,7 @@ import (
 )
 
 // 嵌套对象：读取与更新时按字段合并，而不是整体替换
-var nestedKeys = []string{"wechat", "ai", "writing", "imageGen"}
+var nestedKeys = []string{"wechat", "ai", "writing", "imageGen", "export"}
 
 type Store struct {
 	mu       sync.Mutex
@@ -96,6 +96,9 @@ func (s *Store) migrate(cfg *AppSettings, stored map[string]json.RawMessage) {
 		if !slices.ContainsFunc(cfg.AI.Agents, func(a AgentProfile) bool { return a.ID == preset.ID }) {
 			cfg.AI.Agents = append(cfg.AI.Agents, preset)
 		}
+	}
+	if cfg.Export.FormatArgs == nil {
+		cfg.Export.FormatArgs = map[string]string{}
 	}
 	if cfg.TrayMenu == nil {
 		cfg.TrayMenu = Defaults().TrayMenu

@@ -68,6 +68,7 @@ export interface AppSettings {
   ai: AiConfig
   writing: WritingConfig
   imageGen: ImageGenConfig
+  export: ExportConfig
   lastWorkspace?: string
   lastFile?: string
 }
@@ -270,7 +271,75 @@ export const defaultSettings: AppSettings = {
     apiKey: '',
     model: 'gpt-image-1',
     timeout: 180
+  },
+  export: {
+    pandocPath: '',
+    lastFormat: 'docx',
+    afterExport: 'reveal',
+    toc: false,
+    numberSections: false,
+    extraArgs: '',
+    formatArgs: {},
+    pdfEngine: '',
+    paperSize: 'a4',
+    margin: '2.5cm',
+    mainFont: '',
+    docxReference: '',
+    odtReference: '',
+    htmlCss: '',
+    htmlEmbed: true,
+    epubCover: ''
   }
+}
+
+/** 通过 Pandoc 导出的配置 */
+export interface ExportConfig {
+  /** Pandoc 程序路径，留空时自动查找 */
+  pandocPath: string
+  lastFormat: string
+  /** 导出后：none 不处理；open 打开文件；reveal 在文件夹中显示 */
+  afterExport: 'none' | 'open' | 'reveal'
+  toc: boolean
+  numberSections: boolean
+  /** 所有格式通用的额外 Pandoc 参数 */
+  extraArgs: string
+  /** 各格式的额外 Pandoc 参数 */
+  formatArgs: Record<string, string>
+  /** PDF 引擎，留空自动选择 */
+  pdfEngine: string
+  paperSize: 'a4' | 'letter'
+  margin: string
+  /** PDF 正文字体，留空时中文文档使用系统中文字体 */
+  mainFont: string
+  docxReference: string
+  odtReference: string
+  htmlCss: string
+  /** 把图片等资源嵌入为单个 HTML 文件 */
+  htmlEmbed: boolean
+  epubCover: string
+}
+
+export interface ExportFormat {
+  id: string
+  label: string
+  ext: string
+}
+
+export interface PandocInfo {
+  found: boolean
+  path: string
+  version: string
+  error?: string
+  /** 本机可用的 PDF 引擎 */
+  pdfEngines: string[]
+}
+
+export interface ExportRequest {
+  format: string
+  markdown: string
+  docPath: string
+  title: string
+  scratch: boolean
 }
 
 export interface AppInfo {
@@ -436,6 +505,15 @@ export interface MarkGoApi {
     /** 在文件管理器中打开主题目录 */
     openFolder(): Promise<void>
     onChange(cb: () => void): () => void
+  }
+  /** 通过 Pandoc 导出 */
+  export: {
+    formats(): Promise<ExportFormat[]>
+    pandoc(pandocPath: string): Promise<PandocInfo>
+    defaultCjkFont(): Promise<string>
+    run(req: ExportRequest): Promise<{ path?: string; canceled?: boolean; error?: string }>
+    /** 选择参考文档、样式表、封面图片或 Pandoc 程序 */
+    pickFile(kind: 'docx' | 'odt' | 'css' | 'image' | 'pandoc'): Promise<string | null>
   }
   image: {
     /** 上传本地文件路径列表 */

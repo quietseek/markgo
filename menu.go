@@ -26,6 +26,7 @@ func buildAppMenu(app *application.App, b *Bridge) *application.Menu {
 	file.AddSeparator()
 	file.Add("保存").SetAccelerator("CmdOrCtrl+S").OnClick(b.sendMenu("save"))
 	file.Add("另存为…").SetAccelerator("CmdOrCtrl+Shift+S").OnClick(b.sendMenu("save-as"))
+	file.Add("导出…").SetAccelerator("CmdOrCtrl+Shift+P").OnClick(b.sendMenu("export"))
 	file.Add("导出排版 HTML…").OnClick(b.sendMenu("export-html"))
 	file.AddSeparator()
 	file.Add("设置…").SetAccelerator("CmdOrCtrl+,").OnClick(b.sendMenu("settings"))

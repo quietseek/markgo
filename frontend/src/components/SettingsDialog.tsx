@@ -422,7 +422,7 @@ function TyporaThemes({ draft, set }: { draft: AppSettings; set(patch: Partial<A
   )
 }
 
-function Group({ title, children }: { title: string; children: React.ReactNode }) {
+export function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="set-group">
       <h4 className="settings-section">{title}</h4>
@@ -431,7 +431,7 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
   )
 }
 
-function Row({ label, desc, stack, children }: { label: string; desc?: string; stack?: boolean; children: React.ReactNode }) {
+export function Row({ label, desc, stack, children }: { label: string; desc?: string; stack?: boolean; children: React.ReactNode }) {
   return (
     <div className={`set-row${stack ? ' stack' : ''}`}>
       <div className="set-label">
@@ -443,7 +443,7 @@ function Row({ label, desc, stack, children }: { label: string; desc?: string; s
   )
 }
 
-function Segmented<T extends string>({ value, options, onChange }: { value: T; options: readonly (readonly [T, string])[]; onChange(v: T): void }) {
+export function Segmented<T extends string>({ value, options, onChange }: { value: T; options: readonly (readonly [T, string])[]; onChange(v: T): void }) {
   return (
     <div className="segmented">
       {options.map(([key, label]) => (
@@ -455,7 +455,7 @@ function Segmented<T extends string>({ value, options, onChange }: { value: T; o
   )
 }
 
-function Switch({ checked, disabled, onChange }: { checked: boolean; disabled?: boolean; onChange(v: boolean): void }) {
+export function Switch({ checked, disabled, onChange }: { checked: boolean; disabled?: boolean; onChange(v: boolean): void }) {
   return (
     <button role="switch" aria-checked={checked} className={`switch${checked ? ' on' : ''}`} disabled={disabled} onClick={() => onChange(!checked)} />
   )

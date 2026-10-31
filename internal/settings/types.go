@@ -46,6 +46,35 @@ type WechatConfig struct {
 	OnlyFansCanComment bool   `json:"onlyFansCanComment"`
 }
 
+// ExportConfig 通过 Pandoc 导出的配置
+type ExportConfig struct {
+	// Pandoc 程序路径，留空时自动查找
+	PandocPath string `json:"pandocPath"`
+	// 上次导出的格式
+	LastFormat string `json:"lastFormat"`
+	// 导出后：none 不处理；open 打开文件；reveal 在文件夹中显示
+	AfterExport    string `json:"afterExport"`
+	TOC            bool   `json:"toc"`
+	NumberSections bool   `json:"numberSections"`
+	// 所有格式通用的额外 Pandoc 参数
+	ExtraArgs string `json:"extraArgs"`
+	// 各格式的额外 Pandoc 参数
+	FormatArgs map[string]string `json:"formatArgs"`
+	// PDF：引擎（留空自动选择）、纸张、页边距、正文字体（留空时中文文档使用系统中文字体）
+	PdfEngine string `json:"pdfEngine"`
+	PaperSize string `json:"paperSize"`
+	Margin    string `json:"margin"`
+	MainFont  string `json:"mainFont"`
+	// Word / OpenOffice 参考文档（决定样式）
+	DocxReference string `json:"docxReference"`
+	OdtReference  string `json:"odtReference"`
+	// HTML：样式表、是否把图片等资源嵌入为单个文件
+	HTMLCSS   string `json:"htmlCss"`
+	HTMLEmbed bool   `json:"htmlEmbed"`
+	// EPUB 封面图片
+	EpubCover string `json:"epubCover"`
+}
+
 type AppSettings struct {
 	ImageUploadMode   string         `json:"imageUploadMode"`
 	PicgoServer       string         `json:"picgoServer"`
@@ -79,6 +108,7 @@ type AppSettings struct {
 	AI                AiConfig       `json:"ai"`
 	Writing           WritingConfig  `json:"writing"`
 	ImageGen          ImageGenConfig `json:"imageGen"`
+	Export            ExportConfig   `json:"export"`
 	LastWorkspace     string         `json:"lastWorkspace,omitempty"`
 	LastFile          string         `json:"lastFile,omitempty"`
 }
@@ -175,5 +205,13 @@ func Defaults() AppSettings {
 			Length:         "medium",
 		},
 		ImageGen: ImageGenConfig{Provider: "openai", Model: "gpt-image-1", Timeout: 180},
+		Export: ExportConfig{
+			LastFormat:  "docx",
+			AfterExport: "reveal",
+			FormatArgs:  map[string]string{},
+			PaperSize:   "a4",
+			Margin:      "2.5cm",
+			HTMLEmbed:   true,
+		},
 	}
 }

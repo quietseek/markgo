@@ -75,7 +75,8 @@ const SHORTCUTS: { key: string; shift?: boolean; action: string }[] = [
   { key: 'f', shift: true, action: 'toggle-focus' },
   { key: 'j', action: 'toggle-ai' },
   { key: 'c', shift: true, action: 'copy-wechat' },
-  { key: 'e', shift: true, action: 'publish-wechat' }
+  { key: 'e', shift: true, action: 'publish-wechat' },
+  { key: 'p', shift: true, action: 'export' }
 ]
 
 const menuListeners = new Set<(action: string) => void>()
@@ -148,6 +149,13 @@ export async function installBridge(): Promise<void> {
       pickImage: () => orNull(call('PickImage')),
       exists: (p) => call('Exists', p),
       scratchPath: () => call('ScratchPath')
+    },
+    export: {
+      formats: () => call('ExportFormats'),
+      pandoc: (p) => call('PandocStatus', p),
+      defaultCjkFont: () => call('DefaultCJKFont'),
+      run: (req) => call('ExportDocument', req),
+      pickFile: (kind) => orNull(call('PickExportFile', kind))
     },
     image: {
       uploadPaths: (paths, docPath) => call('UploadPaths', paths, docPath ?? ''),

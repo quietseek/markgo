@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Code2, FileCode, Loader2, PanelLeft, Sparkles } from 'lucide-react'
+import { Code2, FileCode, FileOutput, Loader2, PanelLeft, Sparkles } from 'lucide-react'
 import { MAX_RECENT_WORKSPACES, type AppSettings, type FileNode, type WriteProposal } from '@shared/types'
 import { Editor, type EditorHandle, type HeadingInfo } from './components/Editor'
 import { Sidebar, type SidebarTab } from './components/Sidebar'
@@ -8,6 +8,7 @@ import { WindowControls } from './components/WindowControls'
 import { ShortcutsDialog } from './components/ShortcutsDialog'
 import { AboutDialog, type UpdateState } from './components/AboutDialog'
 import { PublishDialog } from './components/PublishDialog'
+import { ExportDialog } from './components/ExportDialog'
 import { Toasts } from './components/Toasts'
 import { AgentPanel } from './components/AgentPanel'
 import { LayoutControls, PublishActions } from './components/LayoutControls'
@@ -49,7 +50,9 @@ export function App() {
   const [headings, setHeadings] = useState<HeadingInfo[]>([])
   const [sourceMode, setSourceMode] = useState(false)
   const [focusMode, setFocusMode] = useState(false)
-  const [dialog, setDialog] = useState<null | 'settings' | 'settings-publish' | 'settings-ai' | 'settings-image' | 'publish' | 'shortcuts' | 'about'>(null)
+  const [dialog, setDialog] = useState<null | 'settings' | 'settings-publish' | 'settings-ai' | 'settings-image' | 'publish' | 'export' | 'shortcuts' | 'about'>(null)
+  // 打开导出对话框时的文档内容
+  const [exportMd, setExportMd] = useState('')
   const [update, setUpdate] = useState<UpdateState>({ checking: false })
   const agent = useAgentState()
   const [saveState, setSaveState] = useState<SaveState>('saved')
@@ -445,6 +448,10 @@ export function App() {
     save,
     'save-as': saveAs,
     'export-html': exportHtml,
+    export: () => {
+      setExportMd(editorRef.current?.getMarkdown() ?? latest.current.markdown)
+      setDialog('export')
+    },
     settings: () => setDialog('settings'),
     'toggle-sidebar': () => updateSettings({ showSidebar: !settings?.showSidebar }),
     'toggle-source': () => setSourceMode((v) => !v),
@@ -630,6 +637,9 @@ export function App() {
               {doc.isScratch ? '草稿自动保存在应用数据目录 · ⌘S 另存为' : { saved: '已保存', saving: '保存中…', unsaved: '编辑中' }[saveState]}
             </span>
             <PublishActions onCopy={copyToWechat} onPublish={openPublish} />
+            <button className="icon-btn sm" title="导出 ⇧⌘P" onClick={() => handlers.current.export()}>
+              <FileOutput size={14} />
+            </button>
             <span className="status-sep" />
             <button
               className={`icon-btn sm has-dot${showAgent ? ' on active' : ''}`}
@@ -675,6 +685,17 @@ export function App() {
           docPath={doc.path}
           settings={settings}
           onOpenSettings={() => setDialog('settings-publish')}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog === 'export' && (
+        <ExportDialog
+          markdown={exportMd}
+          docPath={doc.path}
+          isScratch={doc.isScratch}
+          title={doc.isScratch ? extractTitle(exportMd) || '未命名' : basename(doc.path).replace(/\.(md|markdown|txt)$/i, '')}
+          config={settings.export}
+          onSave={(cfg) => updateSettings({ export: cfg })}
           onClose={() => setDialog(null)}
         />
       )}

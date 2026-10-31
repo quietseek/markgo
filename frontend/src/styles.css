@@ -3644,3 +3644,166 @@ textarea {
   color: var(--text-muted);
   font-size: 12px;
 }
+
+/* ---------- 导出 ---------- */
+.export-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 32px 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.export-layout {
+  display: flex;
+  height: min(520px, calc(100vh - 200px));
+  min-height: 0;
+}
+.export-formats {
+  width: 168px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 8px 12px 12px;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+}
+.export-formats button {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  height: 32px;
+  flex: none;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+}
+.export-formats button small {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-family: var(--mono);
+}
+.export-formats button:hover {
+  background: var(--surface-hover);
+}
+.export-formats button.active {
+  background: var(--surface-active);
+  color: var(--text-strong);
+  font-weight: 500;
+}
+.export-options {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 20px 16px;
+  overflow-y: auto;
+}
+.export-hint {
+  margin: 4px 0 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.export-path {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+.modal .export-path input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+}
+.export-error {
+  margin: 0 16px 8px;
+  padding: 8px 10px;
+  max-height: 140px;
+  overflow: auto;
+  border-radius: 6px;
+  background: rgba(220, 38, 38, 0.08);
+  color: var(--accent-err);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.export-guide .export-error {
+  margin: 0 0 12px;
+}
+.export-guide {
+  font-size: 13px;
+  color: var(--text);
+}
+.export-guide-lead {
+  margin: 4px 0 14px;
+  line-height: 1.7;
+}
+.export-guide-tabs {
+  margin-bottom: 12px;
+}
+.export-methods {
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.export-methods li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.export-method-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.export-method-head b {
+  font-weight: 500;
+  color: var(--text-strong);
+}
+.export-methods small {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.export-cmd {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px 4px 10px;
+  border-radius: 6px;
+  background: var(--surface-muted);
+}
+.export-guide-note .export-cmd {
+  margin-top: 6px;
+}
+.export-cmd code {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-strong);
+}
+.export-guide-note {
+  margin: 0 0 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.export-guide-note a {
+  color: var(--primary);
+}
