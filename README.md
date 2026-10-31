@@ -35,7 +35,7 @@ MarkGo 是一款面向内容创作者的桌面端 Markdown 写作与笔记应用
 | 图片 | 支持粘贴、拖拽和命令插入；可上传至 PicGo / PicList 图床，或保存到文档同级的 `assets` 目录；支持 AI 生图；图片操作条可把本地图片上传到图床、把网络图片存到本地、替换图片、编辑说明文字 |
 | AI 写作 | 通过 Agent Client Protocol（ACP）连接本机 AI Agent；提供对话助手、按风格从话题生成大纲并写成新文档、选区内联改写与续写、自然语言生成公式；Agent 的修改须经差异审阅后方可应用 |
 | 发布 | 一键复制带排版的富文本，粘贴到任意富文本编辑器（Mermaid 图表自动转为图片）；也可配置后直接发布（目前支持微信公众号草稿箱，正文图片自动转存） |
-| 其他 | 浅色 / 深色 / 跟随系统外观；关闭到后台（Windows / Linux 托盘菜单可自定义）；最近打开的文件夹；经典或红绿灯窗口按钮；导出带排版的 HTML；未命名草稿自动持久化 |
+| 其他 | 浅色 / 深色 / 跟随系统外观，可导入 Typora 主题作为浅色或深色主题；关闭到后台（Windows / Linux 托盘菜单可自定义）；最近打开的文件夹；经典或红绿灯窗口按钮；导出带排版的 HTML；未命名草稿自动持久化 |
 
 内置排版主题：暖陶米白、极简留白、暗夜深色、简洁蓝、优雅棕、活力红、琥珀橙、清新绿、健康绿、杂志红、复古纸、海盐青、科技蓝、报刊体、暖阳红。
 
@@ -47,7 +47,7 @@ MarkGo 是一款面向内容创作者的桌面端 Markdown 写作与笔记应用
 | --- | --- | --- |
 | macOS（Apple 芯片与 Intel 通用） | `MarkGo-<版本>-mac-universal.dmg` | macOS 11+ |
 | Windows | `MarkGo-<版本>-win-x64-setup.exe` | WebView2 运行时（Windows 10/11 通常已自带，安装程序会自动补装） |
-| Linux | `MarkGo-<版本>-linux-x86_64.AppImage` 或 `MarkGo-<版本>-linux-amd64.deb` | GTK 4 与 WebKitGTK 6.0（Ubuntu 24.04+ / Debian 13+） |
+| Linux | `MarkGo-<版本>-linux-amd64.deb` | GTK 4 与 WebKitGTK 6.0（Ubuntu 24.04+ / Debian 13+） |
 
 安装后，有新版本时可在「帮助 → 关于」（或侧边栏左下角的更新按钮）中点击「立即更新」，MarkGo 会自动下载、安装并重新打开，无需手动下载。
 
@@ -202,7 +202,7 @@ macOS 使用 `⌘`，Windows 与 Linux 对应 `Ctrl`。完整列表见「帮助 
 ```bash
 wails3 dev                         # 开发模式（前端热更新，Go 代码修改后自动重启）
 wails3 build                       # 构建当前平台的可执行文件到 bin/
-wails3 package                     # 打包当前平台（macOS .app / Windows NSIS 安装包 / Linux AppImage、deb 等）
+wails3 package                     # 打包当前平台（macOS .app / Windows NSIS 安装包 / Linux deb 等）
 go test ./internal/...             # Go 单元测试（含基于 ACP 协议的模拟 Agent）
 cd frontend && npm test            # 前端单元测试（Vitest）
 cd frontend && npm run typecheck   # 前端类型检查

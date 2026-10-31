@@ -38,7 +38,7 @@ It runs on macOS, Windows and Linux. Built with [Wails 3](https://v3.wails.io) (
 | Images | Paste, drag and drop, or insert via command; upload to a PicGo / PicList image host, or save to an `assets` folder next to the document; AI image generation; the image toolbar can upload local images to the host, save remote images locally, replace an image and edit its caption |
 | AI writing | Connects to AI agents installed on your machine through the Agent Client Protocol (ACP): chat assistant, styled outline-to-article writing from a topic, inline rewrite and continuation of a selection, and math from natural language; every change from an agent must pass a diff review before it is applied |
 | Publishing | Copy styled rich text in one click and paste it into any rich-text editor (Mermaid diagrams become images automatically); or publish directly once configured (currently WeChat Official Account drafts, with body images re-uploaded automatically) |
-| Other | Light / dark / system appearance; close to background (customizable tray menu on Windows / Linux); recent folders; classic or traffic-light window buttons; export styled HTML; untitled drafts persisted automatically |
+| Other | Light / dark / system appearance, with imported Typora themes usable as the light or dark theme; close to background (customizable tray menu on Windows / Linux); recent folders; classic or traffic-light window buttons; export styled HTML; untitled drafts persisted automatically |
 
 Built-in layout themes: 暖陶米白, 极简留白, 暗夜深色, 简洁蓝, 优雅棕, 活力红, 琥珀橙, 清新绿, 健康绿, 杂志红, 复古纸, 海盐青, 科技蓝, 报刊体, 暖阳红.
 
@@ -50,7 +50,7 @@ Download the installer for your platform from the [Releases](https://github.com/
 | --- | --- | --- |
 | macOS (universal: Apple silicon and Intel) | `MarkGo-<version>-mac-universal.dmg` | macOS 11+ |
 | Windows | `MarkGo-<version>-win-x64-setup.exe` | WebView2 runtime (usually preinstalled on Windows 10/11; the installer adds it if missing) |
-| Linux | `MarkGo-<version>-linux-x86_64.AppImage` or `MarkGo-<version>-linux-amd64.deb` | GTK 4 and WebKitGTK 6.0 (Ubuntu 24.04+ / Debian 13+) |
+| Linux | `MarkGo-<version>-linux-amd64.deb` | GTK 4 and WebKitGTK 6.0 (Ubuntu 24.04+ / Debian 13+) |
 
 Once installed, when a new version is available, click 「立即更新」(Update now) in About (or the update button at the bottom left of the sidebar): MarkGo downloads, installs and reopens itself, with no manual download needed.
 
@@ -205,7 +205,7 @@ macOS uses `⌘`; Windows and Linux use `Ctrl` instead. See 「帮助 → 键盘
 ```bash
 wails3 dev                         # development mode (frontend hot reload, auto-restart on Go changes)
 wails3 build                       # build an executable for the current platform into bin/
-wails3 package                     # package for the current platform (macOS .app / Windows NSIS installer / Linux AppImage, deb, etc.)
+wails3 package                     # package for the current platform (macOS .app / Windows NSIS installer / Linux deb, etc.)
 go test ./internal/...             # Go unit tests (including a mock agent speaking ACP)
 cd frontend && npm test            # frontend unit tests (Vitest)
 cd frontend && npm run typecheck   # frontend type checking

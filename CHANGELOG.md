@@ -2,6 +2,30 @@
 
 每个版本发布时，GitHub Release 的说明取自本文件对应版本的小节，按「修复问题、新增功能、优化改进、下载地址」组织，没有内容的小节不写。发版前请先在这里补充内容。
 
+## v0.4.0
+
+### 新增功能
+
+- **支持 Typora 主题**：在「设置 → 通用设置 → 外观」中导入 Typora 的 .css 主题（连同旁边的同名资源文件夹），并分别选作浅色、深色外观的主题；跟随系统时自动切换
+  - 界面（侧栏、工具栏、对话框）采用主题的配色，深浅以主题背景色为准
+  - 编辑区使用「原生样式」时套用主题的正文排版；套用排版主题时仍以排版主题为准
+  - 代码块高亮映射为主题的配色；Typora 自身界面、图表与源码模式的样式不会带入
+
+### 优化改进
+
+- 不再提供 Linux AppImage 安装包，Linux 请使用 .deb 安装包；从 AppImage 版本升级需手动安装
+
+### 下载地址
+
+| 系统 | 安装包 |
+| --- | --- |
+| macOS（Apple 芯片与 Intel 通用） | [MarkGo-0.4.0-mac-universal.dmg](https://github.com/quietseek/markgo/releases/download/v0.4.0/MarkGo-0.4.0-mac-universal.dmg) |
+| Windows 10 / 11 | [MarkGo-0.4.0-win-x64-setup.exe](https://github.com/quietseek/markgo/releases/download/v0.4.0/MarkGo-0.4.0-win-x64-setup.exe) |
+| Linux（Debian / Ubuntu） | [MarkGo-0.4.0-linux-amd64.deb](https://github.com/quietseek/markgo/releases/download/v0.4.0/MarkGo-0.4.0-linux-amd64.deb) |
+
+> Windows 需要 WebView2 运行时（系统通常已自带，安装程序会自动补装）；Linux 需要 GTK 4 与 WebKitGTK 6.0（Ubuntu 24.04+ / Debian 13+）。
+> 安装包未经代码签名：macOS 首次打开如提示「已损坏」或「无法验证开发者」，请在终端执行 `xattr -cr /Applications/MarkGo.app`；Windows 如出现 SmartScreen 提示，点击「更多信息 → 仍要运行」。
+
 ## v0.3.1
 
 ### 优化改进
