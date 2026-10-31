@@ -1,4 +1,4 @@
-Unicode true
+﻿Unicode true
 
 ####
 ## Please note: Template replacements don't work in this file. They are provided with default defines like
@@ -97,9 +97,13 @@ OutFile "..\..\..\bin\${INFO_PROJECTNAME}-${ARCH}-installer.exe" # Name of the i
 !if "${WAILS_INSTALL_SCOPE}" == "user"
     InstallDir "$LOCALAPPDATA\Programs\${INFO_PRODUCTNAME}"
 !else
-    InstallDir "$PROGRAMFILES64\${INFO_COMPANYNAME}\${INFO_PRODUCTNAME}"
+    InstallDir "$PROGRAMFILES64\${INFO_PRODUCTNAME}"
 !endif
 ShowInstDetails show # This will always show the installation details.
+
+# 旧版本安装在 Program Files\${INFO_COMPANYNAME}\${INFO_PRODUCTNAME}，升级时迁移到新位置并删除旧目录
+!define OLD_INSTALL_DIR "$PROGRAMFILES64\${INFO_COMPANYNAME}\${INFO_PRODUCTNAME}"
+Var oldInstDir
 
 Function .onInit
    !insertmacro wails.checkArchitecture
@@ -111,7 +115,16 @@ Function .onInit
        ReadRegStr $0 HKLM "${UNINST_KEY}" "DisplayIcon"
    !endif
    ${If} $0 != ""
-       ${GetParent} $0 $INSTDIR
+       ${GetParent} $0 $1
+       !if "${WAILS_INSTALL_SCOPE}" != "user"
+           ${If} $1 == "${OLD_INSTALL_DIR}"
+               StrCpy $oldInstDir $1
+               StrCpy $1 ""
+           ${EndIf}
+       !endif
+       ${If} $1 != ""
+           StrCpy $INSTDIR $1
+       ${EndIf}
    ${EndIf}
    !insertmacro markgo.closeRunningApp
 FunctionEnd
@@ -136,6 +149,18 @@ Section
     !insertmacro wails.associateCustomProtocols
     
     !insertmacro wails.writeUninstaller
+
+    # 删除旧位置的程序文件（安装到了其他目录时）
+    ${If} $oldInstDir != ""
+    ${AndIf} $oldInstDir != $INSTDIR
+        RMDir /r $oldInstDir
+        ${GetParent} $oldInstDir $0
+        RMDir $0 # 仅在为空时删除
+        # 应用内自动更新（静默安装）由旧版本负责重启，但它记录的是旧路径，这里以普通权限打开新位置的应用
+        ${If} ${Silent}
+            Exec '"$WINDIR\explorer.exe" "$INSTDIR\${PRODUCT_EXECUTABLE}"'
+        ${EndIf}
+    ${EndIf}
 SectionEnd
 
 Section "uninstall" 
