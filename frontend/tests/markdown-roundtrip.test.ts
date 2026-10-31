@@ -115,6 +115,31 @@ describe('front matter', () => {
     expect(editor.getMarkdown().trim()).toBe(md)
   })
 
+  it('protects hidden front matter from accidental deletion', async () => {
+    const { NodeSelection } = await import('@tiptap/pm/state')
+    const editor = await load('---\ntitle: x\n---\n\n段落')
+    const after = editor.state.doc.firstChild!.nodeSize + 1
+    editor.storage.frontMatter.hidden = true
+    editor.commands.setTextSelection(after)
+    editor.commands.keyboardShortcut('Backspace')
+    expect(editor.state.doc.firstChild?.type.name).toBe('frontMatter')
+    editor.commands.setNodeSelection(0)
+    expect(editor.state.selection).not.toBeInstanceOf(NodeSelection)
+    // 全选删除与整篇替换不受影响
+    editor.commands.selectAll()
+    editor.commands.deleteSelection()
+    expect(editor.state.doc.firstChild?.type.name).not.toBe('frontMatter')
+    editor.commands.setContent('---\ntitle: y\n---\n\n段落', { contentType: 'markdown' })
+    editor.commands.setContent('只有正文', { contentType: 'markdown' })
+    expect(editor.getMarkdown()).toBe('只有正文')
+    // 显示时照常可以删除
+    editor.commands.setContent('---\ntitle: x\n---\n\n段落', { contentType: 'markdown' })
+    editor.storage.frontMatter.hidden = false
+    editor.commands.setTextSelection(after)
+    editor.commands.keyboardShortcut('Backspace')
+    expect(editor.state.doc.firstChild?.type.name).not.toBe('frontMatter')
+  })
+
   it('only matches at the start and only when it looks like yaml', async () => {
     const later = await load('段落\n\n---\ntitle: x\n---\n')
     const notYaml = await load('---\n\n一段普通文字\n\n---\n')

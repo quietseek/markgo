@@ -1,4 +1,5 @@
 import { Node } from '@tiptap/core'
+import { NodeSelection, Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 
 /** 文档开头的 YAML 元信息：--- 与 --- 之间的内容（允许为空） */
 const FRONT_MATTER_RE = /^---[ \t]*\r?\n(?:([\s\S]*?)\r?\n)?---[ \t]*(?:\r?\n|$)/
@@ -7,20 +8,6 @@ const FRONT_MATTER_RE = /^---[ \t]*\r?\n(?:([\s\S]*?)\r?\n)?---[ \t]*(?:\r?\n|$)
 const looksLikeYaml = (yaml: string) => {
   const first = yaml.split(/\r?\n/).find((l) => l.trim() && !l.trim().startsWith('#'))
   return !first || /^[\w$"'-][^:\n]*:(\s|$)/.test(first)
-}
-
-/** 取 Markdown 开头的元信息（YAML 原文）；没有时返回 null */
-export function extractFrontMatter(md: string): string | null {
-  const m = md.match(FRONT_MATTER_RE)
-  return m && looksLikeYaml(m[1] ?? '') ? (m[1] ?? '') : null
-}
-
-/** 替换、添加（yaml 为字符串）或删除（null）Markdown 开头的元信息 */
-export function replaceFrontMatter(md: string, yaml: string | null): string {
-  const m = md.match(FRONT_MATTER_RE)
-  const body = m && looksLikeYaml(m[1] ?? '') ? md.slice(m[0].length).replace(/^\s*\n/, '') : md
-  if (yaml === null) return body
-  return `---\n${yaml}\n---\n\n${body}`
 }
 
 export interface FrontMatterEntry {
@@ -56,12 +43,13 @@ export function parseFrontMatter(yaml: string): FrontMatterEntry[] | null {
 }
 
 declare module '@tiptap/core' {
+  interface Storage {
+    frontMatter: { editOnMount: boolean; hidden: boolean }
+  }
   interface Commands<ReturnType> {
     frontMatter: {
       /** 在文档开头插入元信息（已存在时不重复插入） */
       insertFrontMatter: (yaml: string) => ReturnType
-      /** 替换文档开头的元信息；yaml 为 null 时删除，文档中没有时插入 */
-      setFrontMatter: (yaml: string | null) => ReturnType
     }
   }
 }
@@ -77,9 +65,39 @@ export const FrontMatter = Node.create({
     return { yaml: { default: '' } }
   },
 
-  addOptions() {
-    /** 点击编辑区中的元信息摘要：在侧边栏「信息」中查看与编辑 */
-    return { onOpen: () => {} } as { onOpen(): void }
+  addStorage() {
+    return {
+      /** 由命令插入时，节点挂载后直接进入编辑状态 */
+      editOnMount: false,
+      /** 套用排版主题时编辑区隐藏元信息（由编辑器根据主题设置） */
+      hidden: false
+    }
+  },
+
+  addProseMirrorPlugins() {
+    const editor = this.editor
+    const name = this.name
+    const hidden = () => !!editor.storage.frontMatter?.hidden
+    return [
+      new Plugin({
+        key: new PluginKey('frontMatterHidden'),
+        // 隐藏时看不见的元信息不能被退格等误删；全选删除、整篇替换（切换源码、AI 修改）不受影响
+        filterTransaction(tr, state) {
+          if (!hidden() || !tr.docChanged || state.doc.firstChild?.type.name !== name) return true
+          if (tr.doc.firstChild?.type.name === name) return true
+          return tr.steps.some((step) => {
+            const { from, to } = step as unknown as { from?: number; to?: number }
+            return from === 0 && to === state.doc.content.size
+          })
+        },
+        // 也不让选区落在元信息上（方向键会选中它，之后输入会替换掉它）
+        appendTransaction(_trs, _old, state) {
+          const { selection, doc } = state
+          if (!hidden() || !(selection instanceof NodeSelection) || selection.node.type.name !== name) return null
+          return state.tr.setSelection(TextSelection.near(doc.resolve(selection.to), 1))
+        }
+      })
+    ]
   },
 
   parseHTML() {
@@ -117,20 +135,8 @@ export const FrontMatter = Node.create({
         ({ state, tr, dispatch }) => {
           if (state.doc.firstChild?.type.name === this.name) return false
           if (dispatch) {
+            this.storage.editOnMount = true
             tr.insert(0, this.type.create({ yaml }))
-          }
-          return true
-        },
-      setFrontMatter:
-        (yaml) =>
-        ({ state, tr, dispatch }) => {
-          const first = state.doc.firstChild
-          const existing = first?.type.name === this.name ? first : null
-          if (!existing && yaml === null) return false
-          if (dispatch) {
-            if (existing && yaml === null) tr.delete(0, existing.nodeSize)
-            else if (existing) tr.setNodeMarkup(0, undefined, { yaml })
-            else tr.insert(0, this.type.create({ yaml }))
           }
           return true
         }

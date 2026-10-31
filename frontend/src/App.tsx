@@ -3,7 +3,6 @@ import { Code2, FileCode, PanelLeft, Sparkles } from 'lucide-react'
 import { MAX_RECENT_WORKSPACES, type AppSettings, type FileNode, type WriteProposal } from '@shared/types'
 import { Editor, type EditorHandle, type HeadingInfo } from './components/Editor'
 import { Sidebar, type SidebarTab } from './components/Sidebar'
-import { DocInfo } from './components/DocInfo'
 import { SettingsDialog } from './components/SettingsDialog'
 import { WindowControls } from './components/WindowControls'
 import { ShortcutsDialog } from './components/ShortcutsDialog'
@@ -52,8 +51,6 @@ export function App() {
   const agent = useAgentState()
   const [saveState, setSaveState] = useState<SaveState>('saved')
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('files')
-  /** 侧边栏「信息」待进入元信息编辑 */
-  const [metaEdit, setMetaEdit] = useState(false)
   const [systemDark, setSystemDark] = useState(() => matchMedia('(prefers-color-scheme: dark)').matches)
 
   const editorRef = useRef<EditorHandle>(null)
@@ -456,28 +453,6 @@ export function App() {
 
   const words = useMemo(() => countWords(markdown), [markdown])
 
-  /** 在侧边栏「信息」中查看元信息；由 / 命令新插入时直接进入编辑 */
-  const openFrontMatter = useCallback(
-    (edit: boolean) => {
-      if (!settings?.showSidebar) updateSettings({ showSidebar: true })
-      setFocusMode(false)
-      setSidebarTab('info')
-      // 编辑器的 onChange 有防抖，先同步最新内容，侧边栏才能读到刚插入的元信息
-      const md = editorRef.current?.getMarkdown()
-      if (md != null && md !== latest.current.markdown) onEditorChange(md)
-      if (edit) setMetaEdit(true)
-    },
-    [settings?.showSidebar, updateSettings, onEditorChange]
-  )
-  const setFrontMatter = useCallback(
-    (yaml: string | null) => {
-      editorRef.current?.setFrontMatter(yaml)
-      const md = editorRef.current?.getMarkdown()
-      if (md != null && md !== latest.current.markdown) onEditorChange(md)
-    },
-    [onEditorChange]
-  )
-
   // 编辑器主题：把排版主题转换为作用于所见即所得的样式表
   const editorThemeKey = settings ? resolveEditorTheme(settings.editorTheme, settings.themeKey) : null
   const editorThemeCss = useMemo(
@@ -539,17 +514,6 @@ export function App() {
             tab={sidebarTab}
             onTab={setSidebarTab}
             docWindow={!!docWindow}
-            info={
-              <DocInfo
-                markdown={markdown}
-                words={words}
-                path={doc.isScratch ? undefined : doc.path}
-                editRequested={metaEdit}
-                onEditStarted={() => setMetaEdit(false)}
-                onChange={setFrontMatter}
-                onReveal={(p) => api.fs.reveal(p)}
-              />
-            }
             workspace={settings.lastWorkspace}
             recentWorkspaces={settings.recentWorkspaces}
             tree={tree}
@@ -596,7 +560,7 @@ export function App() {
             onOpenImageSettings={() => setDialog('settings-image')}
             onChange={onEditorChange}
             onHeadings={setHeadings}
-            onOpenFrontMatter={openFrontMatter}
+            hideFrontMatter={!!editorThemeKey}
           />
           <footer className="statusbar">
             <button

@@ -731,8 +731,7 @@ textarea {
 }
 .editor-toolbar button:disabled {
   opacity: 0.35;
-}
-@container editor (max-width: 640px) {
+}@container editor (max-width: 640px) {
   .editor-toolbar-inner {
     justify-content: flex-start;
   }
@@ -3164,37 +3163,40 @@ textarea {
   color: var(--text-muted);
 }
 
-/* ---------- 元信息（Front Matter）：编辑区中的一行摘要 ---------- */
+/* ---------- 元信息（Front Matter） ---------- */
+/* 套用排版主题时编辑区即发布效果的预览，元信息不显示（发布与复制本来也不带） */
+.mk-themed .prose-editor .front-matter {
+  display: none;
+}
 .prose-editor .front-matter {
   margin: 0 0 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
   font-family: var(--font);
-  font-size: 12px;
+  font-size: 12.5px;
   line-height: 1.6;
+  color: var(--text);
   user-select: none;
 }
+.prose-editor .front-matter.ProseMirror-selectednode {
+  outline: 2px solid var(--border-strong);
+}
 .fm-head {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 6px;
-  max-width: 100%;
-  height: 26px;
-  padding: 0 8px 0 9px;
-  border: 1px solid var(--border);
-  border-radius: 13px;
-  background: var(--surface);
+  height: 32px;
+  padding: 0 6px 0 8px;
   color: var(--text-muted);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-.fm-head:hover {
-  background: var(--surface-hover);
-  color: var(--text);
-}
-.prose-editor .front-matter.ProseMirror-selectednode .fm-head {
-  outline: 2px solid var(--border-strong);
 }
 .fm-chevron {
   flex: none;
+  transition: transform 0.15s;
+}
+.front-matter.open .fm-chevron {
+  transform: rotate(90deg);
 }
 .fm-label {
   flex: none;
@@ -3207,52 +3209,50 @@ textarea {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-
-/* ---------- 侧边栏：信息 ---------- */
-.doc-info {
-  flex: 1;
-  overflow-y: auto;
-  padding: 4px 12px 16px;
-  font-size: 12.5px;
-  line-height: 1.6;
-}
-.doc-info section + section {
-  margin-top: 18px;
-}
-.doc-info-head {
+.fm-actions {
+  margin-left: auto;
   display: flex;
-  align-items: center;
   gap: 2px;
-  height: 26px;
-  margin-bottom: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
 }
-.doc-info-head h5 {
-  margin: 0 auto 0 0;
-  font-size: 11.5px;
-  font-weight: 600;
+.front-matter:hover .fm-actions {
+  opacity: 1;
+}
+.fm-actions button {
+  width: 24px;
+  height: 24px;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
   color: var(--text-muted);
 }
-.fm-props {
+.fm-actions button:hover {
+  background: var(--surface-active);
+  color: var(--text-strong);
+}
+.fm-body {
+  padding: 2px 12px 10px 30px;
+}
+.prose-editor .fm-props {
   margin: 0;
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: 4px 12px;
+  gap: 4px 16px;
 }
 .fm-prop {
   display: contents;
 }
-.fm-props dt {
+.prose-editor .fm-props dt {
   margin: 0;
-  max-width: 96px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   font-family: var(--mono);
   font-size: 11.5px;
   line-height: 22px;
   color: var(--text-muted);
 }
-.fm-props dd {
+.prose-editor .fm-props dd {
   margin: 0;
   min-width: 0;
   display: flex;
@@ -3272,19 +3272,21 @@ textarea {
 .fm-empty {
   color: var(--ghost);
 }
-.fm-raw,
-.fm-source {
+.prose-editor .fm-raw,
+.prose-editor .fm-source {
   margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
   font-family: var(--mono);
   font-size: 12px;
   line-height: 1.7;
   color: var(--text-strong);
   white-space: pre-wrap;
-  word-break: break-all;
 }
-.fm-source {
+.prose-editor .fm-source {
   width: 100%;
-  resize: vertical;
+  resize: none;
   outline: none;
   padding: 6px 8px;
   border: 1px solid var(--border-strong);
@@ -3296,47 +3298,6 @@ textarea {
   margin-top: 4px;
   font-size: 11px;
   color: var(--text-muted);
-}
-.doc-info-none {
-  color: var(--text-muted);
-}
-.doc-info-none .btn {
-  margin-top: 8px;
-}
-.doc-stats {
-  margin: 0;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-}
-.doc-stats div {
-  padding: 6px 8px;
-  border-radius: 6px;
-  background: var(--surface-hover);
-}
-.doc-stats dt {
-  font-size: 11px;
-  color: var(--text-muted);
-}
-.doc-stats dd {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-strong);
-  font-variant-numeric: tabular-nums;
-}
-.doc-path {
-  display: flex;
-  align-items: flex-start;
-  gap: 4px;
-}
-.doc-path span {
-  flex: 1;
-  min-width: 0;
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--text-muted);
-  word-break: break-all;
 }
 
 /* ---------- 公式 ---------- */

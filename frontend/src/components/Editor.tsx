@@ -62,7 +62,7 @@ import { MathPopover, type MathTarget } from './MathPopover'
 import { FindBar } from './FindBar'
 import { MultilineBlockMath, StrictInlineMath, looksLikeLatex } from '../lib/math'
 import { Search, TyporaKeymap } from '../lib/editor-ext'
-import { FrontMatter, replaceFrontMatter } from '../lib/front-matter'
+import { FrontMatter } from '../lib/front-matter'
 import { Subscript, Superscript } from '../lib/sub-sup'
 
 const lowlight = createLowlight(common)
@@ -119,8 +119,6 @@ export interface EditorHandle {
   replaceDocument(md: string): void
   /** 打开查找（replace 为 true 时同时显示替换） */
   openFind(replace: boolean): void
-  /** 替换文档开头的元信息；null 为删除 */
-  setFrontMatter(yaml: string | null): void
 }
 
 interface Props {
@@ -136,8 +134,8 @@ interface Props {
   onOpenImageSettings(): void
   onChange(md: string): void
   onHeadings(headings: HeadingInfo[]): void
-  /** 查看元信息（在侧边栏「信息」中）；edit 为 true 时直接进入编辑 */
-  onOpenFrontMatter(edit: boolean): void
+  /** 套用排版主题时隐藏文档开头的元信息（编辑区即发布效果的预览） */
+  hideFrontMatter?: boolean
 }
 
 export interface HeadingInfo {
@@ -188,11 +186,9 @@ interface SlashItem {
 }
 
 export const Editor = forwardRef<EditorHandle, Props>(function Editor(
-  { docPath, initialMarkdown, sourceMode, typewriter, showToolbar, imageGen, onOpenImageSettings, onChange, onHeadings, onOpenFrontMatter },
+  { docPath, initialMarkdown, sourceMode, typewriter, showToolbar, imageGen, onOpenImageSettings, onChange, onHeadings, hideFrontMatter },
   ref
 ) {
-  const onOpenFrontMatterRef = useRef(onOpenFrontMatter)
-  onOpenFrontMatterRef.current = onOpenFrontMatter
   const [source, setSource] = useState(initialMarkdown)
   const [slash, setSlash] = useState<{ query: string; from: number; top: number; left: number } | null>(null)
   const [slashIndex, setSlashIndex] = useState(0)
@@ -281,7 +277,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
       TyporaKeymap.configure({ onMathBlock: () => newMathRef.current(true), onFind: (replace) => openFindRef.current(replace) }),
       Search,
       Markdown.configure({ markedOptions: { gfm: true } }),
-      FrontMatterBlock.configure({ onOpen: () => onOpenFrontMatterRef.current(false) }),
+      FrontMatterBlock,
       LocalImage.configure({ allowBase64: true }),
       Highlight,
       Subscript,
@@ -537,7 +533,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
           })
           const date = new Date().toLocaleDateString('sv-SE')
           e.chain().insertFrontMatter(`title: ${title}\ndate: ${date}\ntags: []`).run()
-          onOpenFrontMatterRef.current(true)
+          if (e.storage.frontMatter.hidden) toast('已插入元信息。套用排版主题时编辑区不显示元信息，切换到「原生样式」即可编辑', 'info', 4000)
         }
       },
       { key: 'img', label: '图片', hint: 'image img tp', icon: <ImageIcon size={16} />, run: (e) => pickImage(e) },
@@ -585,6 +581,10 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
 
   useEffect(() => () => window.clearTimeout(changeTimer.current), [])
 
+  useEffect(() => {
+    if (editor) editor.storage.frontMatter.hidden = !!hideFrontMatter
+  }, [editor, hideFrontMatter])
+
   useImperativeHandle(
     ref,
     () => ({
@@ -607,14 +607,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
           onChangeRef.current(md)
         } else editor?.commands.setContent(md, { contentType: 'markdown' })
       },
-      openFind: (replace) => openFindRef.current(replace),
-      setFrontMatter(yaml) {
-        if (sourceMode) {
-          const md = replaceFrontMatter(source, yaml)
-          setSource(md)
-          onChangeRef.current(md)
-        } else editor?.commands.setFrontMatter(yaml)
-      }
+      openFind: (replace) => openFindRef.current(replace)
     }),
     [editor, sourceMode, source, pickImage]
   )

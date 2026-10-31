@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState } from 'react'
 import {
   ChevronDown,
   ChevronRight,
@@ -17,15 +17,13 @@ import type { FileNode } from '@shared/types'
 import type { HeadingInfo } from './Editor'
 import { basename, dirname, isInside } from '../lib/assets'
 
-export type SidebarTab = 'files' | 'outline' | 'info'
+export type SidebarTab = 'files' | 'outline'
 
 interface Props {
   tab: SidebarTab
   onTab(tab: SidebarTab): void
   /** 单独打开文档的窗口：不显示文件列表 */
   docWindow: boolean
-  /** 「信息」页内容 */
-  info: ReactNode
   workspace?: string
   recentWorkspaces: string[]
   tree: FileNode[]
@@ -190,8 +188,7 @@ export function Sidebar(props: Props) {
         {(
           [
             ['files', '文件'],
-            ['outline', '大纲'],
-            ['info', '信息']
+            ['outline', '大纲']
           ] as const
         )
           .filter(([key]) => !props.docWindow || key !== 'files')
@@ -202,9 +199,7 @@ export function Sidebar(props: Props) {
           ))}
       </div>
 
-      {tab === 'info' ? (
-        props.info
-      ) : tab === 'files' ? (
+      {tab === 'files' ? (
         props.workspace ? (
           <>
             <div className="sidebar-head">
