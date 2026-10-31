@@ -100,12 +100,13 @@ func (b *Bridge) installUpdate() error {
 	if err != nil {
 		return err
 	}
-	dest := filepath.Join(dir, "."+c.Asset.Name+".download")
+	// 使用安装包原文件名：Windows 依据扩展名运行安装程序，扩展名不对会弹出「选择打开方式」
+	dest := filepath.Join(dir, filepath.Base(c.Asset.Name))
 	err = update.Download(c.Asset.URL, dest, func(received, total int64) {
 		b.emit("update:progress", updateProgress{Phase: "download", Received: received, Total: total})
 	})
 	if err != nil {
-		os.Remove(dest)
+		os.RemoveAll(dir)
 		return err
 	}
 
