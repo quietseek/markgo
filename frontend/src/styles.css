@@ -3795,6 +3795,16 @@ textarea {
   white-space: pre-wrap;
   word-break: break-word;
 }
+.export-mode-tag {
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--surface-active);
+  color: var(--text-strong);
+  font-size: 12px;
+}
+.export-print-btn {
+  margin-right: auto;
+}
 .export-guide .export-error {
   margin: 0 0 12px;
 }
@@ -3918,4 +3928,86 @@ textarea {
 }
 .btn.danger:hover {
   background: #b91c1c;
+}
+
+/* ---------- 打印为 PDF：只保留正文，样式与编辑区一致 ---------- */
+@media print {
+  html,
+  body,
+  #root,
+  .app,
+  .workbench,
+  .editor-pane,
+  .editor-scroll {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+  body {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .titlebar,
+  .sidebar,
+  .right-panel,
+  .statusbar,
+  .editor-toolbar,
+  .find-bar,
+  .draft-banner,
+  .diff-review,
+  .toasts,
+  .modal-backdrop,
+  .bubble-menu,
+  .table-menu,
+  .slash-menu,
+  .front-matter,
+  .code-block-head,
+  .image-toolbar,
+  .mermaid-export,
+  .lang-picker {
+    display: none !important;
+  }
+  .editor-content,
+  .editor-content.typewriter {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  /* Mermaid 只打印图表，不打印源码 */
+  .code-block.mermaid > pre {
+    display: none !important;
+  }
+  .code-block.mermaid {
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .code-block.mermaid .mermaid-view {
+    display: block !important;
+    margin: 0 !important;
+    padding: 8px 0 !important;
+    border-color: transparent !important;
+    background: transparent !important;
+  }
+  .prose-editor h1.is-empty::before,
+  .prose-editor h2.is-empty::before,
+  .prose-editor h3.is-empty::before,
+  .prose-editor p.is-empty::before {
+    content: none !important;
+  }
+  .prose-editor pre,
+  .prose-editor blockquote,
+  .prose-editor table,
+  .prose-editor img,
+  .prose-editor .mermaid-view {
+    break-inside: avoid;
+  }
+  .prose-editor h1,
+  .prose-editor h2,
+  .prose-editor h3,
+  .prose-editor h4 {
+    break-after: avoid;
+  }
 }

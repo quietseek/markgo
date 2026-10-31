@@ -181,6 +181,14 @@ func (b *Bridge) SetDark(dark bool) {
 	}
 }
 
+// Print 打开系统打印对话框（可在其中存储为 PDF）；打印内容由前端的打印样式决定
+func (b *Bridge) Print() error {
+	if b.window == nil {
+		return nil
+	}
+	return b.window.Print()
+}
+
 func (b *Bridge) Minimize() {
 	if b.window != nil {
 		b.window.Minimise()

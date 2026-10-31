@@ -60,6 +60,8 @@ type ExportConfig struct {
 	ExtraArgs string `json:"extraArgs"`
 	// 各格式的额外 Pandoc 参数
 	FormatArgs map[string]string `json:"formatArgs"`
+	// PDF 生成方式：auto 有 PDF 引擎时用 Pandoc，否则打印为 PDF；pandoc；print 通过系统打印对话框存储为 PDF
+	PdfMode string `json:"pdfMode"`
 	// PDF：引擎（留空自动选择）、纸张、页边距、正文字体（留空时中文文档使用系统中文字体）
 	PdfEngine string `json:"pdfEngine"`
 	PaperSize string `json:"paperSize"`
@@ -207,6 +209,7 @@ func Defaults() AppSettings {
 		ImageGen: ImageGenConfig{Provider: "openai", Model: "gpt-image-1", Timeout: 180},
 		Export: ExportConfig{
 			LastFormat:  "docx",
+			PdfMode:     "auto",
 			AfterExport: "reveal",
 			FormatArgs:  map[string]string{},
 			PaperSize:   "a4",

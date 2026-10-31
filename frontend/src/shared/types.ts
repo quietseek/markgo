@@ -275,6 +275,7 @@ export const defaultSettings: AppSettings = {
   export: {
     pandocPath: '',
     lastFormat: 'docx',
+    pdfMode: 'auto',
     afterExport: 'reveal',
     toc: false,
     numberSections: false,
@@ -305,6 +306,8 @@ export interface ExportConfig {
   extraArgs: string
   /** 各格式的额外 Pandoc 参数 */
   formatArgs: Record<string, string>
+  /** PDF 生成方式：auto 有 PDF 引擎时用 Pandoc，否则打印为 PDF；print 通过系统打印对话框存储为 PDF */
+  pdfMode: 'auto' | 'pandoc' | 'print'
   /** PDF 引擎，留空自动选择 */
   pdfEngine: string
   paperSize: 'a4' | 'letter'
@@ -574,6 +577,8 @@ export interface MarkGoApi {
     minimize(): void
     toggleMaximize(): void
     close(): void
+    /** 打开系统打印对话框 */
+    print(): Promise<void>
     /** 本次启动是否使用系统原生窗口按钮（切换需重启） */
     nativeControls: boolean
     onMaximizeChange(cb: (maximized: boolean) => void): () => void
