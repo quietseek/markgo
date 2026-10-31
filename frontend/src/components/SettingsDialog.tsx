@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { Blocks, ChevronDown, FileText, FolderOpen, FolderPlus, Image, PenLine, Plus, Send, Settings2, Trash2 } from 'lucide-react'
+import { Blocks, ChevronDown, FileText, FolderOpen, FolderPlus, Image, Moon, PenLine, Plus, Send, Settings2, Sun, Trash2 } from 'lucide-react'
 import { AGENT_PRESETS, IMAGE_GEN_PROVIDERS, TRAY_MENU_ITEMS, WRITING_LENGTHS, WRITING_STYLE_PRESETS, type AgentProfile, type AppSettings, type TyporaThemeImport, type TyporaThemeInfo } from '@shared/types'
 import { Modal } from './Modal'
 import { toast } from '../lib/toast'
+import { confirmDialog } from '../lib/confirm'
 import { EDITOR_WIDTHS } from './EditorWidthSwitch'
 import { useAgentState } from '../lib/agent-store'
 
@@ -363,7 +364,14 @@ function TyporaThemes({ draft, set }: { draft: AppSettings; set(patch: Partial<A
     }
   }
   const remove = async (t: TyporaThemeInfo) => {
-    if (!confirm(`删除 Typora 主题「${t.name}」？`)) return
+    const using = [draft.lightTheme === t.id && '浅色', draft.darkTheme === t.id && '深色'].filter(Boolean).join('、')
+    const ok = await confirmDialog({
+      title: `删除 Typora 主题「${t.name}」？`,
+      message: `主题文件及其独用的资源文件夹会被删除。${using ? `它正被用作${using}主题，删除后改回内置主题。` : ''}`,
+      confirmText: '删除',
+      danger: true
+    })
+    if (!ok) return
     await window.markgo.themes.remove(t.id)
     const patch: Partial<AppSettings> = {}
     if (draft.lightTheme === t.id) patch.lightTheme = ''
@@ -404,21 +412,75 @@ function TyporaThemes({ draft, set }: { draft: AppSettings; set(patch: Partial<A
         </div>
       </Row>
       {themes.length > 0 && (
-        <div className="typora-theme-list">
+        <Row label="已导入的主题" desc="在列表中直接设为浅色 / 深色主题，或删除">
+          <ThemeDropdown
+            themes={themes}
+            light={draft.lightTheme}
+            dark={draft.darkTheme}
+            onLight={(id) => set({ lightTheme: draft.lightTheme === id ? '' : id })}
+            onDark={(id) => set({ darkTheme: draft.darkTheme === id ? '' : id })}
+            onRemove={remove}
+          />
+        </Row>
+      )}
+    </>
+  )
+}
+
+/** 已导入主题的下拉列表：每一项上直接设为浅色 / 深色主题或删除 */
+function ThemeDropdown({
+  themes,
+  light,
+  dark,
+  onLight,
+  onDark,
+  onRemove
+}: {
+  themes: TyporaThemeInfo[]
+  light: string
+  dark: string
+  onLight(id: string): void
+  onDark(id: string): void
+  onRemove(t: TyporaThemeInfo): void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const close = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false)
+    }
+    window.addEventListener('mousedown', close)
+    return () => window.removeEventListener('mousedown', close)
+  }, [open])
+
+  return (
+    <div className="theme-dropdown" ref={ref}>
+      <button className={`theme-dropdown-trigger${open ? ' open' : ''}`} onClick={() => setOpen((v) => !v)}>
+        <span>{themes.length} 个主题</span>
+        <ChevronDown size={14} />
+      </button>
+      {open && (
+        <div className="theme-dropdown-menu" role="listbox">
           {themes.map((t) => (
-            <div key={t.id} className="typora-theme-item">
-              <span>{t.name}</span>
-              {(draft.lightTheme === t.id || draft.darkTheme === t.id) && (
-                <small>{[draft.lightTheme === t.id && '浅色', draft.darkTheme === t.id && '深色'].filter(Boolean).join(' / ')}使用中</small>
-              )}
-              <button className="icon-btn sm" title="删除主题" onClick={() => remove(t)}>
+            <div key={t.id} className="theme-dropdown-item" role="option" aria-selected={light === t.id || dark === t.id}>
+              <span className="name" title={t.id}>
+                {t.name}
+              </span>
+              <button className={`chip${light === t.id ? ' on' : ''}`} title={light === t.id ? '取消浅色主题' : '设为浅色主题'} onClick={() => onLight(t.id)}>
+                <Sun size={12} /> 浅色
+              </button>
+              <button className={`chip${dark === t.id ? ' on' : ''}`} title={dark === t.id ? '取消深色主题' : '设为深色主题'} onClick={() => onDark(t.id)}>
+                <Moon size={12} /> 深色
+              </button>
+              <button className="icon-btn sm danger" title="删除主题" onClick={() => onRemove(t)}>
                 <Trash2 size={13} />
               </button>
             </div>
           ))}
         </div>
       )}
-    </>
+    </div>
   )
 }
 

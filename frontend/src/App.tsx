@@ -21,6 +21,8 @@ import { basename, dirname, isInside } from './lib/assets'
 import { countWords, extractTitle, renderWechat } from './lib/render'
 import { prepareMermaid } from './lib/mermaid'
 import { toast } from './lib/toast'
+import { confirmDialog } from './lib/confirm'
+import { ConfirmHost } from './components/ConfirmHost'
 import { WELCOME_MD } from './lib/welcome'
 import { useTyporaTheme } from './lib/use-typora-theme'
 
@@ -278,7 +280,13 @@ export function App() {
 
   const deleteEntry = useCallback(
     async (path: string) => {
-      if (!confirm(`确定将「${basename(path)}」移到废纸篓吗？`)) return
+      const ok = await confirmDialog({
+        title: `将「${basename(path)}」移到废纸篓？`,
+        message: '之后可以在系统的废纸篓（回收站）中恢复。',
+        confirmText: '移到废纸篓',
+        danger: true
+      })
+      if (!ok) return
       const cur = latest.current.doc
       if (cur && cur.path.startsWith(path)) {
         window.clearTimeout(saveTimer.current)
@@ -701,6 +709,7 @@ export function App() {
       )}
       {dialog === 'shortcuts' && <ShortcutsDialog onClose={() => setDialog(null)} />}
       {dialog === 'about' && <AboutDialog update={update} onCheck={checkUpdate} onClose={() => setDialog(null)} />}
+      <ConfirmHost />
       <Toasts />
     </div>
   )
