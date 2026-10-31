@@ -2,6 +2,23 @@
 
 每个版本发布时，GitHub Release 的说明取自本文件对应版本的小节，按「修复问题、新增功能、优化改进、下载地址」组织，没有内容的小节不写。发版前请先在这里补充内容。
 
+## v0.4.1
+
+### 优化改进
+
+- 移除已不再使用的单独文档窗口相关代码，所有文档统一在主窗口中打开
+
+### 下载地址
+
+| 系统 | 安装包 |
+| --- | --- |
+| macOS（Apple 芯片与 Intel 通用） | [MarkGo-0.4.1-mac-universal.dmg](https://github.com/quietseek/markgo/releases/download/v0.4.1/MarkGo-0.4.1-mac-universal.dmg) |
+| Windows 10 / 11 | [MarkGo-0.4.1-win-x64-setup.exe](https://github.com/quietseek/markgo/releases/download/v0.4.1/MarkGo-0.4.1-win-x64-setup.exe) |
+| Linux（Debian / Ubuntu） | [MarkGo-0.4.1-linux-amd64.deb](https://github.com/quietseek/markgo/releases/download/v0.4.1/MarkGo-0.4.1-linux-amd64.deb) |
+
+> Windows 需要 WebView2 运行时（系统通常已自带，安装程序会自动补装）；Linux 需要 GTK 4 与 WebKitGTK 6.0（Ubuntu 24.04+ / Debian 13+）。
+> 安装包未经代码签名：macOS 首次打开如提示「已损坏」或「无法验证开发者」，请在终端执行 `xattr -cr /Applications/MarkGo.app`；Windows 如出现 SmartScreen 提示，点击「更多信息 → 仍要运行」。
+
 ## v0.4.0
 
 ### 新增功能
