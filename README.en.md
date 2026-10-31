@@ -34,7 +34,7 @@ It runs on macOS, Windows and Linux. Built with [Wails 3](https://v3.wails.io) (
 | --- | --- |
 | Notebook | Any local folder can be a notebook, and every note is a plain `.md` file; folders without notes are hidden; files outside the notebook open in their own window; create, rename, move to trash and reveal in the file manager; edits are saved automatically |
 | Editor | WYSIWYG editing on Tiptap 3: headings, lists, task lists, tables (row/column toolbar), code blocks (language picker, syntax highlighting, one-click copy, formatting), Mermaid diagrams (live rendering, copy as image or export PNG / SVG), blockquotes, highlights, sub/superscript, links, images and math (KaTeX); `/` command menu, top quick-action bar (can be turned off in settings), collapsible YAML front matter display and editing (hidden while a layout theme is applied), selection toolbar, find and replace, Typora-style shortcuts, Markdown source mode, outline navigation, focus mode and typewriter mode |
-| Layout | 15 built-in layout themes applied directly to the editor; adjustable font size and paragraph spacing; external links can be turned into end-of-article footnotes; three editor width presets: 「标准 / 宽屏 / 铺满」(Standard / Wide / Full) |
+| Layout | 15 built-in layout themes applied directly to the editor; adjustable font size and paragraph spacing; external links can be turned into end-of-article footnotes; three editor width presets: 「标准 / 宽屏 / 铺满」(Standard / Wide / Full); 「原生样式」(Native style) offers font, font size, line height and paragraph spacing settings, and the status bar switches between system / dark / light appearance |
 | Images | Paste, drag and drop, or insert via command; upload to a PicGo / PicList image host, or save to an `assets` folder next to the document; AI image generation; the image toolbar can upload local images to the host, save remote images locally, replace an image and edit its caption |
 | AI writing | Connects to AI agents installed on your machine through the Agent Client Protocol (ACP): chat assistant, styled outline-to-article writing from a topic, inline rewrite and continuation of a selection, and math from natural language; every change from an agent must pass a diff review before it is applied |
 | Publishing | Copy styled rich text in one click and paste it into any rich-text editor (Mermaid diagrams become images automatically); or publish directly once configured (currently WeChat Official Account drafts, with body images re-uploaded automatically) |
@@ -52,6 +52,8 @@ Download the installer for your platform from the [Releases](https://github.com/
 | Windows | `MarkGo-<version>-win-x64-setup.exe` | WebView2 runtime (usually preinstalled on Windows 10/11; the installer adds it if missing) |
 | Linux | `MarkGo-<version>-linux-x86_64.AppImage` or `MarkGo-<version>-linux-amd64.deb` | GTK 4 and WebKitGTK 6.0 (Ubuntu 24.04+ / Debian 13+) |
 
+Once installed, when a new version is available, click 「立即更新」(Update now) in About (or the update button at the bottom left of the sidebar): MarkGo downloads, installs and reopens itself, with no manual download needed.
+
 > [!NOTE]
 > The installers are not code-signed yet.
 > - **macOS**: if the first launch says the app "is damaged" or "cannot be verified", run `xattr -cr /Applications/MarkGo.app` in Terminal and open it again.
@@ -68,9 +70,9 @@ Download the installer for your platform from the [Releases](https://github.com/
 
 ### Write an article with AI
 
-1. Install and connect an agent as described in [AI Writing → Setup](#setup), then set the writing style, length (「短文 / 中篇 / 长文」, short / medium / long) and target audience in 「设置 → 写作」(Settings → Writing).
+1. Install and connect an agent as described in [AI Writing → Setup](#setup), then set the writing style, length (「短文 / 中篇 / 长文」, short / medium / long) and target audience in 「设置 → 写作偏好」(Settings → Writing Preferences).
 2. Press `⌘J` to open the AI assistant, click 「写文章」(Write article), enter a topic, choose a style and length, then click 「生成大纲」(Generate outline).
-3. Discuss and refine the outline with the agent in the chat; when you are happy with it, click 「开始写作」(Start writing). MarkGo creates a new document with the suggested title and the agent writes the first draft into it.
+3. Discuss and refine the outline with the agent in the chat; when you are happy with it, click 「开始写作」(Start writing). MarkGo creates a new document with the suggested title and streams the agent's output into the editor live (read-only while writing); you can edit once it finishes.
 4. Polish or rewrite paragraphs with the selection 「AI」 menu, then style and publish as above.
 
 ## AI Writing
@@ -91,12 +93,12 @@ AI writing does not call model APIs directly and needs no API key: the capabilit
    | GitHub Copilot | Run `copilot`, then `/login` |
    | Goose | Install the Goose CLI, then run `goose configure` |
 
-2. Find the agent in 「设置 → 集成」(Settings → Integrations) and click 「安装」(Install). Preset agents are launched through `npx`, so the first install downloads them; once connected, the card shows 「已连接」(Connected). Click 「使用」(Use) on another installed agent to switch.
+2. Find the agent in 「设置 → AI 集成」(Settings → AI Integrations) and click 「安装」(Install). Preset agents are launched through `npx`, so the first install downloads them; once connected, the card shows 「已连接」(Connected). Click 「使用」(Use) on another installed agent to switch.
 3. Other ACP-compatible agents can be added with 「＋ 添加自定义 Agent」(+ Add custom agent): enter the command that starts it in ACP mode and install it. Expand a card to edit its command or uninstall it. Launch commands run through your login shell and inherit its environment variables (such as API keys).
 
 ### Usage
 
-- **Write an article**: set the writing style, length, target audience and extra requirements in 「设置 → 写作」(Settings → Writing). In the AI assistant, click 「写文章」(Write article) and enter a topic; the agent proposes an outline first. Discuss it in the chat, then click 「开始写作」(Start writing): MarkGo creates a new document with the suggested title and the agent writes the first draft into it.
+- **Write an article**: set the writing style, length, target audience and extra requirements in 「设置 → 写作偏好」(Settings → Writing Preferences). In the AI assistant, click 「写文章」(Write article) and enter a topic; the agent proposes an outline first. Discuss it in the chat, then click 「开始写作」(Start writing): MarkGo creates a new document with the suggested title and streams the agent's output into the editor live; the editor is read-only while writing, you can stop at any time, and it becomes editable once the draft is finished. The draft starts with front matter (title, slug, summary, category, status, theme, tags, updated_at), and once it is finished the document is renamed after the front matter `title`.
 - **AI math**: choose 「AI 公式」(AI formula) from the `/` menu, or select a description and click "∑" in the formatting toolbar; describe the formula in natural language to generate LaTeX, preview it, then insert.
 - **AI assistant** (`⌘J`): chat with the agent in the side panel and quote the current selection. The agent's plan, tool calls and permission requests all show up in the conversation.
 - **Inline AI**: after selecting text, choose 「AI」 in the formatting toolbar to polish, rewrite, expand, condense, translate between Chinese and English, or run a custom instruction; 「AI 续写」(AI continue) and 「AI 指令」(AI instruction) are also available in the `/` menu. Results are previewed in a card before replacing or inserting.
@@ -104,7 +106,7 @@ AI writing does not call model APIs directly and needs no API key: the capabilit
 
 ### AI image generation
 
-AI image generation calls image model APIs directly. Choose a provider in 「设置 → 图片 → AI 生图」(Settings → Images → AI image) — OpenAI, Doubao, Tongyi Wanxiang, Zhipu, SiliconFlow, or a custom OpenAI-compatible endpoint — and fill in the API key and model; the timeout is adjustable. API keys are stored encrypted on your machine.
+AI image generation calls image model APIs directly. Choose a provider in 「设置 → 图片处理 → AI 生图」(Settings → Image Handling → AI image) — OpenAI, Doubao, Tongyi Wanxiang, Zhipu, SiliconFlow, or a custom OpenAI-compatible endpoint — and fill in the API key and model; the timeout is adjustable. API keys are stored encrypted on your machine.
 
 Choose 「AI 生图」(AI image) from the `/` menu or click the button in the top action bar, then describe the image. Insert it once you are happy with the preview; the image is uploaded to PicGo or saved to the local image folder according to your image settings.
 
@@ -122,7 +124,7 @@ MarkGo uploads images through the HTTP server of [PicGo](https://github.com/Molu
 
 1. Install and start PicGo or PicList and configure an image host, such as Qiniu, Tencent Cloud COS, Alibaba Cloud OSS, GitHub or SM.MS.
 2. Enable the server in PicGo under 「设置 → 设置 Server」(Settings → Server); it listens on `127.0.0.1:36677` by default.
-3. In MarkGo, choose 「PicGo 图床」(PicGo host) under 「设置 → 图片 → 图床」(Settings → Images → Image host), then click 「测试上传」(Test upload) to verify.
+3. In MarkGo, choose 「PicGo 图床」(PicGo host) under 「设置 → 图片处理 → 图床」(Settings → Image Handling → Image host), then click 「测试上传」(Test upload) to verify.
 
 Uploads use `POST /upload` with the body `{"list": ["<local path>"]}`. Images from the clipboard are written to a temporary file before being uploaded.
 
@@ -132,7 +134,7 @@ Publishing to WeChat Official Account drafts is currently supported.
 
 ### Prerequisites
 
-1. Fill in the account's AppID and AppSecret in 「设置 → 发布」(Settings → Publish). The AppSecret is encrypted with a key from the system keychain and stored only on your machine.
+1. Fill in the account's AppID and AppSecret in 「设置 → 发布渠道」(Settings → Publishing Channels). The AppSecret is encrypted with a key from the system keychain and stored only on your machine.
 2. Add your machine's public egress IP to the IP allowlist in the Official Account console (「设置与开发 → 基本配置 → IP 白名单」), otherwise the API returns error code `40164`.
 3. The account needs draft API permission, i.e. a verified service or subscription account.
 

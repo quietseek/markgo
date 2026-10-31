@@ -13,6 +13,8 @@ export type ChatItem =
       plan: { content: string; status: string }[]
       running: boolean
       error?: string
+      /** AI 写作的初稿回复（文章标题）：正文流式写入文档，对话中只显示进度 */
+      draft?: string
     }
   | { id: number; kind: 'permission'; permission: PermissionView; chosen?: string }
   | {
@@ -71,8 +73,18 @@ function updateLastAgent(fn: (item: Extract<ChatItem, { kind: 'agent' }>) => Ext
     if (it.kind === 'user') break
   }
   // 当前轮次还没有 Agent 条目（例如先收到权限请求）时新建
-  const created = fn({ id: ++seq, kind: 'agent', text: '', thought: '', tools: [], plan: [], running: true })
+  const draft = state.writing?.phase === 'drafting' ? (state.writing.title ?? '') : undefined
+  const created = fn({ id: ++seq, kind: 'agent', text: '', thought: '', tools: [], plan: [], running: true, draft })
   set({ items: [...state.items, created] })
+}
+
+/** 最近一次 AI 写作初稿回复的原文（流式累积） */
+export function lastDraftText(items: ChatItem[] = state.items): string {
+  for (let i = items.length - 1; i >= 0; i--) {
+    const it = items[i]
+    if (it.kind === 'agent' && it.draft !== undefined) return it.text
+  }
+  return ''
 }
 
 /** 单独打开文档的窗口只处理本窗口发起的频道（内联 AI 等），对话与写入审阅由主窗口处理 */

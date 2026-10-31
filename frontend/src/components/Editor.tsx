@@ -119,6 +119,10 @@ export interface EditorHandle {
   replaceDocument(md: string): void
   /** 打开查找（replace 为 true 时同时显示替换） */
   openFind(replace: boolean): void
+  /**
+   * AI 写作流式写入全文：不进入撤销历史；done 为 true 时是最终内容，触发保存
+   */
+  streamDocument(md: string, done?: boolean): void
 }
 
 interface Props {
@@ -136,6 +140,8 @@ interface Props {
   onHeadings(headings: HeadingInfo[]): void
   /** 套用排版主题时隐藏文档开头的元信息（编辑区即发布效果的预览） */
   hideFrontMatter?: boolean
+  /** 只读（AI 写作流式写入期间） */
+  readOnly?: boolean
 }
 
 export interface HeadingInfo {
@@ -186,7 +192,7 @@ interface SlashItem {
 }
 
 export const Editor = forwardRef<EditorHandle, Props>(function Editor(
-  { docPath, initialMarkdown, sourceMode, typewriter, showToolbar, imageGen, onOpenImageSettings, onChange, onHeadings, hideFrontMatter },
+  { docPath, initialMarkdown, sourceMode, typewriter, showToolbar, imageGen, onOpenImageSettings, onChange, onHeadings, hideFrontMatter, readOnly },
   ref
 ) {
   const [source, setSource] = useState(initialMarkdown)
@@ -585,6 +591,10 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
     if (editor) editor.storage.frontMatter.hidden = !!hideFrontMatter
   }, [editor, hideFrontMatter])
 
+  useEffect(() => {
+    if (editor && editor.isEditable === !!readOnly) editor.setEditable(!readOnly, false)
+  }, [editor, readOnly])
+
   useImperativeHandle(
     ref,
     () => ({
@@ -607,7 +617,21 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
           onChangeRef.current(md)
         } else editor?.commands.setContent(md, { contentType: 'markdown' })
       },
-      openFind: (replace) => openFindRef.current(replace)
+      openFind: (replace) => openFindRef.current(replace),
+      streamDocument(md, done = false) {
+        if (sourceMode) {
+          setSource(md)
+          if (done) onChangeRef.current(md)
+          return
+        }
+        if (!editor) return
+        editor.chain().setMeta('addToHistory', false).setContent(md, { contentType: 'markdown', emitUpdate: done }).run()
+        if (!done) {
+          // 跟随写入位置
+          const scroller = editor.view.dom.closest('.editor-scroll')
+          scroller?.scrollTo({ top: scroller.scrollHeight })
+        }
+      }
     }),
     [editor, sourceMode, source, pickImage]
   )
@@ -633,6 +657,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
         <textarea
           className="source-editor"
           value={source}
+          readOnly={readOnly}
           spellCheck={false}
           autoFocus
           onChange={(e) => {

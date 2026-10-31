@@ -65,7 +65,28 @@ ManifestDPIAware true
 
 !insertmacro MUI_UNPAGE_INSTFILES # Uninstalling page
 
-!insertmacro MUI_LANGUAGE "English" # Set the Language of the installer
+# 安装界面语言跟随系统：系统为中文时显示中文，其余显示英文（第一个为默认语言）
+!insertmacro MUI_LANGUAGE "English"
+!insertmacro MUI_LANGUAGE "SimpChinese"
+
+LangString MSG_APP_RUNNING ${LANG_ENGLISH} "${INFO_PRODUCTNAME} is running. Click OK to close it and continue, or Cancel to quit."
+LangString MSG_APP_RUNNING ${LANG_SIMPCHINESE} "${INFO_PRODUCTNAME} 正在运行。点击「确定」关闭它并继续，点击「取消」退出。"
+
+# 安装 / 卸载前关闭正在运行的应用，否则文件被占用无法覆盖；静默安装（应用内自动更新）时直接关闭
+!macro markgo.closeRunningApp
+    nsExec::ExecToStack '"$SYSDIR\cmd.exe" /c ""$SYSDIR\tasklist.exe" /FI "IMAGENAME eq ${PRODUCT_EXECUTABLE}" /NH | "$SYSDIR\find.exe" /I "${PRODUCT_EXECUTABLE}""'
+    Pop $0
+    Pop $1
+    ${If} $0 == 0
+        ${If} ${Cmd} `MessageBox MB_OKCANCEL|MB_ICONINFORMATION "$(MSG_APP_RUNNING)" /SD IDOK IDCANCEL`
+            Abort
+        ${EndIf}
+        nsExec::Exec '"$SYSDIR\taskkill.exe" /IM ${PRODUCT_EXECUTABLE}'
+        Sleep 1500
+        nsExec::Exec '"$SYSDIR\taskkill.exe" /F /IM ${PRODUCT_EXECUTABLE}'
+        Sleep 500
+    ${EndIf}
+!macroend
 
 ## The following two statements can be used to sign the installer and the uninstaller. The path to the binaries are provided in %1
 #!uninstfinalize 'signtool --file "%1"'
@@ -82,6 +103,21 @@ ShowInstDetails show # This will always show the installation details.
 
 Function .onInit
    !insertmacro wails.checkArchitecture
+   # 升级时装到原来的位置（卸载信息中记录了程序路径）
+   SetRegView 64
+   !if "${WAILS_INSTALL_SCOPE}" == "user"
+       ReadRegStr $0 HKCU "${UNINST_KEY}" "DisplayIcon"
+   !else
+       ReadRegStr $0 HKLM "${UNINST_KEY}" "DisplayIcon"
+   !endif
+   ${If} $0 != ""
+       ${GetParent} $0 $INSTDIR
+   ${EndIf}
+   !insertmacro markgo.closeRunningApp
+FunctionEnd
+
+Function un.onInit
+   !insertmacro markgo.closeRunningApp
 FunctionEnd
 
 Section

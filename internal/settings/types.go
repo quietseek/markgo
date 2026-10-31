@@ -61,6 +61,10 @@ type AppSettings struct {
 	ShowToolbar       bool           `json:"showToolbar"`
 	Typewriter        bool           `json:"typewriter"`
 	EditorWidth       string         `json:"editorWidth"`
+	EditorFont        string         `json:"editorFont"`
+	EditorFontSize    float64        `json:"editorFontSize"`
+	EditorLineHeight  float64        `json:"editorLineHeight"`
+	EditorParaSpacing float64        `json:"editorParaSpacing"`
 	CloseAction       string         `json:"closeAction"`
 	WindowControls    string         `json:"windowControls"`
 	TrafficPosition   string         `json:"trafficPosition"`
@@ -141,24 +145,28 @@ var TrayMenuItems = []struct {
 
 func Defaults() AppSettings {
 	return AppSettings{
-		ImageUploadMode:  "picgo",
-		PicgoServer:      "http://127.0.0.1:36677",
-		LocalAssetsDir:   "assets",
-		ThemeKey:         "claude",
-		LinkToFootnote:   true,
-		ShowSidebar:      true,
-		EditorTheme:      "default",
-		Appearance:       "system",
-		ShowToolbar:      true,
-		EditorWidth:      "wide",
-		CloseAction:      "quit",
-		WindowControls:   "classic",
-		TrafficPosition:  "right",
-		StartupOpen:      "last",
-		AutoCheckUpdate:  true,
-		TrayMenu:         []string{"show", "new-file", "recent", "quit"},
-		RecentWorkspaces: []string{},
-		AI:               AiConfig{Agents: append([]AgentProfile(nil), AgentPresets...), ActiveAgentID: "claude"},
+		ImageUploadMode:   "picgo",
+		PicgoServer:       "http://127.0.0.1:36677",
+		LocalAssetsDir:    "assets",
+		ThemeKey:          "claude",
+		LinkToFootnote:    true,
+		ShowSidebar:       true,
+		EditorTheme:       "default",
+		Appearance:        "system",
+		ShowToolbar:       true,
+		EditorWidth:       "wide",
+		EditorFont:        "sans",
+		EditorFontSize:    16,
+		EditorLineHeight:  1.75,
+		EditorParaSpacing: 0.85,
+		CloseAction:       "quit",
+		WindowControls:    "classic",
+		TrafficPosition:   "right",
+		StartupOpen:       "last",
+		AutoCheckUpdate:   true,
+		TrayMenu:          []string{"show", "new-file", "recent", "quit"},
+		RecentWorkspaces:  []string{},
+		AI:                AiConfig{Agents: append([]AgentProfile(nil), AgentPresets...), ActiveAgentID: "claude"},
 		Writing: WritingConfig{
 			Styles:         append([]WritingStyle(nil), WritingStylePresets...),
 			DefaultStyleID: "casual",

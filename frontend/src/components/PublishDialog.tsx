@@ -82,7 +82,7 @@ export function PublishDialog({ markdown, docPath, settings, onOpenSettings, onC
       <Modal title="发布到公众号草稿箱" onClose={onClose}>
         <div className="modal-body empty-state">
           <p>还没有配置公众号开发者凭据。</p>
-          <p className="note">在「设置 → 发布」填写 AppID / AppSecret，并把本机公网 IP 加入公众号 IP 白名单后即可一键发布草稿。</p>
+          <p className="note">在「设置 → 发布渠道」填写 AppID / AppSecret，并把本机公网 IP 加入公众号 IP 白名单后即可一键发布草稿。</p>
           <button className="btn primary" onClick={onOpenSettings}>
             前往设置
           </button>

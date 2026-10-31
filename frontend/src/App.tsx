@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Code2, FileCode, PanelLeft, Sparkles } from 'lucide-react'
+import { Code2, FileCode, Loader2, PanelLeft, Sparkles } from 'lucide-react'
 import { MAX_RECENT_WORKSPACES, type AppSettings, type FileNode, type WriteProposal } from '@shared/types'
 import { Editor, type EditorHandle, type HeadingInfo } from './components/Editor'
 import { Sidebar, type SidebarTab } from './components/Sidebar'
@@ -14,7 +14,8 @@ import { LayoutControls, PublishActions } from './components/LayoutControls'
 import { EditorWidthSwitch, ImageModeSwitch } from './components/EditorWidthSwitch'
 import { buildEditorThemeCss, resolveEditorTheme } from './lib/editor-theme'
 import { DiffReview } from './components/DiffReview'
-import { handleAgentEvent, handleChannelEvent, resolveProposal, useAgentState } from './lib/agent-store'
+import { getAgentState, handleAgentEvent, handleChannelEvent, lastDraftText, resolveProposal, useAgentState } from './lib/agent-store'
+import { extractDraft } from './lib/writing'
 import { basename } from './lib/assets'
 import { countWords, extractTitle, renderWechat } from './lib/render'
 import { prepareMermaid } from './lib/mermaid'
@@ -25,6 +26,11 @@ const api = window.markgo
 const isMac = api.platform === 'darwin'
 /** 单独打开文档的窗口：只编辑这一个文件，笔记库、AI 对话等在主窗口中 */
 const docWindow = api.window.docPath
+/** 原生样式的正文字体 */
+const EDITOR_FONTS: Record<AppSettings['editorFont'], string> = {
+  sans: 'var(--font)',
+  serif: "'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', STSong, SimSun, serif"
+}
 /** 文档窗口中交给主窗口处理的菜单动作 */
 const MAIN_ONLY_ACTIONS = ['new-file', 'open-folder', 'toggle-ai', 'ai-new-chat']
 
@@ -185,6 +191,8 @@ export function App() {
   )
 
   useEffect(() => api.settings.onChange(setSettings), [])
+  // 自动更新安装前写盘
+  useEffect(() => api.app.onSaveRequest(() => void flushSave()), [flushSave])
 
   // 文档窗口关闭前先写盘
   useEffect(
@@ -343,6 +351,41 @@ export function App() {
     return md
   }, [flushSave])
 
+  /** AI 写作的初稿写完后，文件名改为元信息中的 title（没有元信息时取正文标题） */
+  const finishDraft = useCallback(
+    async (path: string, fallback: string) => {
+      const active = latest.current.doc?.path === path
+      // 写入流式输出的最终全文（Agent 若改用工具直接写了文件，则沿用文件内容）
+      const draft = extractDraft(lastDraftText(getAgentState().items))
+      if (draft.trim()) {
+        if (active) editorRef.current?.streamDocument(draft, true)
+        else await api.fs.write(path, draft)
+      }
+      const md = active ? await syncDocNow() : await api.fs.read(path).catch(() => '')
+      const title = extractTitle(md) || fallback
+      const name = title.replace(/[\\/:*?"<>|]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80)
+      if (name && name !== basename(path).replace(/\.(md|markdown|txt)$/i, '')) await renameEntry(path, name)
+      toast(`《${title}》初稿已完成`, 'success')
+    },
+    [syncDocNow, renameEntry]
+  )
+
+  // AI 写作：Agent 的回复流式写入目标文档，期间编辑区只读，完成后由 finishDraft 写入最终内容
+  const drafting = agent.writing?.phase === 'drafting' ? agent.writing : undefined
+  const draftActive = !!drafting?.docPath && !!doc && drafting.docPath.toLowerCase() === doc.path.toLowerCase()
+  const draftText = draftActive ? extractDraft(lastDraftText(agent.items)) : ''
+  const lastStream = useRef(0)
+  useEffect(() => {
+    if (!draftActive || !draftText) return
+    // 节流：每次写入都会重新解析全文
+    const wait = Math.max(0, lastStream.current + 150 - Date.now())
+    const timer = window.setTimeout(() => {
+      lastStream.current = Date.now()
+      editorRef.current?.streamDocument(draftText)
+    }, wait)
+    return () => window.clearTimeout(timer)
+  }, [draftActive, draftText])
+
   useEffect(() => api.ai.onEvent(docWindow ? handleChannelEvent : handleAgentEvent), [])
 
   // 让 Agent 读取到编辑器中的实时内容（包括尚未保存的修改）
@@ -389,12 +432,17 @@ export function App() {
     setUpdate((u) => ({ ...u, checking: true }))
     const result = await api.app.checkUpdate()
     setUpdate({ checking: false, result })
+    return result
   }, [])
   // 启动后静默检查一次更新，有新版本时在左下角提示
   const autoCheckUpdate = settings?.autoCheckUpdate
   useEffect(() => {
-    if (!autoCheckUpdate) return
-    const timer = window.setTimeout(checkUpdate, 5000)
+    if (!autoCheckUpdate || docWindow) return
+    const timer = window.setTimeout(async () => {
+      const r = await checkUpdate()
+      if (r.ok && r.hasUpdate)
+        toast(`发现新版本 v${r.latest}，${r.installable ? '可在「关于」中一键更新' : '可在「关于」中前往下载'}`, 'info', 6000)
+    }, 5000)
     return () => window.clearTimeout(timer)
   }, [checkUpdate, autoCheckUpdate])
   const openUpdate = () => {
@@ -538,7 +586,20 @@ export function App() {
           />
         )}
 
-        <main className={`editor-pane width-${settings.editorWidth}${proposal ? ' reviewing' : ''}${editorThemeKey && !sourceMode ? ' mk-themed' : ''}`}>
+        <main
+          className={`editor-pane width-${settings.editorWidth}${proposal ? ' reviewing' : ''}${editorThemeKey && !sourceMode ? ' mk-themed' : ''}`}
+          // 字体、字号、行距与段距只作用于原生样式；套用排版主题时由主题决定
+          style={
+            editorThemeKey
+              ? undefined
+              : ({
+                  '--ed-font': EDITOR_FONTS[settings.editorFont] ?? EDITOR_FONTS.sans,
+                  '--ed-font-size': `${settings.editorFontSize}px`,
+                  '--ed-line-height': settings.editorLineHeight,
+                  '--ed-para-spacing': `${settings.editorParaSpacing}em`
+                } as React.CSSProperties)
+          }
+        >
           {proposal && (
             <DiffReview
               key={proposal.requestId}
@@ -547,6 +608,17 @@ export function App() {
               queued={agent.proposals.length - 1}
               onResolve={(accepted, content, result) => resolveWrite(proposal, accepted, content, result)}
             />
+          )}
+          {draftActive && (
+            <div className="draft-banner">
+              <Loader2 size={14} className="spin" />
+              <span>AI 正在写作，完成后即可编辑</span>
+              {agent.running && (
+                <button className="btn sm ghost" onClick={() => api.ai.cancel('chat')}>
+                  停止
+                </button>
+              )}
+            </div>
           )}
           <Editor
             key={doc.version}
@@ -561,6 +633,7 @@ export function App() {
             onChange={onEditorChange}
             onHeadings={setHeadings}
             hideFrontMatter={!!editorThemeKey}
+            readOnly={draftActive}
           />
           <footer className="statusbar">
             <button
@@ -605,6 +678,7 @@ export function App() {
               onSettings={() => setDialog('settings-ai')}
               onSwitchAgent={(id) => updateSettings({ ai: { ...settings.ai, activeAgentId: id } })}
               onCreateDoc={createDoc}
+              onDraftDone={finishDraft}
             />
           </aside>
         )}

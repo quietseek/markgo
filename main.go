@@ -75,6 +75,9 @@ func main() {
 		}
 	})
 	app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
+		if !isMac {
+			b.ensureTray()
+		}
 		if p := noteFromArgs(os.Args[1:], ""); p != "" {
 			b.openPath(p)
 		}
@@ -137,10 +140,13 @@ func sniffsAsImage(file string) bool {
 	return strings.HasPrefix(http.DetectContentType(head[:n]), "image/")
 }
 
-func relaunch() {
-	exe, err := os.Executable()
-	if err != nil {
-		return
+// relaunch 重新启动应用；exe 为空时使用当前程序
+func relaunch(exe string) {
+	if exe == "" {
+		var err error
+		if exe, err = os.Executable(); err != nil {
+			return
+		}
 	}
 	// macOS 通过 open 重新打开 .app，保证以正常应用身份启动
 	if isMac {

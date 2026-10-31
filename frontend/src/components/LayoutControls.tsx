@@ -3,8 +3,15 @@ import { Check, Copy, Minus, Plus, Send, SlidersHorizontal } from 'lucide-react'
 import type { AppSettings } from '@shared/types'
 import { themeList } from '../lib/themes'
 import { EDITOR_THEME_DEFAULT, EDITOR_THEME_SYNC } from '../lib/editor-theme'
+import { CapsuleSwitch } from './EditorWidthSwitch'
 
-type LayoutPatch = Partial<Pick<AppSettings, 'themeKey' | 'editorTheme' | 'fontSizeOffset' | 'paraSpacingOffset' | 'linkToFootnote'>>
+type LayoutPatch = Partial<Pick<AppSettings, 'themeKey' | 'editorTheme' | 'fontSizeOffset' | 'paraSpacingOffset' | 'linkToFootnote' | 'appearance'>>
+
+const APPEARANCES: { key: AppSettings['appearance']; label: string; hint: string }[] = [
+  { key: 'system', label: '系统', hint: '跟随系统的浅色 / 深色外观' },
+  { key: 'dark', label: '深色', hint: '深色外观' },
+  { key: 'light', label: '浅色', hint: '浅色外观' }
+]
 
 interface Props {
   settings: AppSettings
@@ -42,6 +49,15 @@ export function LayoutControls({ settings, onChange }: Props) {
               <em>发布仍使用{current.label}</em>
               {native && <Check size={13} />}
             </button>
+            <div className="layout-appearance">
+              <span>外观</span>
+              <CapsuleSwitch
+                title="界面外观"
+                options={APPEARANCES}
+                value={settings.appearance}
+                onChange={(appearance) => onChange({ appearance })}
+              />
+            </div>
             <div className="menu-sep" />
             <div className="layout-grid">
               {themeList.map((t) => (

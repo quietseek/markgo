@@ -25,7 +25,7 @@ export function ImageGenDialog({ config, initialPrompt = '', onInsert, onOpenSet
       <Modal title="AI 生图" onClose={onClose}>
         <div className="modal-body empty-state">
           <p>还没有配置 AI 生图。</p>
-          <p className="note">在「设置 → 图片 → AI 生图」选择供应商、填写 API Key 与模型后即可根据描述生成图片。</p>
+          <p className="note">在「设置 → 图片处理 → AI 生图」选择供应商、填写 API Key 与模型后即可根据描述生成图片。</p>
           <button className="btn primary" onClick={onOpenSettings}>
             前往设置
           </button>

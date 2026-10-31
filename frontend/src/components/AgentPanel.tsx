@@ -31,8 +31,8 @@ import {
   type ChatItem
 } from '../lib/agent-store'
 import { draftPrompt, outlinePrompt, outlineTitle } from '../lib/writing'
-import { toast } from '../lib/toast'
 import { renderAgentMarkdown } from '../lib/sanitize'
+import { countWords } from '../lib/render'
 import { basename } from '../lib/assets'
 import { Popover } from './LayoutControls'
 
@@ -55,9 +55,11 @@ interface Props {
   onSwitchAgent(id: string): void
   /** 新建文档并打开，返回路径（取消时为 null） */
   onCreateDoc(title: string): Promise<string | null>
+  /** AI 写作的初稿写完：按元信息中的标题重命名文档 */
+  onDraftDone(path: string, title: string): void
 }
 
-export function AgentPanel({ settings, docPath, getSelection, syncDoc, onSettings, onSwitchAgent, onCreateDoc }: Props) {
+export function AgentPanel({ settings, docPath, getSelection, syncDoc, onSettings, onSwitchAgent, onCreateDoc, onDraftDone }: Props) {
   const state = useAgentState()
   const [input, setInput] = useState('')
   const [quote, setQuote] = useState<string | null>(null)
@@ -116,7 +118,7 @@ export function AgentPanel({ settings, docPath, getSelection, syncDoc, onSetting
     const path = await onCreateDoc(title)
     if (!path) return
     setWriting({ ...writing, phase: 'drafting', docPath: path, title })
-    await ask(draftPrompt(writing.brief, settings.writing, path), { display: `大纲确认，开始写作《${title}》`, doc: path, docContent: '' })
+    await ask(draftPrompt(writing.brief, settings.writing, path, settings.themeKey), { display: `大纲确认，开始写作《${title}》`, doc: path, docContent: '' })
   }
   // 写作完成后退出写作流程（稍作等待：磁盘改动的检测略有延迟）
   const drafting = writing?.phase === 'drafting'
@@ -125,7 +127,7 @@ export function AgentPanel({ settings, docPath, getSelection, syncDoc, onSetting
     const timer = window.setTimeout(() => {
       const w = getAgentState().writing
       setWriting(undefined)
-      if (w?.title) toast(`《${w.title}》初稿已完成`, 'success')
+      if (w?.docPath) onDraftDone(w.docPath, w.title || '')
     }, 1500)
     return () => window.clearTimeout(timer)
   }, [drafting, state.running])
@@ -388,7 +390,9 @@ function ChatRow({ item }: { item: ChatItem }) {
 }
 
 function AgentMessage({ item }: { item: Extract<ChatItem, { kind: 'agent' }> }) {
-  const html = useMemo(() => renderAgentMarkdown(item.text), [item.text])
+  const isDraft = item.draft !== undefined
+  // 初稿正文流式写入编辑区，对话中只显示进度
+  const html = useMemo(() => (isDraft ? '' : renderAgentMarkdown(item.text)), [item.text, isDraft])
   const [showThought, setShowThought] = useState(false)
   const waiting = item.running && !item.text && !item.tools.length && !item.thought
   return (
@@ -419,7 +423,14 @@ function AgentMessage({ item }: { item: Extract<ChatItem, { kind: 'agent' }> }) 
           ))}
         </div>
       )}
-      {item.text && <div className="msg-text" dangerouslySetInnerHTML={{ __html: html }} />}
+      {isDraft && item.text ? (
+        <div className="msg-draft">
+          {item.running ? <Loader2 size={13} className="spin" /> : <CheckCircle2 size={13} />}
+          {item.running ? '正在写入' : '已写入'}《{item.draft || '新文档'}》 · {countWords(item.text).toLocaleString()} 字
+        </div>
+      ) : (
+        item.text && <div className="msg-text" dangerouslySetInnerHTML={{ __html: html }} />
+      )}
       {waiting && (
         <div className="msg-waiting">
           <Loader2 size={14} className="spin" /> 正在思考…

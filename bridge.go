@@ -44,15 +44,18 @@ type Bridge struct {
 	// 本次启动是否使用系统原生窗口按钮（与平台习惯一致时），否则由前端绘制；切换需重启
 	nativeControls bool
 	// 用户确认退出（菜单、托盘、⌘Q）后为 true；此前点关闭按钮按「关闭行为」设置处理
-	quitting  atomic.Bool
-	relaunch  atomic.Bool
-	trayMu    sync.Mutex
-	tray      *application.SystemTray
-	openMu    sync.Mutex
-	pending   string // 前端就绪前收到的待打开文件（双击 / 拖到图标 / 命令行），由前端启动时取走
-	ready     bool
-	activeDoc atomic.Value // string
-	dark      atomic.Bool
+	quitting atomic.Bool
+	relaunch atomic.Bool
+	// 自动更新进行中；relaunchPath 为更新后重新启动的程序（AppImage 的位置），空则用当前程序
+	updating     atomic.Bool
+	relaunchPath string
+	trayMu       sync.Mutex
+	tray         *application.SystemTray
+	openMu       sync.Mutex
+	pending      string // 前端就绪前收到的待打开文件（双击 / 拖到图标 / 命令行），由前端启动时取走
+	ready        bool
+	activeDoc    atomic.Value // string
+	dark         atomic.Bool
 
 	// 单独打开（不在笔记库中）的文档各自一个窗口：文件路径 -> 窗口
 	docMu      sync.Mutex
@@ -189,9 +192,6 @@ func (b *Bridge) createWindow() {
 		}
 		e.Cancel()
 		w.Hide()
-		if !isMac {
-			b.ensureTray()
-		}
 	})
 }
 
@@ -339,7 +339,7 @@ func (b *Bridge) promptRelaunch() {
 
 func (b *Bridge) relaunchIfRequested() {
 	if b.relaunch.Load() {
-		relaunch()
+		relaunch(b.relaunchPath)
 	}
 }
 
@@ -418,9 +418,6 @@ func (b *Bridge) SetSettings(ctx context.Context, patch map[string]json.RawMessa
 	// 当前 Agent 或其启动命令变化后断开，下次提问时按新配置启动
 	if _, ok := patch["ai"]; ok && launchKey(prev) != launchKey(next) && b.acp.Status() != acp.StatusIdle {
 		b.acp.Stop()
-	}
-	if next.CloseAction == "quit" {
-		b.destroyTray()
 	}
 	_, trayChanged := patch["trayMenu"]
 	_, recentChanged := patch["recentWorkspaces"]
@@ -680,5 +677,3 @@ func (b *Bridge) AppInfo() appInfo {
 		Homepage: update.RepoURL,
 	}
 }
-
-func (b *Bridge) CheckUpdate() update.Check { return update.Latest(Version) }

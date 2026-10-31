@@ -18,13 +18,26 @@ interface Props {
 type Tab = 'general' | 'editor' | 'image' | 'writing' | 'ai' | 'publish'
 
 const TABS: { key: Tab; label: string; Icon: typeof Settings2 }[] = [
-  { key: 'general', label: '通用', Icon: Settings2 },
+  { key: 'general', label: '通用设置', Icon: Settings2 },
   { key: 'editor', label: '编辑器', Icon: FileText },
-  { key: 'image', label: '图片', Icon: Image },
-  { key: 'writing', label: '写作', Icon: PenLine },
-  { key: 'ai', label: '集成', Icon: Blocks },
-  { key: 'publish', label: '发布', Icon: Send }
+  { key: 'image', label: '图片处理', Icon: Image },
+  { key: 'writing', label: '写作偏好', Icon: PenLine },
+  { key: 'ai', label: 'AI 集成', Icon: Blocks },
+  { key: 'publish', label: '发布渠道', Icon: Send }
 ]
+
+/** 原生样式的排版选项：值以字符串作为分段按钮的键 */
+const FONT_SIZES = ['14', '15', '16', '17', '18', '20'] as const
+const LINE_HEIGHTS = [
+  ['1.5', '紧凑'],
+  ['1.75', '标准'],
+  ['2', '宽松']
+] as const
+const PARA_SPACINGS = [
+  ['0.5', '紧凑'],
+  ['0.85', '标准'],
+  ['1.3', '宽松']
+] as const
 
 const AGENT_DESCRIPTIONS: Record<string, string> = {
   claude: 'Anthropic 的编程 Agent',
@@ -151,7 +164,7 @@ export function SettingsDialog({ settings, initialTab = 'general', onSave, onClo
                 <Group title={isMac ? '程序坞菜单' : '托盘菜单'}>
                   <Row
                     label="菜单项目"
-                    desc={isMac ? '右键点击程序坞图标时显示的快捷操作' : '关闭窗口后，右键点击托盘图标时显示的项目；「退出」始终显示'}
+                    desc={isMac ? '右键点击程序坞图标时显示的快捷操作' : '右键点击托盘图标时显示的项目；「退出」始终显示'}
                     stack
                   >
                     <div className="check-chips">
@@ -195,6 +208,31 @@ export function SettingsDialog({ settings, initialTab = 'general', onSave, onClo
                 </Row>
                 <Row label="打字机模式" desc="光标所在行始终保持在编辑区中部">
                   <Switch checked={draft.typewriter} onChange={(typewriter) => set({ typewriter })} />
+                </Row>
+              </Group>
+              <Group title="原生样式">
+                <Row label="字体" desc="编辑区选择「原生样式」时的正文排版；套用排版主题时由主题决定">
+                  <Segmented
+                    value={draft.editorFont}
+                    options={[
+                      ['sans', '黑体'],
+                      ['serif', '宋体']
+                    ]}
+                    onChange={(editorFont) => set({ editorFont })}
+                  />
+                </Row>
+                <Row label="字号">
+                  <Segmented
+                    value={String(draft.editorFontSize)}
+                    options={FONT_SIZES.map((v) => [v, v] as const)}
+                    onChange={(v) => set({ editorFontSize: Number(v) })}
+                  />
+                </Row>
+                <Row label="行距">
+                  <Segmented value={String(draft.editorLineHeight)} options={LINE_HEIGHTS} onChange={(v) => set({ editorLineHeight: Number(v) })} />
+                </Row>
+                <Row label="段落间距">
+                  <Segmented value={String(draft.editorParaSpacing)} options={PARA_SPACINGS} onChange={(v) => set({ editorParaSpacing: Number(v) })} />
                 </Row>
               </Group>
               <Group title="文件">

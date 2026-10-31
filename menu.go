@@ -77,7 +77,7 @@ func buildAppMenu(app *application.App, b *Bridge) *application.Menu {
 // ---------- 托盘 ----------
 // Wails 暂无程序坞菜单接口：macOS 上点击程序坞图标重新显示窗口，不提供自定义菜单
 
-// Windows / Linux 关闭到后台时的托盘图标
+// Windows / Linux 的托盘图标：应用运行期间一直显示，窗口关闭到后台后可从这里找回
 func (b *Bridge) ensureTray() {
 	b.trayMu.Lock()
 	defer b.trayMu.Unlock()
@@ -89,15 +89,6 @@ func (b *Bridge) ensureTray() {
 	b.tray.SetTooltip(appName)
 	b.tray.SetMenu(b.buildTrayMenu())
 	b.tray.OnClick(b.showWindow)
-}
-
-func (b *Bridge) destroyTray() {
-	b.trayMu.Lock()
-	defer b.trayMu.Unlock()
-	if b.tray != nil {
-		b.tray.Destroy()
-		b.tray = nil
-	}
 }
 
 func (b *Bridge) refreshTrayMenu() {

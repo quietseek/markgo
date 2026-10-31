@@ -14,7 +14,7 @@ const IMAGE_MODES: { key: ImageUploadMode; label: string; hint: string }[] = [
 ]
 
 /** 状态栏中的胶囊切换 */
-function CapsuleSwitch<T extends string>(props: {
+export function CapsuleSwitch<T extends string>(props: {
   title: string
   icon?: ReactNode
   options: { key: T; label: string; hint: string }[]

@@ -26,6 +26,14 @@ export interface AppSettings {
   typewriter: boolean
   /** 编辑区宽度预设：默认 / 宽屏 / 铺满 */
   editorWidth: EditorWidth
+  /** 原生样式的正文字体：sans 黑体；serif 宋体 */
+  editorFont: 'sans' | 'serif'
+  /** 原生样式的正文字号（px） */
+  editorFontSize: number
+  /** 原生样式的行距（倍数） */
+  editorLineHeight: number
+  /** 原生样式的段落间距（em） */
+  editorParaSpacing: number
   /** 关闭窗口时：quit 退出应用；background 保留在后台（macOS 程序坞 / Windows、Linux 系统托盘） */
   closeAction: CloseAction
   /** 窗口控制按钮样式：classic 最小化 / 最大化 / 关闭；traffic 红绿灯 */
@@ -75,7 +83,7 @@ export interface AgentProfile {
   name: string
   /** 通过登录 shell 执行的启动命令，需启动一个 ACP（Agent Client Protocol）Agent */
   command: string
-  /** 已在「设置 → 集成」中安装（成功连接过一次） */
+  /** 已在「设置 → AI 集成」中安装（成功连接过一次） */
   installed?: boolean
 }
 
@@ -209,6 +217,10 @@ export const defaultSettings: AppSettings = {
   editorTheme: 'default',
   appearance: 'system',
   editorWidth: 'wide',
+  editorFont: 'sans',
+  editorFontSize: 16,
+  editorLineHeight: 1.75,
+  editorParaSpacing: 0.85,
   // 以下两项的平台默认值在主进程读取设置时补齐（macOS：后台 + 红绿灯）
   closeAction: 'quit',
   windowControls: 'classic',
@@ -256,8 +268,23 @@ export interface AppInfo {
 }
 
 export type UpdateCheck =
-  | { ok: true; current: string; latest: string; hasUpdate: boolean; url: string }
+  | {
+      ok: true
+      current: string
+      latest: string
+      hasUpdate: boolean
+      url: string
+      /** 本机的安装方式有对应的安装包，可在应用内自动更新 */
+      installable: boolean
+    }
   | { ok: false; error: string }
+
+/** 自动更新进度：下载中（字节数，total 未知时为 0）或安装中 */
+export interface UpdateProgress {
+  phase: 'download' | 'install'
+  received: number
+  total: number
+}
 
 export interface FileNode {
   name: string
@@ -396,7 +423,7 @@ export interface MarkGoApi {
     download(src: string, docPath?: string): Promise<UploadResult>
     /** 在文件管理器中显示本地图片；找不到时返回 false */
     reveal(src: string, docPath?: string): Promise<boolean>
-    /** AI 生图：按「设置 → 图片 → AI 生图」的配置生成一张图片 */
+    /** AI 生图：按「设置 → 图片处理 → AI 生图」的配置生成一张图片 */
     generate(prompt: string): Promise<ImageGenResult>
     /** 文件对象 -> 绝对路径（拖拽时使用） */
     pathForFile(file: File): string
@@ -432,6 +459,11 @@ export interface MarkGoApi {
     /** 启动时取走待打开的文件（从桌面等外部打开 MarkGo 时） */
     takeOpenPath(): Promise<string | null>
     checkUpdate(): Promise<UpdateCheck>
+    /** 下载并安装最新版本，成功后应用会退出并自动重新打开 */
+    installUpdate(): Promise<{ ok: boolean; error?: string }>
+    onUpdateProgress(cb: (p: UpdateProgress) => void): () => void
+    /** 自动更新安装前，各窗口保存未写盘的修改 */
+    onSaveRequest(cb: () => void): () => void
     /** 打开文档：笔记库中的文件在主窗口打开，其余单独开一个窗口 */
     openDocument(path: string): Promise<void>
   }
