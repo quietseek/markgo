@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Blocks, ChevronDown, FileText, Image, PenLine, Plus, Send, Settings2, Trash2 } from 'lucide-react'
-import { AGENT_PRESETS, IMAGE_GEN_PROVIDERS, TRAY_MENU_ITEMS, WRITING_LENGTHS, WRITING_STYLE_PRESETS, type AgentProfile, type AppSettings, type TyporaThemeInfo } from '@shared/types'
+import { Blocks, ChevronDown, FileText, FolderOpen, FolderPlus, Image, PenLine, Plus, Send, Settings2, Trash2 } from 'lucide-react'
+import { AGENT_PRESETS, IMAGE_GEN_PROVIDERS, TRAY_MENU_ITEMS, WRITING_LENGTHS, WRITING_STYLE_PRESETS, type AgentProfile, type AppSettings, type TyporaThemeImport, type TyporaThemeInfo } from '@shared/types'
 import { Modal } from './Modal'
 import { toast } from '../lib/toast'
 import { EDITOR_WIDTHS } from './EditorWidthSwitch'
@@ -345,12 +345,19 @@ function TyporaThemes({ draft, set }: { draft: AppSettings; set(patch: Partial<A
     reload()
   }, [])
 
-  const importTheme = async () => {
+  // 在文件管理器中手动增删主题后，回到应用时刷新列表
+  useEffect(() => {
+    window.addEventListener('focus', reload)
+    return () => window.removeEventListener('focus', reload)
+  }, [])
+
+  const importThemes = async (pick: () => Promise<TyporaThemeImport>) => {
     try {
-      const t = await window.markgo.themes.import()
-      if (!t) return
-      await reload()
-      toast(`已导入 Typora 主题「${t.name}」，可在上方选用`, 'success')
+      const { themes: added, errors } = await pick()
+      if (added.length || errors.length) await reload()
+      if (added.length === 1) toast(`已导入 Typora 主题「${added[0].name}」，可在上方选用`, 'success')
+      else if (added.length > 1) toast(`已导入 ${added.length} 个 Typora 主题，可在上方选用`, 'success')
+      if (errors.length) toast(`${added.length ? '部分主题' : ''}导入失败：${errors.join('；')}`, 'error')
     } catch (err) {
       toast(`导入失败：${(err as Error).message ?? err}`, 'error')
     }
@@ -379,10 +386,22 @@ function TyporaThemes({ draft, set }: { draft: AppSettings; set(patch: Partial<A
     <>
       <Row label="浅色主题">{picker(draft.lightTheme, '内置浅色', (lightTheme) => set({ lightTheme }))}</Row>
       <Row label="深色主题">{picker(draft.darkTheme, '内置深色', (darkTheme) => set({ darkTheme }))}</Row>
-      <Row label="Typora 主题" desc="导入 Typora 的 .css 主题文件（连同旁边的同名资源文件夹），用于界面配色与原生样式的编辑区">
-        <button className="btn" onClick={importTheme}>
-          <Plus size={14} /> 导入主题…
-        </button>
+      <Row
+        label="Typora 主题"
+        desc="导入 Typora 的 .css 主题（可多选），主题用到的资源文件夹会一并导入；也可选择整个主题文件夹批量导入"
+        stack
+      >
+        <div className="typora-theme-actions">
+          <button className="btn" onClick={() => importThemes(window.markgo.themes.import)}>
+            <Plus size={14} /> 导入主题文件…
+          </button>
+          <button className="btn" onClick={() => importThemes(window.markgo.themes.importFolder)}>
+            <FolderPlus size={14} /> 从文件夹批量导入…
+          </button>
+          <button className="btn" title="在文件管理器中打开主题目录，可手动添加或删除主题文件" onClick={() => window.markgo.themes.openFolder()}>
+            <FolderOpen size={14} /> 打开主题目录
+          </button>
+        </div>
       </Row>
       {themes.length > 0 && (
         <div className="typora-theme-list">

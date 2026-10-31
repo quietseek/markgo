@@ -3614,6 +3614,11 @@ textarea {
 }
 
 /* ---------- Typora 主题 ---------- */
+.typora-theme-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .typora-theme-list {
   display: flex;
   flex-direction: column;

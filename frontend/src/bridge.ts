@@ -127,7 +127,9 @@ export async function installBridge(): Promise<void> {
     themes: {
       list: () => call('ListThemes'),
       import: () => call('ImportTheme'),
+      importFolder: () => call('ImportThemeFolder'),
       remove: (id) => call('RemoveTheme', id),
+      openFolder: () => call('OpenThemesFolder'),
       onChange: (cb) => on<null>('themes:changed', () => cb())
     },
     fs: {

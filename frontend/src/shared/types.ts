@@ -1,5 +1,10 @@
 export type ImageUploadMode = 'picgo' | 'local'
 
+export interface TyporaThemeImport {
+  themes: TyporaThemeInfo[]
+  errors: string[]
+}
+
 export interface TyporaThemeInfo {
   id: string
   name: string
@@ -423,9 +428,13 @@ export interface MarkGoApi {
   /** 导入的 Typora 主题 */
   themes: {
     list(): Promise<TyporaThemeInfo[]>
-    /** 选择 .css 文件导入；取消时返回 null */
-    import(): Promise<TyporaThemeInfo | null>
+    /** 选择一个或多个 .css 文件导入；取消时 themes 与 errors 均为空 */
+    import(): Promise<TyporaThemeImport>
+    /** 选择文件夹，批量导入其中所有主题 */
+    importFolder(): Promise<TyporaThemeImport>
     remove(id: string): Promise<void>
+    /** 在文件管理器中打开主题目录 */
+    openFolder(): Promise<void>
     onChange(cb: () => void): () => void
   }
   image: {
