@@ -11,7 +11,7 @@ info:
   description: "简洁的桌面 Markdown 写作与笔记应用" # The application description
   copyright: "© 2026 quietseek" # Copyright text
   comments: "所见即所得 Markdown 编辑、AI 写作辅助、PicGo 图床、15 种排版主题" # Comments
-  version: "0.5.1" # The application version
+  version: "0.5.2" # The application version
   # cfBundleIconName: "appicon" # The macOS icon name in Assets.car icon bundles (optional)
   #                               # Should match the name of your .icon file without the extension
   #                               # If not set and Assets.car exists, defaults to "appicon"
