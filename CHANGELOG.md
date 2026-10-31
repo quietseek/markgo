@@ -2,6 +2,33 @@
 
 每个版本发布时，GitHub Release 的说明取自本文件对应版本的小节，按「修复问题、新增功能、优化改进、下载地址」组织，没有内容的小节不写。发版前请先在这里补充内容。
 
+## v0.5.4
+
+### 新增功能
+
+- 「设置」中新增「导出」选项卡：查看 Pandoc 安装状态、重新检测、指定程序位置，并按格式修改导出选项
+- PDF 支持 A4、A3、A5、B5、B4、Letter、Legal 纸张，以及纵向 / 横向（打印为 PDF 与 Pandoc 均适用；Typst 引擎不支持横向）
+
+### 优化改进
+
+- 标题栏右侧新增导出按钮，状态栏的导出按钮改为带文字，不再只能通过快捷键找到导出
+- 导出对话框中可直接「导出排版 HTML」，Windows / Linux 也能使用该功能
+
+### 修复问题
+
+- 修复使用 Typst 引擎导出 Letter 纸张的 PDF 时失败的问题
+
+### 下载地址
+
+| 系统 | 安装包 |
+| --- | --- |
+| macOS（Apple 芯片与 Intel 通用） | [MarkGo-0.5.4-mac-universal.dmg](https://github.com/quietseek/markgo/releases/download/v0.5.4/MarkGo-0.5.4-mac-universal.dmg) |
+| Windows 10 / 11 | [MarkGo-0.5.4-win-x64-setup.exe](https://github.com/quietseek/markgo/releases/download/v0.5.4/MarkGo-0.5.4-win-x64-setup.exe) |
+| Linux（Debian / Ubuntu） | [MarkGo-0.5.4-linux-amd64.deb](https://github.com/quietseek/markgo/releases/download/v0.5.4/MarkGo-0.5.4-linux-amd64.deb) |
+
+> Windows 需要 WebView2 运行时（系统通常已自带，安装程序会自动补装）；Linux 需要 GTK 4 与 WebKitGTK 6.0（Ubuntu 24.04+ / Debian 13+）。
+> 安装包未经代码签名：macOS 首次打开如提示「已损坏」或「无法验证开发者」，请在终端执行 `xattr -cr /Applications/MarkGo.app`；Windows 如出现 SmartScreen 提示，点击「更多信息 → 仍要运行」。
+
 ## v0.5.3
 
 ### 新增功能

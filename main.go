@@ -22,7 +22,7 @@ import (
 )
 
 // Version 应用版本，发布时与 build/config.yml、frontend/package.json 保持一致
-const Version = "0.5.3"
+const Version = "0.5.4"
 
 const appName = "MarkGo"
 
