@@ -61,6 +61,7 @@ type Options struct {
 	FormatArgs     map[string]string
 	PdfEngine      string
 	PaperSize      string
+	Landscape      bool
 	Margin         string
 	MainFont       string
 	DocxReference  string
@@ -74,6 +75,17 @@ type Options struct {
 var PdfEngines = []string{"xelatex", "lualatex", "tectonic", "typst", "weasyprint", "wkhtmltopdf", "pdflatex"}
 
 var latexEngines = []string{"xelatex", "lualatex", "pdflatex", "tectonic"}
+
+// PaperSizes 支持的纸张：键 → {LaTeX papersize, Typst paper, wkhtmltopdf --page-size}
+var PaperSizes = map[string][3]string{
+	"a3":     {"a3", "a3", "A3"},
+	"a4":     {"a4", "a4", "A4"},
+	"a5":     {"a5", "a5", "A5"},
+	"b4":     {"b4", "iso-b4", "B4"},
+	"b5":     {"b5", "iso-b5", "B5"},
+	"letter": {"letter", "us-letter", "Letter"},
+	"legal":  {"legal", "us-legal", "Legal"},
+}
 
 // ---------- 查找程序 ----------
 
@@ -318,14 +330,17 @@ func Args(f Format, o Options, markdown, docDir, outPath, title, version string)
 			}
 		}
 		args = append(args, "--pdf-engine="+engine)
-		paper := o.PaperSize
-		if paper == "" {
-			paper = "a4"
+		paper, ok := PaperSizes[o.PaperSize]
+		if !ok {
+			paper = PaperSizes["a4"]
 		}
 		margin := strings.TrimSpace(o.Margin)
 		switch {
 		case slices.Contains(latexEngines, engine):
-			args = append(args, "-V", "papersize="+paper)
+			args = append(args, "-V", "papersize="+paper[0])
+			if o.Landscape {
+				args = append(args, "-V", "geometry:landscape")
+			}
 			if margin != "" {
 				args = append(args, "-V", "geometry:margin="+margin)
 			}
@@ -337,7 +352,8 @@ func Args(f Format, o Options, markdown, docDir, outPath, title, version string)
 				}
 			}
 		case engine == "typst":
-			args = append(args, "-V", "papersize="+paper)
+			// Pandoc 的 Typst 模板不支持横向，只设置纸张
+			args = append(args, "-V", "papersize="+paper[1])
 			if margin != "" {
 				args = append(args, "-V", "margin=(x: "+margin+", y: "+margin+")")
 			}
@@ -349,7 +365,10 @@ func Args(f Format, o Options, markdown, docDir, outPath, title, version string)
 				args = append(args, "-V", "margin-top="+margin, "-V", "margin-bottom="+margin, "-V", "margin-left="+margin, "-V", "margin-right="+margin)
 			}
 			if engine == "wkhtmltopdf" {
-				args = append(args, "--pdf-engine-opt=--page-size", "--pdf-engine-opt="+strings.ToUpper(paper[:1])+paper[1:])
+				args = append(args, "--pdf-engine-opt=--page-size", "--pdf-engine-opt="+paper[2])
+				if o.Landscape {
+					args = append(args, "--pdf-engine-opt=--orientation", "--pdf-engine-opt=Landscape")
+				}
 			}
 			if css := strings.TrimSpace(o.HTMLCSS); css != "" {
 				args = append(args, "--css="+css)

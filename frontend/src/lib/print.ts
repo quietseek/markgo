@@ -5,16 +5,19 @@ const PAGE_STYLE_ID = 'mk-print-page'
 export interface PrintOptions {
   /** 默认的 PDF 文件名（取自文档标题） */
   title: string
-  paperSize: 'a4' | 'letter'
+  paperSize: 'a3' | 'a4' | 'a5' | 'b4' | 'b5' | 'letter' | 'legal'
+  landscape?: boolean
   /** 页边距（CSS 长度，如 2.5cm） */
   margin: string
 }
 
 const CSS_LENGTH = /^\d+(\.\d+)?(cm|mm|in|pt|px|pc|q)$/i
 
-export function pageCss({ paperSize, margin }: Pick<PrintOptions, 'paperSize' | 'margin'>): string {
+const CSS_PAGE_SIZES: Record<string, string> = { a3: 'A3', a4: 'A4', a5: 'A5', b4: 'B4', b5: 'B5', letter: 'letter', legal: 'legal' }
+
+export function pageCss({ paperSize, landscape, margin }: Pick<PrintOptions, 'paperSize' | 'landscape' | 'margin'>): string {
   const m = CSS_LENGTH.test(margin.trim()) ? margin.trim() : '2cm'
-  return `@page { size: ${paperSize === 'letter' ? 'letter' : 'A4'}; margin: ${m}; }`
+  return `@page { size: ${CSS_PAGE_SIZES[paperSize] ?? 'A4'}${landscape ? ' landscape' : ''}; margin: ${m}; }`
 }
 
 export async function printDocument(opts: PrintOptions): Promise<void> {

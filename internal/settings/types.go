@@ -65,6 +65,7 @@ type ExportConfig struct {
 	// PDF：引擎（留空自动选择）、纸张、页边距、正文字体（留空时中文文档使用系统中文字体）
 	PdfEngine string `json:"pdfEngine"`
 	PaperSize string `json:"paperSize"`
+	Landscape bool   `json:"landscape"`
 	Margin    string `json:"margin"`
 	MainFont  string `json:"mainFont"`
 	// Word / OpenOffice 参考文档（决定样式）

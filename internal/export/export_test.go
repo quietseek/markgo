@@ -57,3 +57,20 @@ func TestVersionAtLeast(t *testing.T) {
 		}
 	}
 }
+
+func TestPaperSizes(t *testing.T) {
+	pdf, _ := FindFormat("pdf")
+	args, _ := Args(pdf, Options{PdfEngine: "xelatex", PaperSize: "b5", Landscape: true}, "x", "", "/o.pdf", "", "3.1")
+	s := strings.Join(args, " ")
+	if !strings.Contains(s, "papersize=b5") || !strings.Contains(s, "geometry:landscape") {
+		t.Fatal(s)
+	}
+	args, _ = Args(pdf, Options{PdfEngine: "typst", PaperSize: "letter"}, "x", "", "/o.pdf", "", "3.1")
+	if !slices.Contains(args, "papersize=us-letter") {
+		t.Fatal(args)
+	}
+	args, _ = Args(pdf, Options{PdfEngine: "xelatex", PaperSize: "bogus"}, "x", "", "/o.pdf", "", "3.1")
+	if !slices.Contains(args, "papersize=a4") {
+		t.Fatal(args)
+	}
+}

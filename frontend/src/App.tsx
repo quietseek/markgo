@@ -545,6 +545,9 @@ export function App() {
           <span className={`save-dot ${saveState}`} title={{ saved: '已保存', saving: '保存中', unsaved: '未保存' }[saveState]} />
         </div>
         <div className="titlebar-right">
+          <button className="icon-btn titlebar-export" title={`导出（PDF、Word、HTML 等）${isMac ? ' ⇧⌘P' : ' Ctrl+Shift+P'}`} onClick={() => handlers.current.export()}>
+            <FileOutput size={16} />
+          </button>
           {customControls === 'classic' && <WindowControls variant="classic" />}
           {customControls === 'traffic-right' && <WindowControls variant="traffic" side="right" />}
         </div>
@@ -645,8 +648,9 @@ export function App() {
               {doc.isScratch ? '草稿自动保存在应用数据目录 · ⌘S 另存为' : { saved: '已保存', saving: '保存中…', unsaved: '编辑中' }[saveState]}
             </span>
             <PublishActions onCopy={copyToWechat} onPublish={openPublish} />
-            <button className="icon-btn sm" title="导出 ⇧⌘P" onClick={() => handlers.current.export()}>
-              <FileOutput size={14} />
+            <button className="status-export" title={`导出为 PDF、Word、HTML 等${isMac ? ' ⇧⌘P' : ' Ctrl+Shift+P'}`} onClick={() => handlers.current.export()}>
+              <FileOutput size={13} />
+              导出
             </button>
             <span className="status-sep" />
             <button
@@ -704,6 +708,10 @@ export function App() {
           title={doc.isScratch ? extractTitle(exportMd) || '未命名' : basename(doc.path).replace(/\.(md|markdown|txt)$/i, '')}
           config={settings.export}
           onSave={(cfg) => updateSettings({ export: cfg })}
+          onStyledHtml={() => {
+            setDialog(null)
+            exportHtml()
+          }}
           onClose={() => setDialog(null)}
         />
       )}

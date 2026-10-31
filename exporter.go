@@ -83,6 +83,7 @@ func (b *Bridge) ExportDocument(req exportRequest) exportResult {
 		FormatArgs:     cfg.FormatArgs,
 		PdfEngine:      cfg.PdfEngine,
 		PaperSize:      cfg.PaperSize,
+		Landscape:      cfg.Landscape,
 		Margin:         cfg.Margin,
 		MainFont:       cfg.MainFont,
 		DocxReference:  cfg.DocxReference,

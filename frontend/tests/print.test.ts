@@ -11,3 +11,11 @@ describe('pageCss', () => {
     expect(pageCss({ paperSize: 'a4', margin: '' })).toContain('margin: 2cm;')
   })
 })
+
+describe('pageCss sizes', () => {
+  it('supports common sizes and landscape', () => {
+    expect(pageCss({ paperSize: 'b5', margin: '2cm' })).toBe('@page { size: B5; margin: 2cm; }')
+    expect(pageCss({ paperSize: 'a3', landscape: true, margin: '2cm' })).toBe('@page { size: A3 landscape; margin: 2cm; }')
+    expect(pageCss({ paperSize: 'legal', margin: '1in' })).toContain('size: legal;')
+  })
+})

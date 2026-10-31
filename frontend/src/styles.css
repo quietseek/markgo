@@ -4011,3 +4011,23 @@ textarea {
     break-after: avoid;
   }
 }
+
+.status-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.status-export:hover {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+}
+.titlebar-right .titlebar-export {
+  margin-right: 6px;
+}

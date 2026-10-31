@@ -283,6 +283,7 @@ export const defaultSettings: AppSettings = {
     formatArgs: {},
     pdfEngine: '',
     paperSize: 'a4',
+    landscape: false,
     margin: '2.5cm',
     mainFont: '',
     docxReference: '',
@@ -310,7 +311,9 @@ export interface ExportConfig {
   pdfMode: 'auto' | 'pandoc' | 'print'
   /** PDF 引擎，留空自动选择 */
   pdfEngine: string
-  paperSize: 'a4' | 'letter'
+  paperSize: 'a3' | 'a4' | 'a5' | 'b4' | 'b5' | 'letter' | 'legal'
+  /** 横向 */
+  landscape: boolean
   margin: string
   /** PDF 正文字体，留空时中文文档使用系统中文字体 */
   mainFont: string

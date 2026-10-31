@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { Blocks, ChevronDown, FileText, FolderOpen, FolderPlus, Image, Moon, PenLine, Plus, Send, Settings2, Sun, Trash2 } from 'lucide-react'
+import { Blocks, ChevronDown, FileOutput, FileText, FolderOpen, FolderPlus, Image, Moon, PenLine, Plus, Send, Settings2, Sun, Trash2 } from 'lucide-react'
 import { AGENT_PRESETS, IMAGE_GEN_PROVIDERS, TRAY_MENU_ITEMS, WRITING_LENGTHS, WRITING_STYLE_PRESETS, type AgentProfile, type AppSettings, type TyporaThemeImport, type TyporaThemeInfo } from '@shared/types'
 import { Modal } from './Modal'
 import { toast } from '../lib/toast'
 import { confirmDialog } from '../lib/confirm'
 import { EDITOR_WIDTHS } from './EditorWidthSwitch'
 import { useAgentState } from '../lib/agent-store'
+import { ExportSettings } from './ExportDialog'
 
 const isMac = window.markgo.platform === 'darwin'
 
@@ -16,11 +17,12 @@ interface Props {
   onClose(): void
 }
 
-type Tab = 'general' | 'editor' | 'image' | 'writing' | 'ai' | 'publish'
+type Tab = 'general' | 'editor' | 'export' | 'image' | 'writing' | 'ai' | 'publish'
 
 const TABS: { key: Tab; label: string; Icon: typeof Settings2 }[] = [
   { key: 'general', label: '通用设置', Icon: Settings2 },
   { key: 'editor', label: '编辑器', Icon: FileText },
+  { key: 'export', label: '导出', Icon: FileOutput },
   { key: 'image', label: '图片处理', Icon: Image },
   { key: 'writing', label: '写作偏好', Icon: PenLine },
   { key: 'ai', label: 'AI 集成', Icon: Blocks },
@@ -193,6 +195,10 @@ export function SettingsDialog({ settings, initialTab = 'general', onSave, onClo
                 </Row>
               </Group>
             </>
+          )}
+
+          {tab === 'export' && (
+            <ExportSettings config={draft.export} onChange={(patch) => setDraft((d) => ({ ...d, export: { ...d.export, ...patch } }))} />
           )}
 
           {tab === 'editor' && (
