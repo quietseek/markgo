@@ -2,6 +2,35 @@
 
 每个版本发布时，GitHub Release 的说明取自本文件对应版本的小节，按「修复问题、新增功能、优化改进、下载地址」组织，没有内容的小节不写。发版前请先在这里补充内容。
 
+## v0.5.0
+
+### 新增功能
+
+- **通过 Pandoc 导出**：「文件 → 导出…」（⌘⇧P / Ctrl+Shift+P）或状态栏的导出按钮，可导出 PDF、Word、OpenOffice、RTF、EPUB、PowerPoint、HTML、LaTeX、MediaWiki、reStructuredText、Textile、Org、AsciiDoc、纯文本
+  - PDF：可选 PDF 引擎（默认自动选择，优先 xelatex）、纸张、页边距与正文字体，中文文档默认使用系统中文字体
+  - Word / OpenOffice 可指定参考文档沿用其样式；HTML 可指定样式表并把图片嵌入为单个文件；EPUB 可设置封面
+  - 通用选项：生成目录、标题编号、导出后打开文件或在文件夹中显示，以及各格式 / 通用的额外 Pandoc 参数
+  - 未安装 Pandoc 时显示 Windows、macOS、Linux 的安装方法（可一键复制命令），安装后点击「重新检测」即可
+
+### 修复问题
+
+- 修复 Windows 卸载界面等处中文显示为乱码的问题
+
+### 优化改进
+
+- Windows 默认安装目录改为 `C:\Program Files\MarkGo`，升级时自动从原来的 `Program Files\quietseek\MarkGo` 迁移并删除旧目录
+
+### 下载地址
+
+| 系统 | 安装包 |
+| --- | --- |
+| macOS（Apple 芯片与 Intel 通用） | [MarkGo-0.5.0-mac-universal.dmg](https://github.com/quietseek/markgo/releases/download/v0.5.0/MarkGo-0.5.0-mac-universal.dmg) |
+| Windows 10 / 11 | [MarkGo-0.5.0-win-x64-setup.exe](https://github.com/quietseek/markgo/releases/download/v0.5.0/MarkGo-0.5.0-win-x64-setup.exe) |
+| Linux（Debian / Ubuntu） | [MarkGo-0.5.0-linux-amd64.deb](https://github.com/quietseek/markgo/releases/download/v0.5.0/MarkGo-0.5.0-linux-amd64.deb) |
+
+> Windows 需要 WebView2 运行时（系统通常已自带，安装程序会自动补装）；Linux 需要 GTK 4 与 WebKitGTK 6.0（Ubuntu 24.04+ / Debian 13+）。
+> 安装包未经代码签名：macOS 首次打开如提示「已损坏」或「无法验证开发者」，请在终端执行 `xattr -cr /Applications/MarkGo.app`；Windows 如出现 SmartScreen 提示，点击「更多信息 → 仍要运行」。
+
 ## v0.4.3
 
 ### 修复问题
