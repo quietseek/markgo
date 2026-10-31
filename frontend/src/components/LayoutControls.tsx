@@ -9,8 +9,8 @@ type LayoutPatch = Partial<Pick<AppSettings, 'themeKey' | 'editorTheme' | 'fontS
 
 const APPEARANCES: { key: AppSettings['appearance']; label: string; hint: string }[] = [
   { key: 'system', label: '系统', hint: '跟随系统的浅色 / 深色外观' },
-  { key: 'dark', label: '深色', hint: '深色外观' },
-  { key: 'light', label: '浅色', hint: '浅色外观' }
+  { key: 'light', label: '浅色', hint: '浅色外观' },
+  { key: 'dark', label: '深色', hint: '深色外观' }
 ]
 
 interface Props {
@@ -37,26 +37,20 @@ export function LayoutControls({ settings, onChange }: Props) {
       >
         {(close) => (
           <div className="layout-menu">
-            <button
-              className={native ? 'active' : ''}
-              onClick={() => {
-                onChange({ editorTheme: EDITOR_THEME_DEFAULT })
-                close()
-              }}
-            >
-              <span className="swatch default" />
-              原生样式
-              <em>发布仍使用{current.label}</em>
-              {native && <Check size={13} />}
-            </button>
-            <div className="layout-appearance">
-              <span>外观</span>
-              <CapsuleSwitch
-                title="界面外观"
-                options={APPEARANCES}
-                value={settings.appearance}
-                onChange={(appearance) => onChange({ appearance })}
-              />
+            <div className="layout-native-row">
+              <button
+                className={native ? 'active' : ''}
+                title={`原生样式：编辑区使用应用自身的样式，发布仍使用${current.label}`}
+                onClick={() => {
+                  onChange({ editorTheme: EDITOR_THEME_DEFAULT })
+                  close()
+                }}
+              >
+                <span className="swatch default" />
+                原生样式
+                {native && <Check size={13} />}
+              </button>
+              <CapsuleSwitch title="界面外观" options={APPEARANCES} value={settings.appearance} onChange={(appearance) => onChange({ appearance })} />
             </div>
             <div className="menu-sep" />
             <div className="layout-grid">
