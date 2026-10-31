@@ -22,8 +22,6 @@ export type SidebarTab = 'files' | 'outline'
 interface Props {
   tab: SidebarTab
   onTab(tab: SidebarTab): void
-  /** 单独打开文档的窗口：不显示文件列表 */
-  docWindow: boolean
   workspace?: string
   recentWorkspaces: string[]
   tree: FileNode[]
@@ -52,7 +50,7 @@ interface Props {
 type Menu = { x: number; y: number; node: FileNode | null }
 
 export function Sidebar(props: Props) {
-  const tab = props.docWindow && props.tab === 'files' ? 'outline' : props.tab
+  const tab = props.tab
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [menu, setMenu] = useState<Menu | null>(null)
   const [renaming, setRenaming] = useState<string | null>(null)
@@ -190,9 +188,7 @@ export function Sidebar(props: Props) {
             ['files', '文件'],
             ['outline', '大纲']
           ] as const
-        )
-          .filter(([key]) => !props.docWindow || key !== 'files')
-          .map(([key, label]) => (
+        ).map(([key, label]) => (
             <button key={key} className={tab === key ? 'active' : ''} onClick={() => props.onTab(key)}>
               {label}
             </button>

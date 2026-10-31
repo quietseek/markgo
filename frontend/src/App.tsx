@@ -14,7 +14,7 @@ import { LayoutControls, PublishActions } from './components/LayoutControls'
 import { EditorWidthSwitch, ImageModeSwitch } from './components/EditorWidthSwitch'
 import { buildEditorThemeCss, resolveEditorTheme } from './lib/editor-theme'
 import { DiffReview } from './components/DiffReview'
-import { getAgentState, handleAgentEvent, handleChannelEvent, lastDraftText, resolveProposal, useAgentState } from './lib/agent-store'
+import { getAgentState, handleAgentEvent, lastDraftText, resolveProposal, useAgentState } from './lib/agent-store'
 import { extractDraft } from './lib/writing'
 import { basename, dirname, isInside } from './lib/assets'
 import { countWords, extractTitle, renderWechat } from './lib/render'
@@ -25,15 +25,11 @@ import { useTyporaTheme } from './lib/use-typora-theme'
 
 const api = window.markgo
 const isMac = api.platform === 'darwin'
-/** 单独打开文档的窗口：只编辑这一个文件，笔记库、AI 对话等在主窗口中 */
-const docWindow = api.window.docPath
 /** 原生样式的正文字体 */
 const EDITOR_FONTS: Record<AppSettings['editorFont'], string> = {
   sans: 'var(--font)',
   serif: "'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', STSong, SimSun, serif"
 }
-/** 文档窗口中交给主窗口处理的菜单动作 */
-const MAIN_ONLY_ACTIONS = ['new-file', 'open-folder', 'toggle-ai', 'ai-new-chat']
 
 interface Doc {
   path: string
@@ -132,8 +128,7 @@ export function App() {
       api.ai.markSaved(path, content)
       setSaveState('saved')
       setSourceMode(false)
-      if (docWindow) api.window.docMoved(path)
-      else if (!isScratch) {
+      if (!isScratch) {
         await api.settings.set({ lastFile: path })
         // 打开笔记库之外的文档时，侧栏切换到文档所在的文件夹
         const ws = (await api.settings.get()).lastWorkspace
@@ -155,25 +150,15 @@ export function App() {
     setTree([])
   }, [updateSettings])
 
-  /** 在主窗口打开（文档窗口中也转交主窗口） */
   const openFileDialog = useCallback(async () => {
     const p = await api.fs.openFile()
-    if (p && p !== latest.current.doc?.path) await api.app.openDocument(p)
-  }, [])
+    if (p && p !== latest.current.doc?.path) await loadDoc(p)
+  }, [loadDoc])
 
   useEffect(() => {
     ;(async () => {
       const s = await api.settings.get()
       setSettings(s)
-      if (docWindow) {
-        setSidebarTab('outline')
-        try {
-          await loadDoc(docWindow)
-        } catch (err) {
-          toast(`无法打开文件：${(err as Error).message}`, 'error')
-        }
-        return
-      }
       if (s.lastWorkspace) refreshTree(s.lastWorkspace)
       try {
         // 从桌面等外部打开时优先显示该文件
@@ -198,19 +183,8 @@ export function App() {
     [flushSave]
   )
 
-  useEffect(() => api.settings.onChange(setSettings), [])
   // 自动更新安装前写盘
   useEffect(() => api.app.onSaveRequest(() => void flushSave()), [flushSave])
-
-  // 文档窗口关闭前先写盘
-  useEffect(
-    () =>
-      api.window.onCloseRequest(async () => {
-        await flushSave()
-        api.window.confirmClose()
-      }),
-    [flushSave]
-  )
 
   // 窗口关闭或刷新前写盘
   useEffect(() => {
@@ -394,11 +368,11 @@ export function App() {
     return () => window.clearTimeout(timer)
   }, [draftActive, draftText])
 
-  useEffect(() => api.ai.onEvent(docWindow ? handleChannelEvent : handleAgentEvent), [])
+  useEffect(() => api.ai.onEvent(handleAgentEvent), [])
 
   // 让 Agent 读取到编辑器中的实时内容（包括尚未保存的修改）
   useEffect(() => {
-    if (doc && !docWindow) api.ai.setActiveDoc(doc.path, markdown)
+    if (doc) api.ai.setActiveDoc(doc.path, markdown)
   }, [doc, markdown])
 
   const proposal = agent.proposals[0]
@@ -445,7 +419,7 @@ export function App() {
   // 启动后静默检查一次更新，有新版本时在左下角提示
   const autoCheckUpdate = settings?.autoCheckUpdate
   useEffect(() => {
-    if (!autoCheckUpdate || docWindow) return
+    if (!autoCheckUpdate) return
     const timer = window.setTimeout(async () => {
       const r = await checkUpdate()
       if (r.ok && r.hasUpdate)
@@ -492,10 +466,7 @@ export function App() {
   }
   useEffect(
     () =>
-      api.onMenu((action) => {
-        if (docWindow && MAIN_ONLY_ACTIONS.includes(action)) api.window.runInMain(action)
-        else handlers.current[action]?.()
-      }),
+      api.onMenu((action) => handlers.current[action]?.()),
     []
   )
   useEffect(() => api.onOpenPath((p) => loadDoc(p)), [loadDoc])
@@ -529,7 +500,7 @@ export function App() {
 
   const title = doc.isScratch ? '未命名草稿' : basename(doc.path).replace(/\.(md|markdown|txt)$/i, '')
   const showSidebar = settings.showSidebar && !focusMode
-  const showAgent = settings.showAgent && !focusMode && !docWindow
+  const showAgent = settings.showAgent && !focusMode
   // 所选按钮样式与平台原生一致时由系统绘制，否则自绘（自绘按钮的样式与位置即时生效）
   const customControls = api.window.nativeControls
     ? null
@@ -569,7 +540,6 @@ export function App() {
           <Sidebar
             tab={sidebarTab}
             onTab={setSidebarTab}
-            docWindow={!!docWindow}
             workspace={settings.lastWorkspace}
             recentWorkspaces={settings.recentWorkspaces}
             tree={tree}
@@ -660,19 +630,15 @@ export function App() {
               {doc.isScratch ? '草稿自动保存在应用数据目录 · ⌘S 另存为' : { saved: '已保存', saving: '保存中…', unsaved: '编辑中' }[saveState]}
             </span>
             <PublishActions onCopy={copyToWechat} onPublish={openPublish} />
-            {!docWindow && (
-              <>
-                <span className="status-sep" />
-                <button
-                  className={`icon-btn sm has-dot${showAgent ? ' on active' : ''}`}
-                  title="AI 助手 ⌘J"
-                  onClick={() => handlers.current['toggle-ai']()}
-                >
-                  <Sparkles size={15} />
-                  {agent.running && <span className="tab-dot" />}
-                </button>
-              </>
-            )}
+            <span className="status-sep" />
+            <button
+              className={`icon-btn sm has-dot${showAgent ? ' on active' : ''}`}
+              title="AI 助手 ⌘J"
+              onClick={() => handlers.current['toggle-ai']()}
+            >
+              <Sparkles size={15} />
+              {agent.running && <span className="tab-dot" />}
+            </button>
           </footer>
         </main>
 

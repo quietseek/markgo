@@ -28,5 +28,5 @@ func (b *Bridge) RemoveTheme(id string) error {
 	return nil
 }
 
-// 通知各窗口主题列表有变化（重新加载正在使用的主题）
+// 通知前端主题列表有变化（重新加载正在使用的主题）
 func (b *Bridge) broadcastThemes() { b.emit("themes:changed", nil) }

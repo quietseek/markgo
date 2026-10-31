@@ -1,22 +1,16 @@
 package main
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"maps"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -54,18 +48,10 @@ type Bridge struct {
 	pending   string // 前端就绪前收到的待打开文件（双击 / 拖到图标 / 命令行），由前端启动时取走
 	ready     bool
 	activeDoc atomic.Value // string
-	dark      atomic.Bool
-
-	// 单独打开（不在笔记库中）的文档各自一个窗口：文件路径 -> 窗口
-	docMu      sync.Mutex
-	docWindows map[string]*application.WebviewWindow
-	docSeq     int
-	// 前端已保存完毕、可以真正关闭的文档窗口
-	closeOK map[*application.WebviewWindow]bool
 }
 
 func newBridge(store *settings.Store) *Bridge {
-	b := &Bridge{store: store, docWindows: map[string]*application.WebviewWindow{}, closeOK: map[*application.WebviewWindow]bool{}}
+	b := &Bridge{store: store}
 	cfg := store.Get()
 	b.nativeControls = nativeControlsFor(&cfg)
 	b.activeDoc.Store("")
@@ -107,21 +93,6 @@ func emitTo(w *application.WebviewWindow, name string, data any) {
 	}
 }
 
-// 发起调用的窗口
-func callerWindow(ctx context.Context) *application.WebviewWindow {
-	w, _ := ctx.Value(application.WindowKey).(*application.WebviewWindow)
-	return w
-}
-
-// 菜单动作发给当前窗口（单独打开的文档窗口在前台时发给它），否则发给主窗口
-func (b *Bridge) sendToFocused(name string, data any) {
-	if w, ok := b.app.Window.Current().(*application.WebviewWindow); ok && w != nil {
-		emitTo(w, name, data)
-		return
-	}
-	emitTo(b.window, name, data)
-}
-
 func dirExists(p string) bool {
 	st, err := os.Stat(p)
 	return err == nil && st.IsDir()
@@ -146,19 +117,19 @@ var (
 	darkBg  = application.NewRGB(0x1b, 0x1c, 0x1f)
 )
 
-func (b *Bridge) newWindow(name, url string) *application.WebviewWindow {
+func (b *Bridge) createWindow() {
 	hidden := application.ButtonEnabled
 	if isMac && !b.nativeControls {
 		hidden = application.ButtonHidden
 	}
 	w := b.app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Name:      name,
+		Name:      "main",
 		Title:     appName,
 		Width:     1320,
 		Height:    860,
 		MinWidth:  760,
 		MinHeight: 520,
-		URL:       url,
+		URL:       "/",
 		// Windows / Linux 使用无边框窗口，标题栏与窗口按钮由前端绘制
 		Frameless:           !isMac,
 		BackgroundColour:    lightBg,
@@ -173,11 +144,6 @@ func (b *Bridge) newWindow(name, url string) *application.WebviewWindow {
 	})
 	w.OnWindowEvent(events.Common.WindowMaximise, func(*application.WindowEvent) { emitTo(w, "window:maximized", true) })
 	w.OnWindowEvent(events.Common.WindowUnMaximise, func(*application.WindowEvent) { emitTo(w, "window:maximized", false) })
-	return w
-}
-
-func (b *Bridge) createWindow() {
-	w := b.newWindow("main", "/")
 	b.window = w
 	w.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
 		if b.quitting.Load() {
@@ -192,73 +158,6 @@ func (b *Bridge) createWindow() {
 		e.Cancel()
 		w.Hide()
 	})
-}
-
-// openDocWindow 在新窗口中单独打开文档；已在某个窗口中打开时切换到该窗口
-func (b *Bridge) openDocWindow(file string) {
-	b.docMu.Lock()
-	defer b.docMu.Unlock()
-	for p, w := range b.docWindows {
-		if samePath(p, file) {
-			w.Show()
-			w.Focus()
-			return
-		}
-	}
-	b.docSeq++
-	w := b.newWindow(fmt.Sprintf("doc-%d", b.docSeq), "/?doc="+url.QueryEscape(file))
-	if dark := b.dark.Load(); dark {
-		w.SetBackgroundColour(darkBg)
-	}
-	b.docWindows[file] = w
-	// 关闭前先让前端保存未写盘的修改；前端无响应时稍后直接关闭
-	w.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
-		b.docMu.Lock()
-		defer b.docMu.Unlock()
-		if b.quitting.Load() || b.closeOK[w] {
-			delete(b.closeOK, w)
-			for p, dw := range b.docWindows {
-				if dw == w {
-					delete(b.docWindows, p)
-				}
-			}
-			return
-		}
-		e.Cancel()
-		emitTo(w, "window:close-request", nil)
-		time.AfterFunc(3*time.Second, func() { b.confirmClose(w) })
-	})
-}
-
-func (b *Bridge) confirmClose(w *application.WebviewWindow) {
-	b.docMu.Lock()
-	open := slices.Contains(slices.Collect(maps.Values(b.docWindows)), w)
-	if open {
-		b.closeOK[w] = true
-	}
-	b.docMu.Unlock()
-	if open {
-		w.Close()
-	}
-}
-
-// 文档窗口中的文件被重命名后更新记录
-func (b *Bridge) docMoved(w *application.WebviewWindow, file string) {
-	b.docMu.Lock()
-	defer b.docMu.Unlock()
-	for p, dw := range b.docWindows {
-		if dw == w {
-			delete(b.docWindows, p)
-			b.docWindows[file] = w
-		}
-	}
-}
-
-func samePath(a, b string) bool {
-	if runtime.GOOS == "linux" {
-		return filepath.Clean(a) == filepath.Clean(b)
-	}
-	return strings.EqualFold(filepath.Clean(a), filepath.Clean(b))
 }
 
 func (b *Bridge) showWindow() {
@@ -276,48 +175,27 @@ func (b *Bridge) Platform() string { return runtime.GOOS }
 
 func (b *Bridge) NativeControls() bool { return b.nativeControls }
 
-func (b *Bridge) SetDark(ctx context.Context, dark bool) {
-	b.dark.Store(dark)
-	if w := callerWindow(ctx); w != nil {
-		w.SetBackgroundColour(map[bool]application.RGBA{true: darkBg, false: lightBg}[dark])
+func (b *Bridge) SetDark(dark bool) {
+	if b.window != nil {
+		b.window.SetBackgroundColour(map[bool]application.RGBA{true: darkBg, false: lightBg}[dark])
 	}
 }
 
-func (b *Bridge) Minimize(ctx context.Context) {
-	if w := callerWindow(ctx); w != nil {
-		w.Minimise()
+func (b *Bridge) Minimize() {
+	if b.window != nil {
+		b.window.Minimise()
 	}
 }
 
-func (b *Bridge) ToggleMaximize(ctx context.Context) {
-	if w := callerWindow(ctx); w != nil {
-		w.ToggleMaximise()
+func (b *Bridge) ToggleMaximize() {
+	if b.window != nil {
+		b.window.ToggleMaximise()
 	}
 }
 
-func (b *Bridge) CloseWindow(ctx context.Context) {
-	if w := callerWindow(ctx); w != nil {
-		w.Close()
-	}
-}
-
-// ConfirmClose 文档窗口保存完毕，可以关闭
-func (b *Bridge) ConfirmClose(ctx context.Context) {
-	if w := callerWindow(ctx); w != nil {
-		b.confirmClose(w)
-	}
-}
-
-// RunInMain 在主窗口中执行菜单动作（文档窗口中的「打开文件夹」「AI 助手」等）
-func (b *Bridge) RunInMain(action string) {
-	b.showWindow()
-	emitTo(b.window, "menu", action)
-}
-
-// DocMoved 文档窗口中的文件被另存或重命名
-func (b *Bridge) DocMoved(ctx context.Context, file string) {
-	if w := callerWindow(ctx); w != nil {
-		b.docMoved(w, file)
+func (b *Bridge) CloseWindow() {
+	if b.window != nil {
+		b.window.Close()
 	}
 }
 
@@ -362,9 +240,6 @@ func (b *Bridge) openPath(file string) {
 	emitTo(b.window, "open-path", file)
 }
 
-// OpenDocument 前端「打开文件」：在主窗口中打开
-func (b *Bridge) OpenDocument(file string) { b.openPath(file) }
-
 func (b *Bridge) onSecondInstance(args []string, cwd string) {
 	if p := noteFromArgs(args, cwd); p != "" {
 		b.openPath(p)
@@ -396,7 +271,7 @@ func (b *Bridge) TakeOpenPath() *string {
 
 func (b *Bridge) GetSettings() settings.AppSettings { return b.store.Get() }
 
-func (b *Bridge) SetSettings(ctx context.Context, patch map[string]json.RawMessage) (settings.AppSettings, error) {
+func (b *Bridge) SetSettings(patch map[string]json.RawMessage) (settings.AppSettings, error) {
 	launchKey := func(s settings.AppSettings) string {
 		if a := s.ActiveAgent(); a != nil {
 			return a.ID + "\n" + a.Command
@@ -419,13 +294,6 @@ func (b *Bridge) SetSettings(ctx context.Context, patch map[string]json.RawMessa
 	}
 	if nextNative := nativeControlsFor(&next); nextNative != nativeControlsFor(&prev) && nextNative != b.nativeControls {
 		b.promptRelaunch()
-	}
-	// 同步给其他窗口（主题、排版等即时生效）
-	caller := callerWindow(ctx)
-	for _, w := range b.app.Window.GetAll() {
-		if ww, ok := w.(*application.WebviewWindow); ok && ww != caller {
-			emitTo(ww, "settings:changed", next)
-		}
 	}
 	return next, nil
 }

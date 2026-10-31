@@ -11,7 +11,7 @@ import (
 )
 
 func (b *Bridge) sendMenu(action string) func(*application.Context) {
-	return func(*application.Context) { b.sendToFocused("menu", action) }
+	return func(*application.Context) { emitTo(b.window, "menu", action) }
 }
 
 // buildAppMenu macOS 菜单栏；Windows / Linux 为无边框窗口，快捷键由前端处理（frontend/src/bridge.ts）

@@ -110,7 +110,7 @@ func (b *Bridge) installUpdate() error {
 	}
 
 	b.emit("update:progress", updateProgress{Phase: "install"})
-	// 让各窗口先把未保存的修改写盘
+	// 让前端先把未保存的修改写盘
 	b.emit("app:save", nil)
 	time.Sleep(1200 * time.Millisecond)
 

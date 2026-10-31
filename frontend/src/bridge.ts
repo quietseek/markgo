@@ -1,7 +1,7 @@
 // window.markgo 的 Wails 实现：方法调用 Go 端 Bridge 服务（bridge.go），事件经 Wails 事件系统推送。
 // 前端其余代码只依赖 MarkGoApi 接口（shared/types.ts），与底层运行时无关。
 import { Call, Events } from '@wailsio/runtime'
-import type { AgentEvent, AppSettings, MarkGoApi, UpdateProgress } from '@shared/types'
+import type { AgentEvent, MarkGoApi, UpdateProgress } from '@shared/types'
 
 const call = <T = unknown>(method: string, ...args: unknown[]): Promise<T> => Call.ByName(`main.Bridge.${method}`, ...args) as Promise<T>
 
@@ -113,9 +113,8 @@ function installNavigationGuards() {
 }
 
 export async function installBridge(): Promise<void> {
-  // 只有主窗口接收「打开文件」请求，文档窗口加载时不影响排队状态
-  const isDocWindow = new URLSearchParams(location.search).has('doc')
-  const [platform, nativeControls] = await Promise.all([call<string>('Platform'), call<boolean>('NativeControls'), isDocWindow || call('PageLoading')])
+  // 页面（重新）加载期间收到的「打开文件」请求先排队，由前端启动后取走
+  const [platform, nativeControls] = await Promise.all([call<string>('Platform'), call<boolean>('NativeControls'), call('PageLoading')])
   if (platform !== 'darwin') installShortcuts()
   installNavigationGuards()
 
@@ -123,8 +122,7 @@ export async function installBridge(): Promise<void> {
     settings: {
       get: () => call('GetSettings'),
       // undefined 表示删除该项（如关闭文件夹时的 lastWorkspace），JSON 会丢弃 undefined，改为 null 传给 Go
-      set: (patch) => call('SetSettings', Object.fromEntries(Object.entries(patch).map(([k, v]) => [k, v === undefined ? null : v]))),
-      onChange: (cb) => on<AppSettings>('settings:changed', cb)
+      set: (patch) => call('SetSettings', Object.fromEntries(Object.entries(patch).map(([k, v]) => [k, v === undefined ? null : v])))
     },
     themes: {
       list: () => call('ListThemes'),
@@ -186,8 +184,7 @@ export async function installBridge(): Promise<void> {
       checkUpdate: () => call('CheckUpdate'),
       installUpdate: () => call('InstallUpdate'),
       onUpdateProgress: (cb) => on<UpdateProgress>('update:progress', cb),
-      onSaveRequest: (cb) => on<null>('app:save', () => cb()),
-      openDocument: (p) => call('OpenDocument', p)
+      onSaveRequest: (cb) => on<null>('app:save', () => cb())
     },
     window: {
       setDark: (dark) => void call('SetDark', dark),
@@ -195,12 +192,7 @@ export async function installBridge(): Promise<void> {
       toggleMaximize: () => void call('ToggleMaximize'),
       close: () => void call('CloseWindow'),
       nativeControls,
-      onMaximizeChange: (cb) => on<boolean>('window:maximized', cb),
-      docPath: new URLSearchParams(location.search).get('doc'),
-      onCloseRequest: (cb) => on<null>('window:close-request', cb),
-      confirmClose: () => void call('ConfirmClose'),
-      runInMain: (action) => void call('RunInMain', action),
-      docMoved: (p) => void call('DocMoved', p)
+      onMaximizeChange: (cb) => on<boolean>('window:maximized', cb)
     },
     onMenu(cb) {
       menuListeners.add(cb)
