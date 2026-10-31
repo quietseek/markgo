@@ -685,7 +685,6 @@ textarea {
 .editor-toolbar-inner {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 2px;
   height: 38px;
   padding: 0 12px;
@@ -731,12 +730,7 @@ textarea {
 }
 .editor-toolbar button:disabled {
   opacity: 0.35;
-}@container editor (max-width: 640px) {
-  .editor-toolbar-inner {
-    justify-content: flex-start;
-  }
 }
-
 .prose-editor {
   outline: none;
   font-size: 16px;
