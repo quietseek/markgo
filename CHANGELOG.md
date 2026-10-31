@@ -2,6 +2,26 @@
 
 每个版本发布时，GitHub Release 的说明取自本文件对应版本的小节，按「修复问题、新增功能、优化改进、下载地址」组织，没有内容的小节不写。发版前请先在这里补充内容。
 
+## v0.5.3
+
+### 新增功能
+
+- **打印为 PDF**：导出 PDF 不再必须安装 LaTeX。没有检测到 PDF 引擎时，按编辑区当前的样式（排版主题、Typora 主题或原生样式，含公式与 Mermaid 图表）打开系统打印对话框，选择「存储为 PDF」/「Microsoft Print to PDF」即可保存
+  - 导出对话框中可选择 PDF 生成方式：自动（有 PDF 引擎时用 Pandoc，否则打印为 PDF）、打印为 PDF、Pandoc
+  - 纸张与页边距对两种方式都有效
+  - 未安装 Pandoc 时，也可在安装说明页点击「直接打印为 PDF」
+
+### 下载地址
+
+| 系统 | 安装包 |
+| --- | --- |
+| macOS（Apple 芯片与 Intel 通用） | [MarkGo-0.5.3-mac-universal.dmg](https://github.com/quietseek/markgo/releases/download/v0.5.3/MarkGo-0.5.3-mac-universal.dmg) |
+| Windows 10 / 11 | [MarkGo-0.5.3-win-x64-setup.exe](https://github.com/quietseek/markgo/releases/download/v0.5.3/MarkGo-0.5.3-win-x64-setup.exe) |
+| Linux（Debian / Ubuntu） | [MarkGo-0.5.3-linux-amd64.deb](https://github.com/quietseek/markgo/releases/download/v0.5.3/MarkGo-0.5.3-linux-amd64.deb) |
+
+> Windows 需要 WebView2 运行时（系统通常已自带，安装程序会自动补装）；Linux 需要 GTK 4 与 WebKitGTK 6.0（Ubuntu 24.04+ / Debian 13+）。
+> 安装包未经代码签名：macOS 首次打开如提示「已损坏」或「无法验证开发者」，请在终端执行 `xattr -cr /Applications/MarkGo.app`；Windows 如出现 SmartScreen 提示，点击「更多信息 → 仍要运行」。
+
 ## v0.5.2
 
 ### 优化改进
