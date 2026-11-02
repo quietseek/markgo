@@ -141,6 +141,7 @@ export async function installBridge(): Promise<void> {
       write: (p, content) => call('WriteFile', p, content),
       create: (dir, name, kind) => call('CreateEntry', dir, name, kind),
       rename: (p, name) => call('RenameEntry', p, name),
+      move: (p, dir) => call('MoveEntry', p, dir),
       remove: (p) => call('RemoveEntry', p),
       saveAs: (content, name) => orNull(call('SaveAs', content, name)),
       reveal: (p) => call('Reveal', p),
@@ -155,7 +156,9 @@ export async function installBridge(): Promise<void> {
       pandoc: (p) => call('PandocStatus', p),
       defaultCjkFont: () => call('DefaultCJKFont'),
       run: (req) => call('ExportDocument', req),
-      pickFile: (kind) => orNull(call('PickExportFile', kind))
+      pickFile: (kind) => orNull(call('PickExportFile', kind)),
+      installCommand: (tool) => call('InstallCommand', tool),
+      install: (tool) => call('InstallTool', tool)
     },
     image: {
       uploadPaths: (paths, docPath) => call('UploadPaths', paths, docPath ?? ''),

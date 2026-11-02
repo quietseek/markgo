@@ -54,7 +54,8 @@ export function App() {
   const [focusMode, setFocusMode] = useState(false)
   const [dialog, setDialog] = useState<null | 'settings' | 'settings-publish' | 'settings-ai' | 'settings-image' | 'publish' | 'export' | 'shortcuts' | 'about'>(null)
   // 打开导出对话框时的文档内容
-  const [exportMd, setExportMd] = useState('')
+  /** 打开导出对话框时的文档快照 */
+  const [exportDoc, setExportDoc] = useState<{ markdown: string; path: string; isScratch: boolean } | null>(null)
   const [update, setUpdate] = useState<UpdateState>({ checking: false })
   const agent = useAgentState()
   const [saveState, setSaveState] = useState<SaveState>('saved')
@@ -123,8 +124,12 @@ export function App() {
     [refreshTree, updateSettings]
   )
 
+  /**
+   * 打开文档。external 为从桌面、文件管理器等外部打开：侧栏切换到文档所在的文件夹；
+   * 应用内打开时，只有笔记库之外的文档才切换
+   */
   const loadDoc = useCallback(
-    async (path: string, isScratch = false) => {
+    async (path: string, isScratch = false, external = false) => {
       await flushSave()
       let content = await api.fs.read(path)
       if (isScratch && !content.trim()) content = WELCOME_MD
@@ -135,9 +140,9 @@ export function App() {
       setSourceMode(false)
       if (!isScratch) {
         await api.settings.set({ lastFile: path })
-        // 打开笔记库之外的文档时，侧栏切换到文档所在的文件夹
         const ws = (await api.settings.get()).lastWorkspace
-        if (!ws || !isInside(path, ws)) await openWorkspace(dirname(path))
+        const dir = dirname(path)
+        if (external ? ws !== dir : !ws || !isInside(path, ws)) await openWorkspace(dir)
       } else api.settings.set({ lastFile: undefined })
     },
     [flushSave, openWorkspace]
@@ -164,14 +169,15 @@ export function App() {
     ;(async () => {
       const s = await api.settings.get()
       setSettings(s)
-      if (s.lastWorkspace) refreshTree(s.lastWorkspace)
+      // 从桌面等外部打开时优先显示该文件，侧栏直接打开文档所在的文件夹
+      const external = await api.app.takeOpenPath()
+      if (s.lastWorkspace && !external) refreshTree(s.lastWorkspace)
       try {
-        // 从桌面等外部打开时优先显示该文件
-        const external = await api.app.takeOpenPath()
-        if (external) return await loadDoc(external)
+        if (external) return await loadDoc(external, false, true)
         if (s.lastFile && s.startupOpen !== 'scratch') return await loadDoc(s.lastFile)
       } catch {
-        /* 上次的文件已不存在 */
+        /* 文件已不存在：侧栏仍显示上次的文件夹 */
+        if (external && s.lastWorkspace) refreshTree(s.lastWorkspace)
       }
       await openScratch()
     })()
@@ -273,6 +279,43 @@ export function App() {
         refreshTree()
       } catch (err) {
         toast((err as Error).message, 'error')
+      }
+    },
+    [flushSave, refreshTree]
+  )
+
+  /** 文件树右键导出：先打开该文档（打印为 PDF、排版 HTML 都按编辑区的内容生成），再显示导出对话框 */
+  const exportEntry = useCallback(
+    async (path: string) => {
+      try {
+        if (latest.current.doc?.path !== path) await loadDoc(path)
+        else await flushSave()
+        setExportDoc({ markdown: await api.fs.read(path), path, isScratch: false })
+        setDialog('export')
+      } catch (err) {
+        toast((err as Error).message, 'error')
+      }
+    },
+    [loadDoc, flushSave]
+  )
+
+  /** 拖动文件或文件夹到另一个文件夹 */
+  const moveEntry = useCallback(
+    async (path: string, destDir: string) => {
+      try {
+        const cur = latest.current.doc
+        const affectsCurrent = cur && (cur.path === path || isInside(cur.path, path))
+        if (affectsCurrent) await flushSave()
+        const next = await api.fs.move(path, destDir)
+        if (next === path) return
+        if (cur && affectsCurrent) {
+          const moved = next + cur.path.slice(path.length)
+          setDoc({ ...cur, path: moved })
+          api.settings.set({ lastFile: moved })
+        }
+        refreshTree()
+      } catch (err) {
+        toast((err as Error).message ?? String(err), 'error')
       }
     },
     [flushSave, refreshTree]
@@ -457,7 +500,9 @@ export function App() {
     'save-as': saveAs,
     'export-html': exportHtml,
     export: () => {
-      setExportMd(editorRef.current?.getMarkdown() ?? latest.current.markdown)
+      const d = latest.current.doc
+      if (!d) return
+      setExportDoc({ markdown: editorRef.current?.getMarkdown() ?? latest.current.markdown, path: d.path, isScratch: d.isScratch })
       setDialog('export')
     },
     settings: () => setDialog('settings'),
@@ -484,7 +529,7 @@ export function App() {
       api.onMenu((action) => handlers.current[action]?.()),
     []
   )
-  useEffect(() => api.onOpenPath((p) => loadDoc(p)), [loadDoc])
+  useEffect(() => api.onOpenPath((p) => loadDoc(p, false, true)), [loadDoc])
   useEffect(() => api.onOpenWorkspace((dir) => openWorkspace(dir)), [openWorkspace])
 
   const openPublish = () => {
@@ -545,9 +590,6 @@ export function App() {
           <span className={`save-dot ${saveState}`} title={{ saved: '已保存', saving: '保存中', unsaved: '未保存' }[saveState]} />
         </div>
         <div className="titlebar-right">
-          <button className="icon-btn titlebar-export" title={`导出（PDF、Word、HTML 等）${isMac ? ' ⇧⌘P' : ' Ctrl+Shift+P'}`} onClick={() => handlers.current.export()}>
-            <FileOutput size={16} />
-          </button>
           {customControls === 'classic' && <WindowControls variant="classic" />}
           {customControls === 'traffic-right' && <WindowControls variant="traffic" side="right" />}
         </div>
@@ -572,6 +614,10 @@ export function App() {
             onCreate={createEntry}
             onRename={renameEntry}
             onDelete={deleteEntry}
+            onExport={exportEntry}
+            onMove={moveEntry}
+            view={settings.sidebarView}
+            onView={(sidebarView) => updateSettings({ sidebarView })}
             onReveal={(p) => api.fs.reveal(p)}
             onHeadingClick={(i) => editorRef.current?.scrollToHeading(i)}
             onSettings={() => setDialog('settings')}
@@ -648,9 +694,8 @@ export function App() {
               {doc.isScratch ? '草稿自动保存在应用数据目录 · ⌘S 另存为' : { saved: '已保存', saving: '保存中…', unsaved: '编辑中' }[saveState]}
             </span>
             <PublishActions onCopy={copyToWechat} onPublish={openPublish} />
-            <button className="status-export" title={`导出为 PDF、Word、HTML 等${isMac ? ' ⇧⌘P' : ' Ctrl+Shift+P'}`} onClick={() => handlers.current.export()}>
-              <FileOutput size={13} />
-              导出
+            <button className="icon-btn sm" title={`导出为 PDF、Word、HTML 等${isMac ? ' ⇧⌘P' : ' Ctrl+Shift+P'}`} onClick={() => handlers.current.export()}>
+              <FileOutput size={14} />
             </button>
             <span className="status-sep" />
             <button
@@ -700,12 +745,12 @@ export function App() {
           onClose={() => setDialog(null)}
         />
       )}
-      {dialog === 'export' && (
+      {dialog === 'export' && exportDoc && (
         <ExportDialog
-          markdown={exportMd}
-          docPath={doc.path}
-          isScratch={doc.isScratch}
-          title={doc.isScratch ? extractTitle(exportMd) || '未命名' : basename(doc.path).replace(/\.(md|markdown|txt)$/i, '')}
+          markdown={exportDoc.markdown}
+          docPath={exportDoc.path}
+          isScratch={exportDoc.isScratch}
+          title={exportDoc.isScratch ? extractTitle(exportDoc.markdown) || '未命名' : basename(exportDoc.path).replace(/\.(md|markdown|txt)$/i, '')}
           config={settings.export}
           onSave={(cfg) => updateSettings({ export: cfg })}
           onStyledHtml={() => {

@@ -360,6 +360,8 @@ func (b *Bridge) CreateEntry(dir, name, kind string) (string, error) {
 
 func (b *Bridge) RenameEntry(p, name string) (string, error) { return files.RenameEntry(p, name) }
 
+func (b *Bridge) MoveEntry(p, destDir string) (string, error) { return files.MoveEntry(p, destDir) }
+
 func (b *Bridge) RemoveEntry(p string) error { return platform.MoveToTrash(p) }
 
 func (b *Bridge) Reveal(p string) error { return b.app.Env.OpenFileManager(p, true) }

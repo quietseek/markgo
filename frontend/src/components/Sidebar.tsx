@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import {
   ChevronDown,
   ChevronRight,
@@ -10,6 +10,8 @@ import {
   CircleArrowUp,
   Info,
   Keyboard,
+  List,
+  ListTree,
   RefreshCw,
   Settings
 } from 'lucide-react'
@@ -38,6 +40,13 @@ interface Props {
   onRename(path: string, name: string): void
   onDelete(path: string): void
   onReveal(path: string): void
+  /** 导出文档（先打开该文档） */
+  onExport(path: string): void
+  /** 把文件或文件夹移动到另一个文件夹 */
+  onMove(path: string, destDir: string): void
+  /** 文件的显示方式：文件树或平铺列表 */
+  view: 'tree' | 'list'
+  onView(view: 'tree' | 'list'): void
   onHeadingClick(index: number): void
   onSettings(): void
   onShortcuts(): void
@@ -49,12 +58,67 @@ interface Props {
 
 type Menu = { x: number; y: number; node: FileNode | null }
 
+/** 拖动数据类型：文件树中拖动的路径 */
+const DRAG_TYPE = 'application/x-markgo-path'
+
+/** 平铺列表：所有笔记按名称排序 */
+function flatten(nodes: FileNode[], out: FileNode[] = []): FileNode[] {
+  for (const n of nodes) {
+    if (n.type === 'file') out.push(n)
+    else if (n.children) flatten(n.children, out)
+  }
+  return out
+}
+const collator = new Intl.Collator('zh-CN', { numeric: true })
+const displayName = (node: FileNode) => (node.type === 'file' ? node.name.replace(/\.(md|markdown)$/i, '') : node.name)
+
 export function Sidebar(props: Props) {
   const tab = props.tab
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [menu, setMenu] = useState<Menu | null>(null)
   const [renaming, setRenaming] = useState<string | null>(null)
   const [wsMenu, setWsMenu] = useState<{ x: number; y: number } | null>(null)
+  // 拖动中的路径与当前的放置目标文件夹
+  const dragging = useRef<string | null>(null)
+  const [dropDir, setDropDir] = useState<string | null>(null)
+  const expandTimer = useRef<number>(undefined)
+  const files = useMemo(
+    () => flatten(props.tree).sort((a, b) => collator.compare(displayName(a), displayName(b)) || collator.compare(a.path, b.path)),
+    [props.tree]
+  )
+
+  const canDropFrom = (src: string, dir: string) => dir !== dirname(src) && dir !== src && !isInside(dir, src)
+  const canDrop = (dir: string) => !!dragging.current && canDropFrom(dragging.current, dir)
+  // 拖到文件夹上为移入该文件夹，拖到文件上为移入文件所在的文件夹，拖到空白处为移到笔记库根目录
+  const dragOver = (e: DragEvent, dir: string, expandPath?: string) => {
+    if (!dragging.current) return
+    e.stopPropagation()
+    if (!canDrop(dir)) {
+      e.dataTransfer.dropEffect = 'none'
+      if (dropDir !== null) setDropDir(null)
+      return
+    }
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (dropDir !== dir) {
+      setDropDir(dir)
+      // 在折叠的文件夹上停留片刻后展开
+      window.clearTimeout(expandTimer.current)
+      if (expandPath && !expanded.has(expandPath)) expandTimer.current = window.setTimeout(() => toggle(expandPath), 700)
+    }
+  }
+  const drop = (e: DragEvent, dir: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const src = dragging.current
+    endDrag()
+    if (src && dir && canDropFrom(src, dir)) props.onMove(src, dir)
+  }
+  const endDrag = () => {
+    dragging.current = null
+    window.clearTimeout(expandTimer.current)
+    setDropDir(null)
+  }
 
   useEffect(() => {
     if (!menu && !wsMenu) return
@@ -92,6 +156,24 @@ export function Sidebar(props: Props) {
       return next
     })
 
+  const renameInput = (node: FileNode) => (
+    <input
+      className="tree-rename"
+      autoFocus
+      defaultValue={node.type === 'file' ? node.name.replace(/\.(md|markdown|txt)$/i, '') : node.name}
+      onClick={(e) => e.stopPropagation()}
+      onFocus={(e) => e.target.select()}
+      onBlur={(e) => {
+        setRenaming(null)
+        if (e.target.value.trim() && e.target.value !== node.name) props.onRename(node.path, e.target.value)
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+        if (e.key === 'Escape') setRenaming(null)
+      }}
+    />
+  )
+
   const renderNodes = (nodes: FileNode[], depth: number) =>
     nodes.map((node) => {
       const isOpen = expanded.has(node.path)
@@ -99,8 +181,17 @@ export function Sidebar(props: Props) {
       return (
         <div key={node.path}>
           <div
-            className={`tree-row${isActive ? ' active' : ''}`}
+            className={`tree-row${isActive ? ' active' : ''}${node.type === 'dir' && dropDir === node.path ? ' drop-target' : ''}`}
             style={{ paddingLeft: 10 + depth * 14 }}
+            draggable={renaming !== node.path}
+            onDragStart={(e) => {
+              dragging.current = node.path
+              e.dataTransfer.effectAllowed = 'move'
+              e.dataTransfer.setData(DRAG_TYPE, node.path)
+            }}
+            onDragEnd={endDrag}
+            onDragOver={(e) => (node.type === 'dir' ? dragOver(e, node.path, node.path) : dragOver(e, dirname(node.path)))}
+            onDrop={(e) => drop(e, node.type === 'dir' ? node.path : dirname(node.path))}
             onClick={() => (node.type === 'dir' ? toggle(node.path) : props.onOpenFile(node.path))}
             onContextMenu={(e) => {
               e.preventDefault()
@@ -121,26 +212,41 @@ export function Sidebar(props: Props) {
               </>
             )}
             {renaming === node.path ? (
-              <input
-                className="tree-rename"
-                autoFocus
-                defaultValue={node.type === 'file' ? node.name.replace(/\.(md|markdown|txt)$/i, '') : node.name}
-                onClick={(e) => e.stopPropagation()}
-                onFocus={(e) => e.target.select()}
-                onBlur={(e) => {
-                  setRenaming(null)
-                  if (e.target.value.trim() && e.target.value !== node.name) props.onRename(node.path, e.target.value)
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
-                  if (e.key === 'Escape') setRenaming(null)
-                }}
-              />
+              renameInput(node)
             ) : (
-              <span className="tree-name">{node.type === 'file' ? node.name.replace(/\.(md|markdown)$/i, '') : node.name}</span>
+              <span className="tree-name">{displayName(node)}</span>
             )}
           </div>
           {node.type === 'dir' && isOpen && node.children && renderNodes(node.children, depth + 1)}
+        </div>
+      )
+    })
+
+  // 平铺列表：文件名与所在的文件夹（相对笔记库）
+  const renderList = () =>
+    files.map((node) => {
+      const rel = props.workspace ? dirname(node.path).slice(props.workspace.length).replace(/^[\\/]+/, '') : ''
+      return (
+        <div
+          key={node.path}
+          className={`tree-row list-row${node.path === props.activePath ? ' active' : ''}`}
+          onClick={() => props.onOpenFile(node.path)}
+          onContextMenu={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            setMenu({ x: e.clientX, y: e.clientY, node })
+          }}
+          title={node.path}
+        >
+          <FileText size={15} />
+          {renaming === node.path ? (
+            renameInput(node)
+          ) : (
+            <span className="tree-name">
+              {displayName(node)}
+              {rel && <small className="list-dir">{rel}</small>}
+            </span>
+          )}
         </div>
       )
     })
@@ -218,19 +324,37 @@ export function Sidebar(props: Props) {
               <button className="icon-btn sm" title="新建文件夹" onClick={() => props.onCreate(props.workspace!, 'dir')}>
                 <FolderPlus size={15} />
               </button>
+              <button
+                className="icon-btn sm"
+                title={props.view === 'tree' ? '切换为平铺列表' : '切换为文件树'}
+                onClick={() => props.onView(props.view === 'tree' ? 'list' : 'tree')}
+              >
+                {props.view === 'tree' ? <List size={15} /> : <ListTree size={15} />}
+              </button>
               <button className="icon-btn sm" title="刷新" onClick={props.onRefresh}>
                 <RefreshCw size={14} />
               </button>
             </div>
             {outsideCard}
             <div
-              className="tree"
+              className={`tree${props.view === 'tree' && dropDir === props.workspace ? ' drop-target' : ''}`}
               onContextMenu={(e) => {
                 e.preventDefault()
                 setMenu({ x: e.clientX, y: e.clientY, node: null })
               }}
+              onDragOver={(e) => props.view === 'tree' && dragOver(e, props.workspace!)}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropDir(null)
+              }}
+              onDrop={(e) => props.view === 'tree' && drop(e, props.workspace!)}
             >
-              {props.tree.length ? renderNodes(props.tree, 0) : <div className="sidebar-empty">文件夹中还没有 Markdown 笔记</div>}
+              {!props.tree.length ? (
+                <div className="sidebar-empty">文件夹中还没有 Markdown 笔记</div>
+              ) : props.view === 'tree' ? (
+                renderNodes(props.tree, 0)
+              ) : (
+                renderList()
+              )}
             </div>
           </>
         ) : (
@@ -334,6 +458,12 @@ export function Sidebar(props: Props) {
             <>
               <button onClick={() => props.onCreate(menu.node?.path || props.workspace!, 'file')}>新建笔记</button>
               <button onClick={() => props.onCreate(menu.node?.path || props.workspace!, 'dir')}>新建文件夹</button>
+            </>
+          )}
+          {menu.node?.type === 'file' && (
+            <>
+              <button onClick={() => props.onExport(menu.node!.path)}>导出…</button>
+              <div className="menu-sep" />
             </>
           )}
           {menu.node && (

@@ -31,8 +31,15 @@ func IsNote(name string) bool {
 	return slices.Contains(noteExts, strings.ToLower(filepath.Ext(name)))
 }
 
-// ListTree 列出笔记库中的文件夹与笔记：文件夹在前，按中文拼音与数字自然排序。
-// 不含笔记的文件夹（如只放图片的 assets）不列出；完全空的文件夹保留，以便显示刚新建的文件夹
+var markdownExts = []string{".md", ".markdown"}
+
+// IsMarkdown 是否为 Markdown 文件；文件树只列出 Markdown 文件
+func IsMarkdown(name string) bool {
+	return slices.Contains(markdownExts, strings.ToLower(filepath.Ext(name)))
+}
+
+// ListTree 列出笔记库中的文件夹与 Markdown 文件：文件夹在前，按中文拼音与数字自然排序。
+// 不含 Markdown 文件的文件夹（如只放图片的 assets）不列出；完全空的文件夹保留，以便显示刚新建的文件夹
 func ListTree(root string, showHidden bool) []FileNode {
 	col := collate.New(language.SimplifiedChinese, collate.Numeric)
 	return listTree(root, showHidden, 0, col)
@@ -66,7 +73,7 @@ func listTree(root string, showHidden bool, depth int, col *collate.Collator) []
 				continue
 			}
 			nodes = append(nodes, FileNode{Name: name, Path: full, Type: "dir", Children: children})
-		} else if IsNote(name) {
+		} else if IsMarkdown(name) {
 			nodes = append(nodes, FileNode{Name: name, Path: full, Type: "file"})
 		}
 	}
@@ -148,6 +155,28 @@ func RenameEntry(path, newName string) (string, error) {
 	// 仅大小写不同的改名在不区分大小写的文件系统上指向同一个文件，允许；否则不能覆盖已有文件
 	if targetInfo, err := os.Stat(target); err == nil && !os.SameFile(targetInfo, st) {
 		return "", fmt.Errorf("已存在同名文件：%s", clean)
+	}
+	return target, os.Rename(path, target)
+}
+
+// MoveEntry 把文件或文件夹移动到 destDir 中，不覆盖同名文件；返回新路径
+func MoveEntry(path, destDir string) (string, error) {
+	st, err := os.Stat(path)
+	if err != nil {
+		return "", err
+	}
+	if dst, err := os.Stat(destDir); err != nil || !dst.IsDir() {
+		return "", errors.New("目标文件夹不存在")
+	}
+	if filepath.Clean(filepath.Dir(path)) == filepath.Clean(destDir) {
+		return path, nil
+	}
+	if st.IsDir() && (filepath.Clean(path) == filepath.Clean(destDir) || IsInside(destDir, path)) {
+		return "", errors.New("不能把文件夹移动到它自身或其子文件夹中")
+	}
+	target := filepath.Join(destDir, filepath.Base(path))
+	if exists(target) {
+		return "", fmt.Errorf("「%s」中已存在同名的%s", filepath.Base(destDir), map[bool]string{true: "文件夹", false: "文件"}[st.IsDir()])
 	}
 	return target, os.Rename(path, target)
 }

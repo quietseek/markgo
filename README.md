@@ -90,7 +90,7 @@ AI 写作不直接调用模型 API，也不需要 API Key：能力由本机已�
    | GitHub Copilot | 运行 `copilot` 后执行 `/login` |
    | Goose | 安装 Goose CLI 后运行 `goose configure` |
 
-2. 在「设置 → AI 集成」中找到对应的 Agent，点击「安装」。预置 Agent 通过 `npx` 启动，首次安装需要下载；连接成功后卡片上会标注「已连接」，已安装的其他 Agent 可点击「使用」切换。
+2. 在「设置 → ACP 集成」中找到对应的 Agent，点击「安装」。预置 Agent 通过 `npx` 启动，首次安装需要下载；连接成功后卡片上会标注「已连接」，已安装的其他 Agent 可点击「使用」切换。
 3. 其他支持 ACP 的 Agent 可通过「＋ 添加自定义 Agent」添加，填写其 ACP 模式的启动命令后安装即可；展开卡片可修改启动命令或卸载。启动命令通过登录 shell 执行，会继承 shell 中的环境变量（如 API Key）。
 
 ### 使用

@@ -22,10 +22,10 @@ type Tab = 'general' | 'editor' | 'export' | 'image' | 'writing' | 'ai' | 'publi
 const TABS: { key: Tab; label: string; Icon: typeof Settings2 }[] = [
   { key: 'general', label: '通用设置', Icon: Settings2 },
   { key: 'editor', label: '编辑器', Icon: FileText },
-  { key: 'export', label: '导出', Icon: FileOutput },
+  { key: 'export', label: '导出配置', Icon: FileOutput },
   { key: 'image', label: '图片处理', Icon: Image },
   { key: 'writing', label: '写作偏好', Icon: PenLine },
-  { key: 'ai', label: 'AI 集成', Icon: Blocks },
+  { key: 'ai', label: 'ACP 集成', Icon: Blocks },
   { key: 'publish', label: '发布渠道', Icon: Send }
 ]
 
@@ -103,7 +103,7 @@ export function SettingsDialog({ settings, initialTab = 'general', onSave, onClo
   }
 
   return (
-    <Modal title="设置" onClose={onClose} width={720}>
+    <Modal title="设置" onClose={onClose} width={780}>
       <div className="settings">
         <nav className="settings-nav">
           {TABS.map(({ key, label, Icon }) => (

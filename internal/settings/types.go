@@ -79,15 +79,17 @@ type ExportConfig struct {
 }
 
 type AppSettings struct {
-	ImageUploadMode   string         `json:"imageUploadMode"`
-	PicgoServer       string         `json:"picgoServer"`
-	LocalAssetsDir    string         `json:"localAssetsDir"`
-	ThemeKey          string         `json:"themeKey"`
-	FontSizeOffset    float64        `json:"fontSizeOffset"`
-	ParaSpacingOffset float64        `json:"paraSpacingOffset"`
-	LinkToFootnote    bool           `json:"linkToFootnote"`
-	ShowAgent         bool           `json:"showAgent"`
-	ShowSidebar       bool           `json:"showSidebar"`
+	ImageUploadMode   string  `json:"imageUploadMode"`
+	PicgoServer       string  `json:"picgoServer"`
+	LocalAssetsDir    string  `json:"localAssetsDir"`
+	ThemeKey          string  `json:"themeKey"`
+	FontSizeOffset    float64 `json:"fontSizeOffset"`
+	ParaSpacingOffset float64 `json:"paraSpacingOffset"`
+	LinkToFootnote    bool    `json:"linkToFootnote"`
+	ShowAgent         bool    `json:"showAgent"`
+	ShowSidebar       bool    `json:"showSidebar"`
+	// 侧栏文件的显示方式："tree" 文件树 | "list" 平铺列表
+	SidebarView       string         `json:"sidebarView"`
 	EditorTheme       string         `json:"editorTheme"`
 	Appearance        string         `json:"appearance"`
 	LightTheme        string         `json:"lightTheme"`
@@ -186,6 +188,7 @@ func Defaults() AppSettings {
 		ThemeKey:          "claude",
 		LinkToFootnote:    true,
 		ShowSidebar:       true,
+		SidebarView:       "tree",
 		EditorTheme:       "default",
 		Appearance:        "system",
 		ShowToolbar:       true,

@@ -114,6 +114,9 @@ func (s *Store) migrate(cfg *AppSettings, stored map[string]json.RawMessage) {
 	if !slices.Contains([]string{"default", "wide", "full"}, cfg.EditorWidth) {
 		cfg.EditorWidth = "default"
 	}
+	if cfg.SidebarView != "list" {
+		cfg.SidebarView = "tree"
+	}
 }
 
 // Set 按字段合并更新并落盘；patch 为 Partial<AppSettings> 的 JSON

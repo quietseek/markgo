@@ -9,7 +9,7 @@ import (
 
 func TestListTreeSortsDirsFirstNaturally(t *testing.T) {
 	root := t.TempDir()
-	for _, name := range []string{"笔记10.md", "笔记2.md", "a.txt", "image.png", ".hidden.md"} {
+	for _, name := range []string{"笔记10.md", "笔记2.md", "a.markdown", "a.txt", "image.png", ".hidden.md"} {
 		os.WriteFile(filepath.Join(root, name), nil, 0o644)
 	}
 	os.MkdirAll(filepath.Join(root, "z目录", "sub"), 0o755)
@@ -19,7 +19,7 @@ func TestListTreeSortsDirsFirstNaturally(t *testing.T) {
 	for _, n := range tree {
 		names = append(names, n.Name)
 	}
-	want := []string{"z目录", "a.txt", "笔记2.md", "笔记10.md"}
+	want := []string{"z目录", "a.markdown", "笔记2.md", "笔记10.md"}
 	if len(names) != len(want) {
 		t.Fatalf("names=%v", names)
 	}
@@ -43,6 +43,8 @@ func TestListTreeSkipsFoldersWithoutNotes(t *testing.T) {
 	os.WriteFile(filepath.Join(root, "posts", "img", "b.png"), nil, 0o644)
 	os.WriteFile(filepath.Join(root, "posts", "hello.md"), nil, 0o644)
 	os.MkdirAll(filepath.Join(root, "新建文件夹"), 0o755)
+	os.MkdirAll(filepath.Join(root, "notes"), 0o755)
+	os.WriteFile(filepath.Join(root, "notes", "todo.txt"), nil, 0o644)
 	tree := ListTree(root, false)
 	var names []string
 	for _, n := range tree {
@@ -134,5 +136,40 @@ func TestIsInside(t *testing.T) {
 		if got := IsInside(p, root); got != want {
 			t.Errorf("IsInside(%q) = %v, want %v", p, got, want)
 		}
+	}
+}
+
+func TestMoveEntry(t *testing.T) {
+	root := t.TempDir()
+	os.MkdirAll(filepath.Join(root, "a", "b"), 0o755)
+	os.MkdirAll(filepath.Join(root, "c"), 0o755)
+	os.WriteFile(filepath.Join(root, "note.md"), []byte("x"), 0o644)
+	os.WriteFile(filepath.Join(root, "c", "note.md"), nil, 0o644)
+
+	got, err := MoveEntry(filepath.Join(root, "note.md"), filepath.Join(root, "a"))
+	if err != nil || got != filepath.Join(root, "a", "note.md") {
+		t.Fatalf("got=%s err=%v", got, err)
+	}
+	if raw, _ := os.ReadFile(got); string(raw) != "x" {
+		t.Fatal("content lost")
+	}
+	// 同名文件不覆盖
+	if _, err := MoveEntry(got, filepath.Join(root, "c")); err == nil {
+		t.Fatal("should refuse to overwrite")
+	}
+	// 文件夹不能移动到自身或子文件夹
+	if _, err := MoveEntry(filepath.Join(root, "a"), filepath.Join(root, "a", "b")); err == nil {
+		t.Fatal("should refuse moving into descendant")
+	}
+	if _, err := MoveEntry(filepath.Join(root, "a"), filepath.Join(root, "a")); err == nil {
+		t.Fatal("should refuse moving into itself")
+	}
+	// 移到原来的文件夹：不变
+	if got, err := MoveEntry(filepath.Join(root, "a"), root); err != nil || got != filepath.Join(root, "a") {
+		t.Fatalf("got=%s err=%v", got, err)
+	}
+	got, err = MoveEntry(filepath.Join(root, "a"), filepath.Join(root, "c"))
+	if err != nil || !exists(filepath.Join(root, "c", "a", "note.md")) {
+		t.Fatalf("got=%s err=%v", got, err)
 	}
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Check, Copy, ExternalLink, FolderOpen, Loader2, Printer, RefreshCw, X } from 'lucide-react'
-import type { ExportConfig, ExportFormat, PandocInfo } from '@shared/types'
+import { Check, Copy, Download, ExternalLink, FolderOpen, Loader2, Printer, RefreshCw, X } from 'lucide-react'
+import type { ExportConfig, ExportFormat, InstallTool, PandocInfo } from '@shared/types'
 import { Modal } from './Modal'
 import { Group, Row, Segmented, Switch } from './SettingsDialog'
 import { toast } from '../lib/toast'
@@ -24,8 +24,8 @@ const INSTALL_GUIDE: Record<OS, { label: string; methods: { title: string; desc?
       { title: 'Chocolatey', cmd: 'choco install pandoc' },
       { title: 'Conda', cmd: 'conda install -c conda-forge pandoc' }
     ],
-    pdf: '导出 PDF 还需要 LaTeX，官方推荐 MiKTeX（https://miktex.org）',
-    pdfCmd: 'choco install miktex'
+    pdf: '导出 PDF 还需要 LaTeX，推荐 MiKTeX（https://miktex.org）',
+    pdfCmd: 'winget install -e --id MiKTeX.MiKTeX'
   },
   mac: {
     label: 'macOS',
@@ -35,18 +35,18 @@ const INSTALL_GUIDE: Record<OS, { label: string; methods: { title: string; desc?
       { title: 'MacPorts', cmd: 'port install pandoc' },
       { title: 'Conda', cmd: 'conda install -c conda-forge pandoc' }
     ],
-    pdf: '导出 PDF 还需要 LaTeX，官方推荐 BasicTeX（完整的 MacTeX 约 4 GB）',
-    pdfCmd: 'brew install --cask basictex'
+    pdf: '导出 PDF 还需要 LaTeX，推荐 BasicTeX（完整的 MacTeX 约 4 GB）',
+    pdfCmd: 'brew install librsvg python homebrew/cask/basictex'
   },
   linux: {
     label: 'Linux',
     methods: [
-      { title: '发行版软件源', desc: '版本可能较旧', cmd: 'sudo apt install pandoc' },
+      { title: '发行版软件源', desc: '版本可能较旧', cmd: 'sudo apt-get install pandoc' },
       { title: 'deb 安装包（推荐，版本最新）', desc: '从发布页下载 pandoc-x.y-1-amd64.deb 后执行', cmd: 'sudo dpkg -i pandoc-*-amd64.deb', url: RELEASES_URL },
       { title: 'Conda', cmd: 'conda install -c conda-forge pandoc' }
     ],
-    pdf: '导出 PDF 还需要 LaTeX，官方推荐通过软件源安装 TeX Live（中文文档另需 texlive-lang-chinese）',
-    pdfCmd: 'sudo apt install texlive-xetex texlive-lang-chinese'
+    pdf: '导出 PDF 还需要 LaTeX，推荐通过软件源安装 TeX Live（中文文档另需 texlive-xetex texlive-lang-chinese）',
+    pdfCmd: 'sudo apt-get install texlive'
   }
 }
 
@@ -78,8 +78,8 @@ interface Props {
   config: ExportConfig
   /** 保存导出配置（导出时 Go 侧读取已保存的配置） */
   onSave(config: ExportConfig): Promise<void>
-  /** 导出带排版主题的 HTML（不经过 Pandoc） */
-  onStyledHtml(): void
+  /** 导出带排版主题的 HTML（不经过 Pandoc）；导出其他文档时不提供 */
+  onStyledHtml?: () => void
   onClose(): void
 }
 
@@ -118,7 +118,9 @@ export function ExportDialog({ markdown, docPath, isScratch, title, config: init
   const detect = useCallback(async (path: string) => {
     setDetecting(true)
     try {
-      setPandoc(await api.export.pandoc(path))
+      const info = await api.export.pandoc(path)
+      setPandoc(info)
+      return info
     } finally {
       setDetecting(false)
     }
@@ -188,7 +190,7 @@ export function ExportDialog({ markdown, docPath, isScratch, title, config: init
           detecting={detecting}
           onPath={(pandocPath) => onChange({ pandocPath })}
           onPick={() => pick('pandoc', 'pandocPath')}
-          onDetect={() => detect(config.pandocPath)}
+          onDetect={() => detect(latest.current.pandocPath)}
           onPrint={() => {
             onChange({ lastFormat: 'pdf' })
             print()
@@ -214,6 +216,7 @@ export function ExportDialog({ markdown, docPath, isScratch, title, config: init
                 printPdf={printPdf}
                 cjkFont={cjkFont}
                 onPick={pick}
+                onDetect={() => detect(latest.current.pandocPath)}
               />
               <Group title="Pandoc">
                 <Row label="程序位置" desc={`${pandoc.version ? `版本 ${pandoc.version} · ` : ''}${pandoc.path}`} stack>
@@ -235,9 +238,11 @@ export function ExportDialog({ markdown, docPath, isScratch, title, config: init
           </div>
           {error && <pre className="export-error">{error}</pre>}
           <div className="modal-footer">
-            <button className="btn ghost export-print-btn" title="按当前排版主题导出 HTML，适合发布到网页，无需 Pandoc" onClick={onStyledHtml}>
-              导出排版 HTML…
-            </button>
+            {onStyledHtml && (
+              <button className="btn ghost export-print-btn" title="按当前排版主题导出 HTML，适合发布到网页，无需 Pandoc" onClick={onStyledHtml}>
+                导出排版 HTML…
+              </button>
+            )}
             <button className="btn" onClick={onClose}>
               取消
             </button>
@@ -267,7 +272,8 @@ export function ExportOptions({
   format,
   printPdf,
   cjkFont,
-  onPick
+  onPick,
+  onDetect
 }: {
   config: ExportConfig
   onChange(patch: Partial<ExportConfig>): void
@@ -276,6 +282,8 @@ export function ExportOptions({
   printPdf: boolean
   cjkFont: string
   onPick(kind: PickKind, key: keyof ExportConfig): void
+  /** 重新检测 Pandoc 与 PDF 引擎（一键安装后） */
+  onDetect(): Promise<PandocInfo>
 }) {
   const engines = pandoc?.pdfEngines ?? []
   const hasEngine = !!pandoc?.found && engines.length > 0
@@ -364,9 +372,9 @@ export function ExportOptions({
             <input className="set-input" value={config.mainFont} onChange={(e) => onChange({ mainFont: e.target.value })} placeholder={cjkFont} />
           </Row>
         )}
-        {config.pdfMode === 'pandoc' && !engines.length && (
-          <Row label="安装 PDF 引擎" desc={INSTALL_GUIDE[CURRENT_OS].pdf} stack>
-            {INSTALL_GUIDE[CURRENT_OS].pdfCmd && <CopyCommand cmd={INSTALL_GUIDE[CURRENT_OS].pdfCmd!} />}
+        {pandoc?.found && !engines.length && (
+          <Row label="安装 PDF 引擎" desc={`${INSTALL_GUIDE[CURRENT_OS].pdf}，安装后可通过 Pandoc 生成 PDF`} stack>
+            <InstallButton tool="pdf" onDetect={onDetect} done={(p) => p.pdfEngines.length > 0} />
           </Row>
         )}
       </Group>
@@ -453,7 +461,9 @@ export function ExportSettings({ config, onChange }: { config: ExportConfig; onC
   const detect = useCallback(async (path: string) => {
     setDetecting(true)
     try {
-      setPandoc(await api.export.pandoc(path))
+      const info = await api.export.pandoc(path)
+      setPandoc(info)
+      return info
     } finally {
       setDetecting(false)
     }
@@ -492,6 +502,11 @@ export function ExportSettings({ config, onChange }: { config: ExportConfig; onC
             {detecting ? <Loader2 size={13} className="spin" /> : <RefreshCw size={13} />} 重新检测
           </button>
         </Row>
+        {pandoc && !pandoc.found && (
+          <Row label="安装 Pandoc" stack>
+            <InstallButton tool="pandoc" onDetect={() => detect(config.pandocPath)} done={(p) => p.found} />
+          </Row>
+        )}
         <Row label="程序位置" desc={pandoc?.found ? pandoc.path : '留空时自动查找'} stack>
           <div className="export-path">
             <input
@@ -518,7 +533,16 @@ export function ExportSettings({ config, onChange }: { config: ExportConfig; onC
           </select>
         </Row>
       </Group>
-      <ExportOptions config={config} onChange={onChange} pandoc={pandoc} format={format} printPdf={printPdf} cjkFont={cjkFont} onPick={pick} />
+      <ExportOptions
+        config={config}
+        onChange={onChange}
+        pandoc={pandoc}
+        format={format}
+        printPdf={printPdf}
+        cjkFont={cjkFont}
+        onPick={pick}
+        onDetect={() => detect(config.pandocPath)}
+      />
     </>
   )
 }
@@ -537,7 +561,7 @@ function PandocGuide({
   detecting: boolean
   onPath(p: string): void
   onPick(): void
-  onDetect(): void
+  onDetect(): Promise<PandocInfo>
   onPrint(): void
 }) {
   const [os, setOs] = useState<OS>(CURRENT_OS)
@@ -549,6 +573,11 @@ function PandocGuide({
           导出 Word、EPUB 等格式需要先安装 <b>Pandoc</b>（免费开源的文档转换工具），安装完成后点击「重新检测」即可。只需要 PDF 的话，可以不安装，点击左下角「直接打印为 PDF」。
         </p>
         {pandoc.error && <pre className="export-error">{pandoc.error}</pre>}
+        <div className="export-guide-install">
+          <b>一键安装</b>
+          <InstallButton tool="pandoc" onDetect={onDetect} done={(p) => p.found} />
+        </div>
+        <p className="export-guide-note">也可以按下面的方法手动安装：</p>
         <div className="export-guide-tabs">
           <Segmented value={os} options={(Object.keys(INSTALL_GUIDE) as OS[]).map((k) => [k, INSTALL_GUIDE[k].label] as const)} onChange={(v: OS) => setOs(v)} />
         </div>
@@ -595,6 +624,68 @@ function PandocGuide({
         </button>
       </div>
     </>
+  )
+}
+
+/** 一键安装 Pandoc 或 PDF 引擎；安装完成后重新检测，done 判断检测结果是否已安装 */
+function InstallButton({ tool, onDetect, done }: { tool: InstallTool; onDetect(): Promise<PandocInfo>; done(p: PandocInfo): boolean }) {
+  const [cmd, setCmd] = useState('')
+  const [state, setState] = useState<'idle' | 'running' | 'terminal'>('idle')
+  const [error, setError] = useState('')
+  const poll = useRef<number>(undefined)
+  useEffect(() => {
+    api.export.installCommand(tool).then(setCmd)
+    return () => window.clearInterval(poll.current)
+  }, [tool])
+  if (!cmd) return null
+
+  const install = async () => {
+    setError('')
+    setState('running')
+    try {
+      const res = await api.export.install(tool)
+      if (res.error) {
+        setError(res.error)
+        setState('idle')
+      } else if (res.terminal) {
+        // 在终端中安装（macOS）：定时检测，装好后自动更新
+        setState('terminal')
+        const started = Date.now()
+        window.clearInterval(poll.current)
+        poll.current = window.setInterval(async () => {
+          const info = await onDetect().catch(() => null)
+          if ((info && done(info)) || Date.now() - started > 60 * 60 * 1000) {
+            window.clearInterval(poll.current)
+            setState('idle')
+          }
+        }, 5000)
+      } else {
+        const info = await onDetect()
+        setState('idle')
+        if (done(info)) toast(tool === 'pandoc' ? '已安装 Pandoc' : '已安装 PDF 引擎', 'success')
+        else setError('安装已完成，但未检测到程序，可能需要重新启动 MarkGo')
+      }
+    } catch (err) {
+      setError((err as Error).message ?? String(err))
+      setState('idle')
+    }
+  }
+
+  return (
+    <div className="export-install">
+      <div className="export-install-row">
+        <CopyCommand cmd={cmd} />
+        <button className="btn primary sm" disabled={state !== 'idle'} onClick={install}>
+          {state === 'idle' ? <Download size={13} /> : <Loader2 size={13} className="spin" />}
+          {state === 'running' ? '正在安装…' : state === 'terminal' ? '等待安装完成…' : '一键安装'}
+        </button>
+      </div>
+      {state === 'running' && (
+        <small>{api.platform === 'windows' ? '正在通过 winget 下载安装，可能需要几分钟，如弹出权限确认请选择「是」' : '正在安装，可能需要几分钟，请在弹出的窗口中输入密码授权'}</small>
+      )}
+      {state === 'terminal' && <small>已在「终端」中开始安装，按提示输入密码；安装完成后会自动检测</small>}
+      {error && <pre className="export-error">{error}</pre>}
+    </div>
   )
 }
 

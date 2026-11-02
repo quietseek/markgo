@@ -93,7 +93,7 @@ AI writing does not call model APIs directly and needs no API key: the capabilit
    | GitHub Copilot | Run `copilot`, then `/login` |
    | Goose | Install the Goose CLI, then run `goose configure` |
 
-2. Find the agent in 「设置 → AI 集成」(Settings → AI Integrations) and click 「安装」(Install). Preset agents are launched through `npx`, so the first install downloads them; once connected, the card shows 「已连接」(Connected). Click 「使用」(Use) on another installed agent to switch.
+2. Find the agent in 「设置 → ACP 集成」(Settings → ACP Integrations) and click 「安装」(Install). Preset agents are launched through `npx`, so the first install downloads them; once connected, the card shows 「已连接」(Connected). Click 「使用」(Use) on another installed agent to switch.
 3. Other ACP-compatible agents can be added with 「＋ 添加自定义 Agent」(+ Add custom agent): enter the command that starts it in ACP mode and install it. Expand a card to edit its command or uninstall it. Launch commands run through your login shell and inherit its environment variables (such as API keys).
 
 ### Usage

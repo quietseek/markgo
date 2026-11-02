@@ -40,6 +40,8 @@ export interface AppSettings {
   typewriter: boolean
   /** 编辑区宽度预设：默认 / 宽屏 / 铺满 */
   editorWidth: EditorWidth
+  /** 侧栏文件的显示方式：文件树或平铺列表 */
+  sidebarView: 'tree' | 'list'
   /** 原生样式的正文字体：sans 黑体；serif 宋体 */
   editorFont: 'sans' | 'serif'
   /** 原生样式的正文字号（px） */
@@ -98,7 +100,7 @@ export interface AgentProfile {
   name: string
   /** 通过登录 shell 执行的启动命令，需启动一个 ACP（Agent Client Protocol）Agent */
   command: string
-  /** 已在「设置 → AI 集成」中安装（成功连接过一次） */
+  /** 已在「设置 → ACP 集成」中安装（成功连接过一次） */
   installed?: boolean
 }
 
@@ -234,6 +236,7 @@ export const defaultSettings: AppSettings = {
   lightTheme: '',
   darkTheme: '',
   editorWidth: 'wide',
+  sidebarView: 'tree',
   editorFont: 'sans',
   editorFontSize: 16,
   editorLineHeight: 1.75,
@@ -329,6 +332,14 @@ export interface ExportFormat {
   id: string
   label: string
   ext: string
+}
+
+export type InstallTool = 'pandoc' | 'pdf'
+
+export interface InstallResult {
+  /** 已在终端中开始安装（macOS），完成后需重新检测 */
+  terminal?: boolean
+  error?: string
 }
 
 export interface PandocInfo {
@@ -489,6 +500,8 @@ export interface MarkGoApi {
     write(path: string, content: string): Promise<void>
     create(dir: string, name: string, kind: 'file' | 'dir'): Promise<string>
     rename(path: string, newName: string): Promise<string>
+    /** 把文件或文件夹移动到另一个文件夹，返回新路径 */
+    move(path: string, destDir: string): Promise<string>
     remove(path: string): Promise<void>
     saveAs(content: string, suggestedName: string): Promise<string | null>
     reveal(path: string): Promise<void>
@@ -520,6 +533,10 @@ export interface MarkGoApi {
     run(req: ExportRequest): Promise<{ path?: string; canceled?: boolean; error?: string }>
     /** 选择参考文档、样式表、封面图片或 Pandoc 程序 */
     pickFile(kind: 'docx' | 'odt' | 'css' | 'image' | 'pandoc'): Promise<string | null>
+    /** 一键安装执行的命令；当前系统不支持时为空字符串 */
+    installCommand(tool: InstallTool): Promise<string>
+    /** 一键安装 Pandoc 或 PDF 引擎（Windows：winget；macOS：在终端中执行 Homebrew；Linux：pkexec + apt） */
+    install(tool: InstallTool): Promise<InstallResult>
   }
   image: {
     /** 上传本地文件路径列表 */

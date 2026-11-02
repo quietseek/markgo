@@ -143,3 +143,11 @@ func sanitizeFileName(s string) string {
 	}, s)
 	return strings.Trim(strings.TrimSpace(s), ".")
 }
+
+// InstallCommand 一键安装执行的命令（tool 为 pandoc 或 pdf）
+func (b *Bridge) InstallCommand(tool string) string { return export.InstallCommand(tool) }
+
+// InstallTool 一键安装 Pandoc 或 PDF 引擎
+func (b *Bridge) InstallTool(tool string) export.InstallResult {
+	return export.Install(context.Background(), tool)
+}
