@@ -2,6 +2,30 @@
 
 每个版本发布时，GitHub Release 的说明取自本文件对应版本的小节，按「修复问题、新增功能、优化改进、下载地址」组织，没有内容的小节不写。发版前请先在这里补充内容。
 
+## v0.5.9
+
+### 新增功能
+
+- 导出 PDF 改为按编辑区当前的样式（排版主题、Typora 主题）直接生成，不再经过 Pandoc 与 LaTeX，也不弹出打印对话框，无需安装任何软件
+- PDF 页边距可选常规、窄、适中、宽等常用方案，也可分别设置上下左右边距（厘米）
+- PDF 可选每个一级标题另起一页（文档开头的一级标题除外），默认关闭
+
+### 优化改进
+
+- 深色主题下不能导出 PDF，导出对话框会提示先切换到浅色主题
+- 未安装 Pandoc 时也可直接导出 PDF；移除 PDF 引擎、正文字体等 Pandoc PDF 设置与 LaTeX 安装说明
+- 更新未命名草稿的欢迎内容：补充公式、上下标、AI 写作、AI 生图、查找替换、专注模式、导出等功能介绍与快捷键
+
+### 下载地址
+
+| 系统 | 安装包 |
+| --- | --- |
+| macOS（Apple 芯片与 Intel 通用） | [MarkGo-0.5.9-mac-universal.dmg](https://github.com/quietseek/markgo/releases/download/v0.5.9/MarkGo-0.5.9-mac-universal.dmg) |
+| Windows 10 / 11 | [MarkGo-0.5.9-win-x64-setup.exe](https://github.com/quietseek/markgo/releases/download/v0.5.9/MarkGo-0.5.9-win-x64-setup.exe) |
+| Linux（Debian / Ubuntu） | [MarkGo-0.5.9-linux-amd64.deb](https://github.com/quietseek/markgo/releases/download/v0.5.9/MarkGo-0.5.9-linux-amd64.deb) |
+
+> Windows 需要 WebView2 运行时（系统通常已自带，安装程序会自动补装）；Linux 需要 GTK 4 与 WebKitGTK 6.0（Ubuntu 24.04+ / Debian 13+）。
+
 ## v0.5.8
 
 ### 修复问题
