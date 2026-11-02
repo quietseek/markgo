@@ -258,6 +258,7 @@ wails3 package                     # package for the current platform (macOS .ap
 go test ./internal/...             # Go unit tests (including a mock agent speaking ACP)
 cd frontend && npm test            # frontend unit tests (Vitest)
 cd frontend && npm run typecheck   # frontend type checking
+cd frontend && npm run screenshots # regenerate landing page screenshots into site/assets (needs Chrome installed)
 ```
 
 ### Tech stack
@@ -300,6 +301,7 @@ frontend/
 └── tests/                   # Vitest tests
 build/                       # Wails build config (config.yml), platform icons and packaging scripts
 site/                        # landing page (GitHub Pages), deployed automatically on push to main
+scripts/screenshots/         # landing page screenshots: mocks window.markgo with a sample notebook and renders the real UI in Chrome
 ```
 
 </details>

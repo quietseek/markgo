@@ -255,6 +255,7 @@ wails3 package                     # 打包当前平台（macOS .app / Windows N
 go test ./internal/...             # Go 单元测试（含基于 ACP 协议的模拟 Agent）
 cd frontend && npm test            # 前端单元测试（Vitest）
 cd frontend && npm run typecheck   # 前端类型检查
+cd frontend && npm run screenshots # 重新生成介绍页截图到 site/assets（需本机安装 Chrome）
 ```
 
 ### 技术栈
@@ -297,6 +298,7 @@ frontend/
 └── tests/                   # Vitest 测试
 build/                       # Wails 构建配置（config.yml）、各平台图标与打包脚本
 site/                        # 介绍页（GitHub Pages），修改后推送到 main 自动部署
+scripts/screenshots/         # 介绍页截图脚本：模拟 window.markgo 与示例笔记库，在 Chrome 中渲染真实界面
 ```
 
 </details>
