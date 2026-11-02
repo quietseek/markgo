@@ -41,7 +41,7 @@ func main() {
 
 	app := application.New(application.Options{
 		Name:        appName,
-		Description: "简洁的桌面 Markdown 写作与笔记应用",
+		Description: "小而美的桌面 Markdown 写作与笔记应用",
 		Icon:        appIcon,
 		Services:    []application.Service{application.NewService(b)},
 		Assets: application.AssetOptions{

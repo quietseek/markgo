@@ -16,7 +16,7 @@
   <Properties>
     <DisplayName>MarkGo</DisplayName>
     <PublisherDisplayName>quietseek</PublisherDisplayName>
-    <Description>简洁的桌面 Markdown 写作与笔记应用</Description>
+    <Description>小而美的桌面 Markdown 写作与笔记应用</Description>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
   
@@ -32,7 +32,7 @@
     <Application Id="ai.markgo.app" Executable="markgo" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
         DisplayName="MarkGo"
-        Description="简洁的桌面 Markdown 写作与笔记应用"
+        Description="小而美的桌面 Markdown 写作与笔记应用"
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png">

@@ -46,7 +46,7 @@ export function AboutDialog({ update, onCheck, onClose }: Props) {
       <div className="modal-body about">
         <img src={appIcon} alt="" width={72} height={72} />
         <h2>MarkGo</h2>
-        <p className="about-tagline">简洁的 Markdown 写作与笔记</p>
+        <p className="about-tagline">小而美的 Markdown 写作与笔记</p>
         <div className={`about-update${r?.ok && r.hasUpdate ? ' has-update' : ''}`}>
           <div className="about-version">
             <b>版本 {info?.version ?? '…'}</b>

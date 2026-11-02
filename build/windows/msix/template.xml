@@ -18,7 +18,7 @@
         PublisherName="CN=quietseek"
         PublisherDisplayName="quietseek"
         Version="0.1.0.0"
-        PackageDescription="简洁的桌面 Markdown 写作与笔记应用">
+        PackageDescription="小而美的桌面 Markdown 写作与笔记应用">
         <Capabilities>
             <Capability Name="runFullTrust" />
             
@@ -26,7 +26,7 @@
         <Applications>
             <Application
                 Id="ai.markgo.app"
-                Description="简洁的桌面 Markdown 写作与笔记应用"
+                Description="小而美的桌面 Markdown 写作与笔记应用"
                 DisplayName="MarkGo"
                 ExecutableName="markgo"
                 EntryPoint="Windows.FullTrustApplication">
@@ -43,7 +43,7 @@
             <Framework>false</Framework>
             <DisplayName>MarkGo</DisplayName>
             <PublisherDisplayName>quietseek</PublisherDisplayName>
-            <Description>简洁的桌面 Markdown 写作与笔记应用</Description>
+            <Description>小而美的桌面 Markdown 写作与笔记应用</Description>
             <Logo>Assets\AppIcon.png</Logo>
         </Properties>
     </PackageInformation>

@@ -1,17 +1,33 @@
 <h1 align="center">MarkGo</h1>
 
+<p align="center"><b>A small and beautiful desktop Markdown app for writing and notes</b><br>Writing, layout, AI assistance and publishing in an installer of a dozen-odd MB</p>
+
 <div align="center"><a href="https://github.com/quietseek/markgo/actions/workflows/build.yml"><img alt="Build" src="https://github.com/quietseek/markgo/actions/workflows/build.yml/badge.svg"></a> <a href="https://github.com/quietseek/markgo/releases"><img alt="Release" src="https://img.shields.io/github/v/release/quietseek/markgo"></a> <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue"></a> <img alt="Go" src="https://img.shields.io/github/go-mod/go-version/quietseek/markgo"> <img alt="Platforms" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey"></div>
 
 <p align="center">
 🇨🇳 <a href="./README.md">简体中文</a> | 🇺🇸 <a href="./README.en.md">English</a>
 </p>
 
-MarkGo is a desktop Markdown writing and note-taking app for content creators. It uses a local folder as your notebook, offers a WYSIWYG editing experience built on Tiptap, and integrates AI writing assistance, image hosting uploads and layout themes, so you can copy the styled result or publish it in one click as soon as you finish writing.
-
-It runs on macOS, Windows and Linux. Built with [Wails 3](https://v3.wails.io) (Go + the system WebView), it bundles neither a browser engine nor Node.js, so the installer stays small.
+MarkGo is a desktop Markdown writing and note-taking app for content creators. It is **small**: built with [Wails 3](https://v3.wails.io) (Go + the system WebView), it bundles neither a browser engine nor Node.js, and your notes are plain `.md` files in a local folder, with no account and no cloud required. It is **beautiful**: 15 layout themes apply directly in the editor, so what you see is what you publish, and you can copy the styled result or publish it in one click as soon as you finish writing.
 
 > [!NOTE]
 > MarkGo's interface is currently available in Simplified Chinese only. UI labels below are quoted in Chinese with an English gloss, e.g. 「设置」(Settings).
+
+## Why Small and Beautiful
+
+**Small**
+
+- **Small installers**: about 12 MB on Windows and Linux, about 23 MB for the universal macOS build, with one-click in-app updates.
+- **Your data stays local**: any folder can be a notebook and every note is standard Markdown, so you can open, sync or version it with other tools at any time.
+- **No extra keys**: AI writing reuses the agents already signed in on your machine (Claude Code, Codex, Gemini CLI and more), with no separate API key.
+- **No extra software**: PDFs are generated straight from the editor's styling, with no LaTeX or printer driver to install.
+
+**Beautiful**
+
+- **WYSIWYG layout**: 15 built-in layout themes, plus imported Typora themes for the light or dark appearance.
+- **One click to publish**: copy styled rich text into any editor, or publish straight to WeChat Official Account drafts; math becomes SVG and Mermaid diagrams become images automatically.
+- **Reviewable AI edits**: every change from an agent is shown as a paragraph- and word-level diff, and nothing applies until you accept it.
+- **Quiet writing**: focus mode, typewriter mode, three editor widths and Typora-compatible paragraph shortcuts.
 
 ## Table of Contents
 
@@ -30,17 +46,50 @@ It runs on macOS, Windows and Linux. Built with [Wails 3](https://v3.wails.io) (
 
 ## Features
 
-| Module | Description |
-| --- | --- |
-| Notebook | Any local folder can be a notebook, and every note is a plain `.md` file; folders without notes are hidden; opening a file outside the notebook switches to its folder; create, rename, move to trash and reveal in the file manager; edits are saved automatically |
-| Editor | WYSIWYG editing on Tiptap 3: headings, lists, task lists, tables (row/column toolbar), code blocks (language picker, syntax highlighting, one-click copy, formatting), Mermaid diagrams (live rendering, copy as image or export PNG / SVG), blockquotes, highlights, sub/superscript, links, images and math (KaTeX); `/` command menu, top quick-action bar (can be turned off in settings), collapsible YAML front matter display and editing (hidden while a layout theme is applied), selection toolbar, find and replace, Typora-style shortcuts, Markdown source mode, outline navigation, focus mode and typewriter mode |
-| Layout | 15 built-in layout themes applied directly to the editor; adjustable font size and paragraph spacing; external links can be turned into end-of-article footnotes; three editor width presets: 「标准 / 宽屏 / 铺满」(Standard / Wide / Full); 「原生样式」(Native style) offers font, font size, line height and paragraph spacing settings, and the status bar switches between system / dark / light appearance |
-| Images | Paste, drag and drop, or insert via command; upload to a PicGo / PicList image host, or save to an `assets` folder next to the document; AI image generation; the image toolbar can upload local images to the host, save remote images locally, replace an image and edit its caption |
-| AI writing | Connects to AI agents installed on your machine through the Agent Client Protocol (ACP): chat assistant, styled outline-to-article writing from a topic, inline rewrite and continuation of a selection, and math from natural language; every change from an agent must pass a diff review before it is applied |
-| Publishing | Copy styled rich text in one click and paste it into any rich-text editor (Mermaid diagrams become images automatically); or publish directly once configured (currently WeChat Official Account drafts, with body images re-uploaded automatically) |
-| Other | Light / dark / system appearance, with imported Typora themes usable as the light or dark theme; close to background (customizable tray menu on Windows / Linux); recent folders; classic or traffic-light window buttons; PDF export rendered directly in the editor's own style with nothing to install (paper size, orientation, per-side margins and an optional page break before each top-level heading; unavailable in dark theme); export to Word, OpenOffice, EPUB, PowerPoint, HTML, LaTeX and more via Pandoc (configurable reference documents, table of contents and extra arguments, with per-platform install instructions when Pandoc is missing), plus styled HTML export; untitled drafts persisted automatically |
+### Notebook
+
+- Any local folder can be a notebook and every note is a plain `.md` file; folders without notes are hidden
+- Opening a file outside the notebook switches the sidebar to its folder; recent folders are remembered
+- Create, rename, move to trash and reveal in the file manager; edits are saved automatically, and untitled drafts persist too
+
+### Editor
+
+- WYSIWYG editing on Tiptap 3, with a Markdown source mode (`⌘/`) one keystroke away
+- Headings, lists, task lists, blockquotes, highlights, sub/superscript, links and images
+- Tables (row/column toolbar) and code blocks (language picker, syntax highlighting, one-click copy, formatting)
+- Math (KaTeX) and Mermaid diagrams (live rendering, copy as image or export PNG / SVG)
+- `/` command menu, selection toolbar, top quick-action bar (can be turned off in settings), find and replace
+- Collapsible YAML front matter display and editing (hidden while a layout theme is applied)
+- Outline navigation, focus mode, typewriter mode and Typora-style shortcuts
+
+### Layout and Appearance
+
+- 15 built-in layout themes applied directly to the editor; adjustable font size and paragraph spacing; external links can become end-of-article footnotes
+- Three editor width presets: 「标准 / 宽屏 / 铺满」(Standard / Wide / Full)
+- 「原生样式」(Native style) offers font, font size, line height and paragraph spacing settings, while publishing still applies the selected layout theme
+- Light / dark / system appearance, with imported Typora themes usable as the light or dark theme
+- Classic or traffic-light window buttons; close to background (customizable tray menu on Windows / Linux)
 
 Built-in layout themes: 暖陶米白, 极简留白, 暗夜深色, 简洁蓝, 优雅棕, 活力红, 琥珀橙, 清新绿, 健康绿, 杂志红, 复古纸, 海盐青, 科技蓝, 报刊体, 暖阳红.
+
+### Images
+
+- Paste, drag and drop, or insert via command; upload to a PicGo / PicList image host, or save to an `assets` folder next to the document
+- The image toolbar can upload local images to the host, save remote images locally, replace an image and edit its caption
+- AI image generation with OpenAI, Doubao, Tongyi Wanxiang, Zhipu, SiliconFlow or any OpenAI-compatible API
+
+### AI Writing
+
+- Connects to AI agents installed on your machine through the Agent Client Protocol (ACP), with no API key needed
+- Chat assistant, styled outline-to-article writing from a topic, inline rewrite and continuation of a selection, and math from natural language
+- Every change from an agent must pass a diff review before it is applied
+
+### Publishing and Export
+
+- Copy styled rich text in one click and paste it into any rich-text editor
+- Publish directly to WeChat Official Account drafts, with body images re-uploaded automatically
+- PDF export rendered in the editor's own style, with paper size, orientation, margins and an optional page break before each top-level heading (unavailable in dark theme)
+- Styled HTML export; with [Pandoc](https://pandoc.org) installed, also Word, OpenOffice, EPUB, PowerPoint, LaTeX and more (configurable reference documents, table of contents and extra arguments, with per-platform install instructions when Pandoc is missing)
 
 ## Installation
 
@@ -226,6 +275,9 @@ The frontend UI depends only on the `window.markgo` interface (`MarkGoApi` in `f
 main.go                      # app entry: window, single instance, file associations, /mg-asset/ local image middleware
 bridge.go                    # Bridge service bound to the frontend (one method per window.markgo method)
 menu.go                      # macOS menu bar, Windows / Linux tray menu
+exporter.go                  # export: PDF printed straight from the editor, other formats via Pandoc
+themes.go                    # import, list and delete Typora themes (served to the frontend via /mg-theme/)
+updater.go                   # in-app updates: download the matching installer, install and relaunch
 internal/
 ├── settings/                # settings persistence and migration (secrets AES-GCM encrypted with a key from the system keychain)
 ├── files/                   # notebook file tree and file operations, local image path resolution
@@ -233,7 +285,10 @@ internal/
 ├── imagegen/                # AI image generation (OpenAI-compatible APIs / Tongyi Wanxiang async tasks)
 ├── wechat/                  # Official Account APIs: access token, image re-upload (resized to JPEG when needed), drafts
 ├── acp/                     # ACP client: JSON-RPC, agent process, sessions, permissions, file read/write proxy, external change detection
-├── update/                  # update checks via GitHub Releases
+├── export/                  # Word, EPUB and other exports via Pandoc, Pandoc install guidance
+├── pdfprint/                # silent PDF generation through each platform's WebView print API
+├── themes/                  # imported Typora themes (CSS plus fonts, images and other assets)
+├── update/                  # check GitHub Releases for new versions and download installers
 └── platform/                # move to trash / recycle bin, user data directory
 frontend/
 ├── src/

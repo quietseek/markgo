@@ -1,14 +1,30 @@
 <h1 align="center">MarkGo</h1>
 
+<p align="center"><b>小而美的桌面 Markdown 写作与笔记应用</b><br>写作、排版、AI 辅助与发布，装进一个十几 MB 的安装包</p>
+
 <div align="center"><a href="https://github.com/quietseek/markgo/actions/workflows/build.yml"><img alt="Build" src="https://github.com/quietseek/markgo/actions/workflows/build.yml/badge.svg"></a> <a href="https://github.com/quietseek/markgo/releases"><img alt="Release" src="https://img.shields.io/github/v/release/quietseek/markgo"></a> <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue"></a> <img alt="Go" src="https://img.shields.io/github/go-mod/go-version/quietseek/markgo"> <img alt="Platforms" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey"></div>
 
 <p align="center">
 🇨🇳 <a href="./README.md">简体中文</a> | 🇺🇸 <a href="./README.en.md">English</a>
 </p>
 
-MarkGo 是一款面向内容创作者的桌面端 Markdown 写作与笔记应用。它以本地文件夹作为笔记库，提供基于 Tiptap 的所见即所得编辑体验，并集成了 AI 写作辅助、图床上传与排版主题，写完即可复制排版内容或一键发布。
+MarkGo 是一款面向内容创作者的桌面端 Markdown 写作与笔记应用。**小**，是指它足够轻：基于 [Wails 3](https://v3.wails.io)（Go + 系统 WebView）构建，不捆绑浏览器内核与 Node.js，笔记就是本地文件夹里的 `.md` 文件，无需账号、不依赖云端；**美**，是指写出来的东西好看：15 种排版主题直接作用于编辑区，所见即所得，写完即可复制排版内容或一键发布。
 
-支持 macOS、Windows 与 Linux。基于 [Wails 3](https://v3.wails.io)（Go + 系统 WebView）构建，不捆绑浏览器内核与 Node.js，安装包小巧。
+## 为什么是小而美
+
+**小**
+
+- **安装包小**：Windows 与 Linux 安装包约 12 MB，macOS 通用包约 23 MB，支持应用内一键更新。
+- **数据在本地**：任意文件夹即笔记库，文件均为标准 Markdown，可随时用其他工具打开、同步或纳入 Git。
+- **不多要一把钥匙**：AI 写作复用本机已登录的 Agent（Claude Code、Codex、Gemini CLI 等），无需额外的 API Key。
+- **不多装一个软件**：PDF 按编辑区样式直接生成，无需安装 LaTeX 或打印驱动。
+
+**美**
+
+- **排版所见即所得**：内置 15 种排版主题，也可导入 Typora 主题作为浅色或深色外观。
+- **一键出稿**：复制带排版的富文本到任意编辑器，或直接发布到微信公众号草稿箱；公式自动转 SVG，Mermaid 图表自动转图片。
+- **AI 改动可审阅**：Agent 的每处修改都以段落级 + 词级差异呈现，逐处接受或拒绝后才会生效。
+- **安静地写**：专注模式、打字机模式、三档编辑区宽度，以及与 Typora 一致的段落快捷键。
 
 ## 目录
 
@@ -27,17 +43,50 @@ MarkGo 是一款面向内容创作者的桌面端 Markdown 写作与笔记应用
 
 ## 功能概览
 
-| 模块 | 说明 |
-| --- | --- |
-| 笔记库 | 以任意本地文件夹作为笔记库，文件均为标准 `.md` 格式，不含笔记的文件夹不显示；打开笔记库以外的文件时自动切换到其所在文件夹；支持新建、重命名、移到废纸篓、在文件管理器中显示；编辑内容自动保存 |
-| 编辑器 | 基于 Tiptap 3 的所见即所得编辑：标题、列表、任务列表、表格（行列工具条）、代码块（语言选择、语法高亮、一键复制、格式化）、Mermaid 图表（实时渲染，可复制为图片或导出 PNG / SVG）、引用、高亮、上下标、链接、图片、数学公式（KaTeX）；支持 `/` 命令菜单、顶部快捷操作栏（可在设置中关闭）、文档开头 YAML 元信息（front matter）的折叠显示与编辑（套用排版主题时隐藏）、选区格式工具栏、查找替换、Typora 风格快捷键、Markdown 源码模式、大纲导航、专注模式与打字机模式 |
-| 排版 | 内置 15 种排版主题，主题直接作用于编辑区，所见即所得；支持字号、段距调整及外链转文末脚注；编辑区宽度提供「标准 / 宽屏 / 铺满」三种预设；「原生样式」可设置字体、字号、行距与段落间距，并在状态栏直接切换系统 / 深色 / 浅色外观 |
-| 图片 | 支持粘贴、拖拽和命令插入；可上传至 PicGo / PicList 图床，或保存到文档同级的 `assets` 目录；支持 AI 生图；图片操作条可把本地图片上传到图床、把网络图片存到本地、替换图片、编辑说明文字 |
-| AI 写作 | 通过 Agent Client Protocol（ACP）连接本机 AI Agent；提供对话助手、按风格从话题生成大纲并写成新文档、选区内联改写与续写、自然语言生成公式；Agent 的修改须经差异审阅后方可应用 |
-| 发布 | 一键复制带排版的富文本，粘贴到任意富文本编辑器（Mermaid 图表自动转为图片）；也可配置后直接发布（目前支持微信公众号草稿箱，正文图片自动转存） |
-| 其他 | 浅色 / 深色 / 跟随系统外观，可导入 Typora 主题作为浅色或深色主题；关闭到后台（Windows / Linux 托盘菜单可自定义）；最近打开的文件夹；经典或红绿灯窗口按钮；导出 PDF（按编辑区样式直接生成，无需安装其他软件，可设置纸张、方向、上下左右页边距，可选按一级标题分页；深色主题下不可导出）；通过 Pandoc 导出 Word、OpenOffice、EPUB、PowerPoint、HTML、LaTeX 等格式（可配置参考文档、目录、额外参数，未安装 Pandoc 时显示各平台安装方法），以及导出带排版的 HTML；未命名草稿自动持久化 |
+### 笔记库
+
+- 以任意本地文件夹作为笔记库，文件均为标准 `.md` 格式，不含笔记的文件夹不显示
+- 打开笔记库以外的文件时，侧栏自动切换到其所在文件夹；保留最近打开的文件夹
+- 新建、重命名、移到废纸篓、在文件管理器中显示；编辑内容自动保存，未命名草稿也会自动持久化
+
+### 编辑器
+
+- 基于 Tiptap 3 的所见即所得编辑，支持 Markdown 源码模式（`⌘/`）随时切换
+- 标题、列表、任务列表、引用、高亮、上下标、链接、图片
+- 表格（行列工具条）、代码块（语言选择、语法高亮、一键复制、格式化）
+- 数学公式（KaTeX）与 Mermaid 图表（实时渲染，可复制为图片或导出 PNG / SVG）
+- `/` 命令菜单、选区格式工具栏、顶部快捷操作栏（可在设置中关闭）、查找替换
+- 文档开头 YAML 元信息（front matter）的折叠显示与编辑（套用排版主题时隐藏）
+- 大纲导航、专注模式、打字机模式，Typora 风格快捷键
+
+### 排版与外观
+
+- 内置 15 种排版主题，直接作用于编辑区；可调整字号、段距，可把外链转为文末脚注
+- 编辑区宽度提供「标准 / 宽屏 / 铺满」三种预设
+- 「原生样式」可设置字体、字号、行距与段落间距，发布时仍应用所选排版主题
+- 浅色 / 深色 / 跟随系统外观，可导入 Typora 主题分别作为浅色或深色主题
+- 经典或红绿灯窗口按钮；关闭到后台（Windows / Linux 托盘菜单可自定义）
 
 内置排版主题：暖陶米白、极简留白、暗夜深色、简洁蓝、优雅棕、活力红、琥珀橙、清新绿、健康绿、杂志红、复古纸、海盐青、科技蓝、报刊体、暖阳红。
+
+### 图片
+
+- 粘贴、拖拽或命令插入；可上传至 PicGo / PicList 图床，或保存到文档同级的 `assets` 目录
+- 图片操作条可把本地图片上传到图床、把网络图片存到本地、替换图片、编辑说明文字
+- AI 生图，支持 OpenAI、豆包、通义万相、智谱、硅基流动及 OpenAI 兼容接口
+
+### AI 写作
+
+- 通过 Agent Client Protocol（ACP）连接本机 AI Agent，无需 API Key
+- 对话助手、按风格从话题生成大纲并写成新文档、选区内联改写与续写、自然语言生成公式
+- Agent 的所有修改须经差异审阅后方可应用
+
+### 发布与导出
+
+- 一键复制带排版的富文本，粘贴到任意富文本编辑器
+- 直接发布到微信公众号草稿箱，正文图片自动转存
+- 导出 PDF：按编辑区样式直接生成，可设置纸张、方向、页边距，可选按一级标题分页（深色主题下不可用）
+- 导出带排版的 HTML；安装 [Pandoc](https://pandoc.org) 后还可导出 Word、OpenOffice、EPUB、PowerPoint、LaTeX 等格式（可配置参考文档、目录与额外参数，未安装时显示各平台安装方法）
 
 ## 安装
 
@@ -223,6 +272,9 @@ Wails 3 · Go · React · TypeScript · Vite · Tiptap 3（`@tiptap/markdown`）
 main.go                      # 应用入口：窗口、单实例、文件关联、/mg-asset/ 本地图片中间件
 bridge.go                    # 绑定到前端的 Bridge 服务（对应 window.markgo 的每个方法）
 menu.go                      # macOS 菜单栏、Windows / Linux 托盘菜单
+exporter.go                  # 导出：PDF 由编辑区直接打印生成，其他格式经 Pandoc
+themes.go                    # Typora 主题的导入、列出与删除（经 /mg-theme/ 提供给前端）
+updater.go                   # 应用内自动更新：下载对应安装包，安装后重启
 internal/
 ├── settings/                # 设置持久化与迁移（密钥经系统钥匙串中的密钥 AES-GCM 加密）
 ├── files/                   # 笔记库文件树与文件操作、本地图片路径解析
@@ -230,7 +282,10 @@ internal/
 ├── imagegen/                # AI 生图（OpenAI 兼容接口 / 通义万相异步任务）
 ├── wechat/                  # 公众号接口：access token、图片转存（必要时缩放转 JPEG）、草稿
 ├── acp/                     # ACP 客户端：JSON-RPC、Agent 进程、会话、权限、文件读写代理、外部修改检测
-├── update/                  # 通过 GitHub Releases 检查更新
+├── export/                  # 调用 Pandoc 导出 Word、EPUB 等格式，Pandoc 安装引导
+├── pdfprint/                # 调用各平台 WebView 打印接口静默生成 PDF
+├── themes/                  # 导入的 Typora 主题（CSS 及其字体、图片等资源）
+├── update/                  # 通过 GitHub Releases 检查新版本并下载安装包
 └── platform/                # 移到废纸篓 / 回收站、用户数据目录
 frontend/
 ├── src/
