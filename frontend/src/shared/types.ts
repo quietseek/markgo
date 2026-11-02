@@ -290,7 +290,7 @@ export const defaultSettings: AppSettings = {
     marginBottom: 2.54,
     marginLeft: 3.18,
     marginRight: 3.18,
-    pageBreakH1: true,
+    pageBreakH1: false,
     docxReference: '',
     odtReference: '',
     htmlCss: '',
@@ -325,7 +325,7 @@ export interface ExportConfig {
   marginBottom: number
   marginLeft: number
   marginRight: number
-  /** 每个一级标题另起一页 */
+  /** 每个一级标题另起一页（可选，默认关闭） */
   pageBreakH1: boolean
   docxReference: string
   odtReference: string

@@ -100,13 +100,12 @@ func (s *Store) migrate(cfg *AppSettings, stored map[string]json.RawMessage) {
 	if cfg.Export.FormatArgs == nil {
 		cfg.Export.FormatArgs = map[string]string{}
 	}
-	// 旧版本只有一个页边距：改用默认的「常规」边距，并默认按一级标题分页
+	// 旧版本只有一个页边距：改用默认的「常规」边距
 	if cfg.Export.MarginPreset == "" {
 		d := Defaults().Export
 		cfg.Export.MarginPreset = d.MarginPreset
 		cfg.Export.MarginTop, cfg.Export.MarginBottom = d.MarginTop, d.MarginBottom
 		cfg.Export.MarginLeft, cfg.Export.MarginRight = d.MarginLeft, d.MarginRight
-		cfg.Export.PageBreakH1 = d.PageBreakH1
 	}
 	if cfg.TrayMenu == nil {
 		cfg.TrayMenu = Defaults().TrayMenu

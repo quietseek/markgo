@@ -70,7 +70,7 @@ type ExportConfig struct {
 	MarginBottom float64 `json:"marginBottom"`
 	MarginLeft   float64 `json:"marginLeft"`
 	MarginRight  float64 `json:"marginRight"`
-	// 每个一级标题另起一页
+	// 每个一级标题另起一页（可选，默认关闭）
 	PageBreakH1 bool `json:"pageBreakH1"`
 	// Word / OpenOffice 参考文档（决定样式）
 	DocxReference string `json:"docxReference"`
@@ -225,7 +225,6 @@ func Defaults() AppSettings {
 			MarginBottom: 2.54,
 			MarginLeft:   3.18,
 			MarginRight:  3.18,
-			PageBreakH1:  true,
 			HTMLEmbed:    true,
 		},
 	}
