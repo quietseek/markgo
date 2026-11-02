@@ -2,6 +2,27 @@
 
 每个版本发布时，GitHub Release 的说明取自本文件对应版本的小节，按「修复问题、新增功能、优化改进、下载地址」组织，没有内容的小节不写。发版前请先在这里补充内容。
 
+## v0.5.8
+
+### 修复问题
+
+- 修复导出 PDF 时 MiKTeX 为每个缺失的宏包逐个弹窗询问安装：现在会自动安装缺失的宏包
+- 修复一键安装 PDF 引擎后导出仍提示大量宏包未安装：Windows 安装 MiKTeX 后开启自动安装缺失宏包；macOS 安装 BasicTeX 后用 tlmgr 补装中文（xeCJK）等所需宏包；Linux 改为安装 texlive-xetex、texlive-latex-extra、texlive-lang-chinese 与 Noto CJK 字体
+
+### 优化改进
+
+- 导出 PDF 缺少宏包时，错误信息会指出缺少的宏包，并给出对应系统的安装方法
+
+### 下载地址
+
+| 系统 | 安装包 |
+| --- | --- |
+| macOS（Apple 芯片与 Intel 通用） | [MarkGo-0.5.8-mac-universal.dmg](https://github.com/quietseek/markgo/releases/download/v0.5.8/MarkGo-0.5.8-mac-universal.dmg) |
+| Windows 10 / 11 | [MarkGo-0.5.8-win-x64-setup.exe](https://github.com/quietseek/markgo/releases/download/v0.5.8/MarkGo-0.5.8-win-x64-setup.exe) |
+| Linux（Debian / Ubuntu） | [MarkGo-0.5.8-linux-amd64.deb](https://github.com/quietseek/markgo/releases/download/v0.5.8/MarkGo-0.5.8-linux-amd64.deb) |
+
+> Windows 需要 WebView2 运行时（系统通常已自带，安装程序会自动补装）；Linux 需要 GTK 4 与 WebKitGTK 6.0（Ubuntu 24.04+ / Debian 13+）。
+
 ## v0.5.7
 
 ### 优化改进
