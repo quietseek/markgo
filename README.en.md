@@ -5,7 +5,7 @@
 <div align="center"><a href="https://github.com/quietseek/markgo/actions/workflows/build.yml"><img alt="Build" src="https://github.com/quietseek/markgo/actions/workflows/build.yml/badge.svg"></a> <a href="https://github.com/quietseek/markgo/releases"><img alt="Release" src="https://img.shields.io/github/v/release/quietseek/markgo"></a> <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue"></a> <img alt="Go" src="https://img.shields.io/github/go-mod/go-version/quietseek/markgo"> <img alt="Platforms" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey"></div>
 
 <p align="center">
-🇨🇳 <a href="./README.md">简体中文</a> | 🇺🇸 <a href="./README.en.md">English</a>
+🌐 <a href="https://quietseek.github.io/markgo/">Website</a> | 🇨🇳 <a href="./README.md">简体中文</a> | 🇺🇸 <a href="./README.en.md">English</a>
 </p>
 
 MarkGo is a desktop Markdown writing and note-taking app for content creators. It is **small**: built with [Wails 3](https://v3.wails.io) (Go + the system WebView), it bundles neither a browser engine nor Node.js, and your notes are plain `.md` files in a local folder, with no account and no cloud required. It is **beautiful**: 15 layout themes apply directly in the editor, so what you see is what you publish, and you can copy the styled result or publish it in one click as soon as you finish writing.
@@ -299,6 +299,7 @@ frontend/
 │   └── shared/types.ts      # types shared between frontend and backend
 └── tests/                   # Vitest tests
 build/                       # Wails build config (config.yml), platform icons and packaging scripts
+site/                        # landing page (GitHub Pages), deployed automatically on push to main
 ```
 
 </details>

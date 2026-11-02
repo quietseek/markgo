@@ -5,7 +5,7 @@
 <div align="center"><a href="https://github.com/quietseek/markgo/actions/workflows/build.yml"><img alt="Build" src="https://github.com/quietseek/markgo/actions/workflows/build.yml/badge.svg"></a> <a href="https://github.com/quietseek/markgo/releases"><img alt="Release" src="https://img.shields.io/github/v/release/quietseek/markgo"></a> <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue"></a> <img alt="Go" src="https://img.shields.io/github/go-mod/go-version/quietseek/markgo"> <img alt="Platforms" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey"></div>
 
 <p align="center">
-🇨🇳 <a href="./README.md">简体中文</a> | 🇺🇸 <a href="./README.en.md">English</a>
+🌐 <a href="https://quietseek.github.io/markgo/">主页</a> | 🇨🇳 <a href="./README.md">简体中文</a> | 🇺🇸 <a href="./README.en.md">English</a>
 </p>
 
 MarkGo 是一款面向内容创作者的桌面端 Markdown 写作与笔记应用。**小**，是指它足够轻：基于 [Wails 3](https://v3.wails.io)（Go + 系统 WebView）构建，不捆绑浏览器内核与 Node.js，笔记就是本地文件夹里的 `.md` 文件，无需账号、不依赖云端；**美**，是指写出来的东西好看：15 种排版主题直接作用于编辑区，所见即所得，写完即可复制排版内容或一键发布。
@@ -296,6 +296,7 @@ frontend/
 │   └── shared/types.ts      # 前后端共享的类型定义
 └── tests/                   # Vitest 测试
 build/                       # Wails 构建配置（config.yml）、各平台图标与打包脚本
+site/                        # 介绍页（GitHub Pages），修改后推送到 main 自动部署
 ```
 
 </details>
