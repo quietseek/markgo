@@ -7,6 +7,7 @@ import { confirmDialog } from '../lib/confirm'
 import { EDITOR_WIDTHS } from './EditorWidthSwitch'
 import { useAgentState } from '../lib/agent-store'
 import { ExportSettings } from './ExportDialog'
+import { ComboBox, Select } from './Select'
 
 const isMac = window.markgo.platform === 'darwin'
 
@@ -386,14 +387,11 @@ function TyporaThemes({ draft, set }: { draft: AppSettings; set(patch: Partial<A
     reload()
   }
   const picker = (value: string, builtin: string, onChange: (v: string) => void) => (
-    <select className="select" value={themes.some((t) => t.id === value) ? value : ''} onChange={(e) => onChange(e.target.value)}>
-      <option value="">{builtin}</option>
-      {themes.map((t) => (
-        <option key={t.id} value={t.id}>
-          Typora · {t.name}
-        </option>
-      ))}
-    </select>
+    <Select
+      value={themes.some((t) => t.id === value) ? value : ''}
+      onChange={onChange}
+      options={[{ value: '', label: builtin }, ...themes.map((t) => ({ value: t.id, label: t.name, hint: 'Typora' }))]}
+    />
   )
 
   return (
@@ -540,13 +538,7 @@ function ImageGenSettings({ gen, onChange }: { gen: AppSettings['imageGen']; onC
   return (
     <Group title="AI 生图">
       <Row label="供应商">
-        <select className="select" value={provider.id} onChange={(e) => pickProvider(e.target.value)}>
-          {IMAGE_GEN_PROVIDERS.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
+        <Select value={provider.id} onChange={pickProvider} options={IMAGE_GEN_PROVIDERS.map((p) => ({ value: p.id, label: p.name }))} />
       </Row>
       <Row label="接口地址" desc={provider.baseUrl ? '留空使用供应商默认地址' : 'OpenAI 兼容的 /images/generations 接口'}>
         <input
@@ -560,18 +552,12 @@ function ImageGenSettings({ gen, onChange }: { gen: AppSettings['imageGen']; onC
         <input className="set-input" type="password" value={gen.apiKey} onChange={(e) => onChange({ apiKey: e.target.value.trim() })} placeholder="sk-…" />
       </Row>
       <Row label="模型" desc="可从列表选择，也可直接填写模型名">
-        <input
-          className="set-input"
-          list="image-gen-models"
+        <ComboBox
           value={gen.model}
-          onChange={(e) => onChange({ model: e.target.value.trim() })}
+          options={provider.models}
+          onChange={(model) => onChange({ model: model.trim() })}
           placeholder={provider.models[0] || '模型名称'}
         />
-        <datalist id="image-gen-models">
-          {provider.models.map((m) => (
-            <option key={m} value={m} />
-          ))}
-        </datalist>
       </Row>
       <Row label="超时时间" desc="单次生成最长等待时间，高清或排队较久的模型可适当调大">
         <input

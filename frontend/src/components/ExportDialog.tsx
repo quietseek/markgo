@@ -3,6 +3,7 @@ import { Check, Copy, Download, ExternalLink, FolderOpen, Loader2, Printer, Refr
 import type { ExportConfig, ExportFormat, InstallTool, PandocInfo } from '@shared/types'
 import { Modal } from './Modal'
 import { Group, Row, Segmented, Switch } from './SettingsDialog'
+import { Select } from './Select'
 import { toast } from '../lib/toast'
 import { printDocument } from '../lib/print'
 
@@ -60,14 +61,14 @@ const FORMAT_HINTS: Record<string, string> = {
 }
 
 /** 常用纸张（键与 Go 侧 export.PaperSizes 一致） */
-const PAPER_SIZES: [ExportConfig['paperSize'], string][] = [
-  ['a4', 'A4（210 × 297 mm）'],
-  ['a3', 'A3（297 × 420 mm）'],
-  ['a5', 'A5（148 × 210 mm）'],
-  ['b5', 'B5（176 × 250 mm）'],
-  ['b4', 'B4（250 × 353 mm）'],
-  ['letter', 'Letter（8.5 × 11 in）'],
-  ['legal', 'Legal（8.5 × 14 in）']
+const PAPER_SIZES: [ExportConfig['paperSize'], string, string][] = [
+  ['a4', 'A4', '210 × 297 mm'],
+  ['a3', 'A3', '297 × 420 mm'],
+  ['a5', 'A5', '148 × 210 mm'],
+  ['b5', 'B5', '176 × 250 mm'],
+  ['b4', 'B4', '250 × 353 mm'],
+  ['letter', 'Letter', '8.5 × 11 in'],
+  ['legal', 'Legal', '8.5 × 14 in']
 ]
 
 interface Props {
@@ -334,25 +335,26 @@ export function ExportOptions({
             label="PDF 引擎"
             desc={engines.length ? `本机可用：${engines.join('、')}` : '未检测到 PDF 引擎，请先安装 LaTeX（见下方说明）或 Typst'}
           >
-            <select className="select" value={config.pdfEngine} onChange={(e) => onChange({ pdfEngine: e.target.value })}>
-              <option value="">自动{engines[0] ? `（${engines[0]}）` : ''}</option>
-              {['xelatex', 'lualatex', 'pdflatex', 'tectonic', 'typst', 'weasyprint', 'wkhtmltopdf'].map((e) => (
-                <option key={e} value={e}>
-                  {e}
-                  {engines.includes(e) ? '' : '（未安装）'}
-                </option>
-              ))}
-            </select>
+            <Select
+              value={config.pdfEngine}
+              onChange={(pdfEngine) => onChange({ pdfEngine })}
+              options={[
+                { value: '', label: '自动', hint: engines[0] },
+                ...['xelatex', 'lualatex', 'pdflatex', 'tectonic', 'typst', 'weasyprint', 'wkhtmltopdf'].map((e) => ({
+                  value: e,
+                  label: e,
+                  hint: engines.includes(e) ? undefined : '未安装'
+                }))
+              ]}
+            />
           </Row>
         )}
         <Row label="纸张">
-          <select className="select" value={config.paperSize} onChange={(e) => onChange({ paperSize: e.target.value as ExportConfig['paperSize'] })}>
-            {PAPER_SIZES.map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </select>
+          <Select
+            value={config.paperSize}
+            onChange={(paperSize) => onChange({ paperSize })}
+            options={PAPER_SIZES.map(([value, label, hint]) => ({ value, label, hint }))}
+          />
         </Row>
         <Row label="方向">
           <Segmented
@@ -524,13 +526,7 @@ export function ExportSettings({ config, onChange }: { config: ExportConfig; onC
       </Group>
       <Group title="格式选项">
         <Row label="查看格式" desc="各格式的选项分别保存，导出时使用">
-          <select className="select" value={format?.id ?? ''} onChange={(e) => setFormatId(e.target.value)}>
-            {formats.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.label}（.{f.ext}）
-              </option>
-            ))}
-          </select>
+          <Select value={format?.id ?? ''} onChange={setFormatId} options={formats.map((f) => ({ value: f.id, label: f.label, hint: `.${f.ext}` }))} />
         </Row>
       </Group>
       <ExportOptions
