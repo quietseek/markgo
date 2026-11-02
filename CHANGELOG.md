@@ -4,6 +4,29 @@
 
 介绍页顶部的「新版本」提示取自版本小节里的 `<!-- 亮点：... -->`（在 GitHub Release 中不显示），没有写就截取第一条说明的开头。
 
+## v0.5.11
+
+<!-- 亮点：默认设置更贴近写作习惯：铺满宽度、14 号字、宽松间距 -->
+
+### 修复问题
+
+- 编辑区较窄（如打开 AI 助手面板）时，底部状态栏的字数、主题名等不再折行
+
+### 优化改进
+
+- 调整新安装时的默认设置：关闭窗口时最小化到托盘（macOS 为保留在程序坞），窗口按钮使用红绿灯并位于右侧，编辑区宽度为铺满，原生样式字号 14、行距与段距为宽松；已保存过的设置不受影响
+- 介绍页截图按新的默认设置重新生成，示例文档涵盖更多编辑功能
+
+### 下载地址
+
+| 系统 | 安装包 |
+| --- | --- |
+| macOS（Apple 芯片与 Intel 通用） | [MarkGo-0.5.11-mac-universal.dmg](https://github.com/quietseek/markgo/releases/download/v0.5.11/MarkGo-0.5.11-mac-universal.dmg) |
+| Windows 10 / 11 | [MarkGo-0.5.11-win-x64-setup.exe](https://github.com/quietseek/markgo/releases/download/v0.5.11/MarkGo-0.5.11-win-x64-setup.exe) |
+| Linux（Debian / Ubuntu） | [MarkGo-0.5.11-linux-amd64.deb](https://github.com/quietseek/markgo/releases/download/v0.5.11/MarkGo-0.5.11-linux-amd64.deb) |
+
+> Windows 需要 WebView2 运行时（系统通常已自带，安装程序会自动补装）；Linux 需要 GTK 4 与 WebKitGTK 6.0（Ubuntu 24.04+ / Debian 13+）。
+
 ## v0.5.10
 
 <!-- 亮点：Mermaid 图表改用 PlantUML rose 配色 -->
