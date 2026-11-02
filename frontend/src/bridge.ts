@@ -154,7 +154,6 @@ export async function installBridge(): Promise<void> {
     export: {
       formats: () => call('ExportFormats'),
       pandoc: (p) => call('PandocStatus', p),
-      defaultCjkFont: () => call('DefaultCJKFont'),
       run: (req) => call('ExportDocument', req),
       pickFile: (kind) => orNull(call('PickExportFile', kind)),
       installCommand: (tool) => call('InstallCommand', tool),
@@ -204,7 +203,6 @@ export async function installBridge(): Promise<void> {
       minimize: () => void call('Minimize'),
       toggleMaximize: () => void call('ToggleMaximize'),
       close: () => void call('CloseWindow'),
-      print: () => call('Print'),
       nativeControls,
       onMaximizeChange: (cb) => on<boolean>('window:maximized', cb)
     },

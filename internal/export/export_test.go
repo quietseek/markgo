@@ -1,8 +1,6 @@
 package export
 
 import (
-	"os"
-	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -33,10 +31,8 @@ func TestArgs(t *testing.T) {
 	}
 
 	pdf, _ := FindFormat("pdf")
-	args, _ = Args(pdf, Options{PdfEngine: "xelatex", Margin: "2cm"}, "中文", "", "/o.pdf", "", "3.1")
-	s = strings.Join(args, " ")
-	if !strings.Contains(s, "--pdf-engine=xelatex") || !strings.Contains(s, "CJKmainfont=") || !strings.Contains(s, "geometry:margin=2cm") || strings.Contains(s, "-t pdf") {
-		t.Fatal(s)
+	if _, err := Args(pdf, Options{}, "x", "", "/o.pdf", "", "3.1"); err == nil {
+		t.Fatal("pdf should not go through pandoc")
 	}
 
 	html, _ := FindFormat("html")
@@ -57,56 +53,5 @@ func TestVersionAtLeast(t *testing.T) {
 		if versionAtLeast(v, 2, 19) != want {
 			t.Fatal(v)
 		}
-	}
-}
-
-func TestPaperSizes(t *testing.T) {
-	pdf, _ := FindFormat("pdf")
-	args, _ := Args(pdf, Options{PdfEngine: "xelatex", PaperSize: "b5", Landscape: true}, "x", "", "/o.pdf", "", "3.1")
-	s := strings.Join(args, " ")
-	if !strings.Contains(s, "papersize=b5") || !strings.Contains(s, "geometry:landscape") {
-		t.Fatal(s)
-	}
-	args, _ = Args(pdf, Options{PdfEngine: "typst", PaperSize: "letter"}, "x", "", "/o.pdf", "", "3.1")
-	if !slices.Contains(args, "papersize=us-letter") {
-		t.Fatal(args)
-	}
-	args, _ = Args(pdf, Options{PdfEngine: "xelatex", PaperSize: "bogus"}, "x", "", "/o.pdf", "", "3.1")
-	if !slices.Contains(args, "papersize=a4") {
-		t.Fatal(args)
-	}
-}
-
-func TestMissingTeXPackage(t *testing.T) {
-	msg := "Error producing PDF.\n! LaTeX Error: File `xeCJK.sty' not found.\n\nType X to quit"
-	if f, p := missingTeXPackage(msg); f != "xeCJK.sty" || p != "xecjk" {
-		t.Fatalf("%s %s", f, p)
-	}
-	if _, p := missingTeXPackage("! LaTeX Error: File `lmodern.sty' not found."); p != "lm" {
-		t.Fatal(p)
-	}
-	if f, _ := missingTeXPackage("other error"); f != "" {
-		t.Fatal(f)
-	}
-}
-
-func TestIsMiKTeX(t *testing.T) {
-	// t.TempDir() 的路径含测试名（MiKTeX），这里另建目录
-	dir, err := os.MkdirTemp("", "tex")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { os.RemoveAll(dir) })
-	if isMiKTeX(dir + "/xelatex") {
-		t.Fatal("plain path detected as MiKTeX")
-	}
-	if !isMiKTeX(`C:\Users\a\AppData\Local\Programs\MiKTeX\miktex\bin\x64\xelatex.exe`) && runtime.GOOS == "windows" {
-		t.Fatal("MiKTeX path not detected")
-	}
-	if err := os.WriteFile(dir+"/initexmf", nil, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if !isMiKTeX(dir + "/xelatex") {
-		t.Fatal("engine next to initexmf not detected")
 	}
 }

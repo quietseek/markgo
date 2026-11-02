@@ -1,4 +1,4 @@
-// Package export 调用 Pandoc 把 Markdown 导出为 Word、PDF、EPUB 等格式。
+// Package export 调用 Pandoc 把 Markdown 导出为 Word、EPUB 等格式（PDF 由 pdfprint 打印生成）。
 package export
 
 import (
@@ -27,7 +27,7 @@ type Format struct {
 	Writer string `json:"-"` // pandoc -t
 }
 
-// Formats 支持的导出格式（按菜单中的顺序）
+// Formats 支持的导出格式（按菜单中的顺序）；PDF 不经过 Pandoc，由编辑区直接打印生成
 var Formats = []Format{
 	{"pdf", "PDF", "pdf", "pdf"},
 	{"docx", "Word", "docx", "docx"},
@@ -59,32 +59,11 @@ type Options struct {
 	NumberSections bool
 	ExtraArgs      string
 	FormatArgs     map[string]string
-	PdfEngine      string
-	PaperSize      string
-	Landscape      bool
-	Margin         string
-	MainFont       string
 	DocxReference  string
 	OdtReference   string
 	HTMLCSS        string
 	HTMLEmbed      bool
 	EpubCover      string
-}
-
-// PdfEngines 可用于 PDF 的引擎，自动选择时按此顺序查找（xelatex 对中文支持最好）
-var PdfEngines = []string{"xelatex", "lualatex", "tectonic", "typst", "weasyprint", "wkhtmltopdf", "pdflatex"}
-
-var latexEngines = []string{"xelatex", "lualatex", "pdflatex", "tectonic"}
-
-// PaperSizes 支持的纸张：键 → {LaTeX papersize, Typst paper, wkhtmltopdf --page-size}
-var PaperSizes = map[string][3]string{
-	"a3":     {"a3", "a3", "A3"},
-	"a4":     {"a4", "a4", "A4"},
-	"a5":     {"a5", "a5", "A5"},
-	"b4":     {"b4", "iso-b4", "B4"},
-	"b5":     {"b5", "iso-b5", "B5"},
-	"letter": {"letter", "us-letter", "Letter"},
-	"legal":  {"legal", "us-legal", "Legal"},
 }
 
 // ---------- 查找程序 ----------
@@ -176,18 +155,11 @@ type Pandoc struct {
 	Path    string `json:"path"`
 	Version string `json:"version"`
 	Error   string `json:"error,omitempty"`
-	// 本机可用的 PDF 引擎
-	PdfEngines []string `json:"pdfEngines"`
 }
 
 // Detect 查找 Pandoc：custom 为用户指定的路径，留空时自动查找
 func Detect(custom string) Pandoc {
-	info := Pandoc{PdfEngines: []string{}}
-	for _, e := range PdfEngines {
-		if lookPath(e) != "" {
-			info.PdfEngines = append(info.PdfEngines, e)
-		}
-	}
+	var info Pandoc
 	p := strings.TrimSpace(custom)
 	if p == "" {
 		p = lookPath("pandoc")
@@ -232,20 +204,6 @@ func versionAtLeast(v string, want ...int) bool {
 }
 
 // ---------- 参数 ----------
-
-var cjkRe = regexp.MustCompile(`[\p{Han}\p{Hiragana}\p{Katakana}\p{Hangul}]`)
-
-// DefaultCJKFont 各平台用于 PDF 的默认中文字体
-func DefaultCJKFont() string {
-	switch runtime.GOOS {
-	case "darwin":
-		return "PingFang SC"
-	case "windows":
-		return "Microsoft YaHei"
-	default:
-		return "Noto Sans CJK SC"
-	}
-}
 
 // SplitArgs 按 shell 规则拆分参数（支持单双引号与反斜杠转义）
 func SplitArgs(s string) ([]string, error) {
@@ -293,10 +251,10 @@ func SplitArgs(s string) ([]string, error) {
 
 // Args 生成 Pandoc 命令行参数（不含程序名，输入从标准输入读取）
 func Args(f Format, o Options, markdown, docDir, outPath, title, version string) ([]string, error) {
-	args := []string{"-f", "markdown", "-t", f.Writer, "-s", "-o", outPath}
 	if f.ID == "pdf" {
-		args = []string{"-f", "markdown", "-s", "-o", outPath}
+		return nil, errors.New("PDF 不通过 Pandoc 导出")
 	}
+	args := []string{"-f", "markdown", "-t", f.Writer, "-s", "-o", outPath}
 	if docDir != "" {
 		args = append(args, "--resource-path="+docDir)
 	}
@@ -309,75 +267,8 @@ func Args(f Format, o Options, markdown, docDir, outPath, title, version string)
 	if o.NumberSections {
 		args = append(args, "--number-sections")
 	}
-	cjk := cjkRe.MatchString(markdown)
-	font := strings.TrimSpace(o.MainFont)
-	if font == "" && cjk {
-		font = DefaultCJKFont()
-	}
 
 	switch f.ID {
-	case "pdf":
-		engine := o.PdfEngine
-		if engine == "" {
-			for _, e := range PdfEngines {
-				if lookPath(e) != "" {
-					engine = e
-					break
-				}
-			}
-			if engine == "" {
-				return nil, errors.New("导出 PDF 需要 LaTeX 等 PDF 引擎，请先安装（如 MiKTeX、TeX Live、BasicTeX 或 Typst）")
-			}
-		}
-		args = append(args, "--pdf-engine="+engine)
-		// MiKTeX 默认对每个缺失的宏包都弹窗询问，导出时改为自动安装
-		if slices.Contains(latexEngines, engine) && isMiKTeX(engine) {
-			args = append(args, "--pdf-engine-opt=--enable-installer")
-		}
-		paper, ok := PaperSizes[o.PaperSize]
-		if !ok {
-			paper = PaperSizes["a4"]
-		}
-		margin := strings.TrimSpace(o.Margin)
-		switch {
-		case slices.Contains(latexEngines, engine):
-			args = append(args, "-V", "papersize="+paper[0])
-			if o.Landscape {
-				args = append(args, "-V", "geometry:landscape")
-			}
-			if margin != "" {
-				args = append(args, "-V", "geometry:margin="+margin)
-			}
-			if font != "" {
-				if cjk {
-					args = append(args, "-V", "CJKmainfont="+font)
-				} else {
-					args = append(args, "-V", "mainfont="+font)
-				}
-			}
-		case engine == "typst":
-			// Pandoc 的 Typst 模板不支持横向，只设置纸张
-			args = append(args, "-V", "papersize="+paper[1])
-			if margin != "" {
-				args = append(args, "-V", "margin=(x: "+margin+", y: "+margin+")")
-			}
-			if font != "" {
-				args = append(args, "-V", "mainfont="+font)
-			}
-		default: // weasyprint / wkhtmltopdf 经由 HTML
-			if margin != "" {
-				args = append(args, "-V", "margin-top="+margin, "-V", "margin-bottom="+margin, "-V", "margin-left="+margin, "-V", "margin-right="+margin)
-			}
-			if engine == "wkhtmltopdf" {
-				args = append(args, "--pdf-engine-opt=--page-size", "--pdf-engine-opt="+paper[2])
-				if o.Landscape {
-					args = append(args, "--pdf-engine-opt=--orientation", "--pdf-engine-opt=Landscape")
-				}
-			}
-			if css := strings.TrimSpace(o.HTMLCSS); css != "" {
-				args = append(args, "--css="+css)
-			}
-		}
 	case "docx":
 		if ref := strings.TrimSpace(o.DocxReference); ref != "" {
 			args = append(args, "--reference-doc="+ref)
@@ -418,72 +309,6 @@ func Args(f Format, o Options, markdown, docDir, outPath, title, version string)
 	return args, nil
 }
 
-// isMiKTeX 判断 LaTeX 引擎是否来自 MiKTeX（engine 为程序名或路径）
-func isMiKTeX(engine string) bool {
-	p := engine
-	if !filepath.IsAbs(p) {
-		p = lookPath(engine)
-	}
-	if p == "" {
-		return false
-	}
-	if r, err := filepath.EvalSymlinks(p); err == nil {
-		p = r
-	}
-	if strings.Contains(strings.ToLower(p), "miktex") {
-		return true
-	}
-	// MiKTeX 的引擎与 initexmf 在同一目录
-	for _, name := range []string{"initexmf", "initexmf.exe"} {
-		if _, err := os.Stat(filepath.Join(filepath.Dir(p), name)); err == nil {
-			return true
-		}
-	}
-	return false
-}
-
-var missingFileRe = regexp.MustCompile("File `([^']+\\.(?:sty|cls|def|fd|cfg))' not found")
-
-// 文件名与 TeX Live 包名不同的常见宏包
-var texPackages = map[string]string{
-	"lmodern": "lm", "amssymb": "amsfonts", "graphicx": "graphics", "color": "graphics",
-	"longtable": "tools", "array": "tools", "calc": "tools", "luatexja-fontspec": "luatexja",
-	"luatexja-preset": "luatexja", "ctexhook": "ctex",
-}
-
-// missingTeXPackage 从 LaTeX 报错中找出缺失的文件及对应的包名
-func missingTeXPackage(msg string) (file, pkg string) {
-	m := missingFileRe.FindStringSubmatch(msg)
-	if m == nil {
-		return "", ""
-	}
-	file = m[1]
-	base := strings.TrimSuffix(file, filepath.Ext(file))
-	if p, ok := texPackages[base]; ok {
-		return file, p
-	}
-	return file, strings.ToLower(base)
-}
-
-// missingHint 缺少宏包时给出安装方法
-func missingHint(engine, msg string) string {
-	file, pkg := missingTeXPackage(msg)
-	if file == "" {
-		return ""
-	}
-	hint := fmt.Sprintf("缺少 LaTeX 宏包 %s（%s）。", pkg, file)
-	switch {
-	case isMiKTeX(engine):
-		return hint + "请打开 MiKTeX Console，在「设置」中把「自动安装缺失的宏包」设为「始终」，或在「宏包」中安装 " + pkg
-	case runtime.GOOS == "linux" && strings.HasPrefix(lookPath("tlmgr"), "/usr/"), runtime.GOOS == "linux" && lookPath("tlmgr") == "":
-		return hint + "请执行：sudo apt-get install " + strings.Join(linuxTeXPackages, " ")
-	case runtime.GOOS == "darwin":
-		return hint + "请在终端执行：sudo tlmgr update --self && sudo tlmgr install " + strings.Join(texLivePackages, " ")
-	default:
-		return hint + "请执行：tlmgr install " + pkg
-	}
-}
-
 var titleRe = regexp.MustCompile(`(?m)^title\s*:`)
 
 // hasTitle 判断 YAML front matter 中是否设置了 title
@@ -521,15 +346,6 @@ func Run(ctx context.Context, pandoc string, args []string, markdown, docDir str
 		const limit = 1500
 		if len(msg) > limit {
 			msg = msg[:limit] + "…"
-		}
-		engine := ""
-		for _, a := range args {
-			if v, ok := strings.CutPrefix(a, "--pdf-engine="); ok {
-				engine = v
-			}
-		}
-		if hint := missingHint(engine, msg); hint != "" && engine != "" {
-			msg = hint + "\n\n" + msg
 		}
 		return fmt.Errorf("Pandoc 导出失败：%s", msg)
 	}

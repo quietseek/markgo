@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Check, Copy, Download, ExternalLink, FolderOpen, Loader2, Printer, RefreshCw, X } from 'lucide-react'
+import { Check, Copy, Download, ExternalLink, FileText, FolderOpen, Loader2, RefreshCw, X } from 'lucide-react'
 import type { ExportConfig, ExportFormat, InstallTool, PandocInfo } from '@shared/types'
 import { Modal } from './Modal'
 import { Group, Row, Segmented, Switch } from './SettingsDialog'
 import { Select } from './Select'
 import { toast } from '../lib/toast'
-import { printDocument } from '../lib/print'
+import { MARGIN_PRESETS, isDarkTheme, withPrintStyle } from '../lib/print'
 
 const api = window.markgo
 
@@ -16,7 +16,7 @@ type OS = 'windows' | 'mac' | 'linux'
 const CURRENT_OS: OS = api.platform === 'darwin' ? 'mac' : api.platform === 'windows' ? 'windows' : 'linux'
 
 /** 各平台的安装方法（摘自 https://pandoc.org/installing.html） */
-const INSTALL_GUIDE: Record<OS, { label: string; methods: { title: string; desc?: string; cmd?: string; url?: string }[]; pdf: string; pdfCmd?: string }> = {
+const INSTALL_GUIDE: Record<OS, { label: string; methods: { title: string; desc?: string; cmd?: string; url?: string }[] }> = {
   windows: {
     label: 'Windows',
     methods: [
@@ -25,8 +25,6 @@ const INSTALL_GUIDE: Record<OS, { label: string; methods: { title: string; desc?
       { title: 'Chocolatey', cmd: 'choco install pandoc' },
       { title: 'Conda', cmd: 'conda install -c conda-forge pandoc' }
     ],
-    pdf: '导出 PDF 还需要 LaTeX，推荐 MiKTeX（https://miktex.org），并在 MiKTeX Console 中把缺失宏包设为自动安装',
-    pdfCmd: 'winget install -e --id MiKTeX.MiKTeX && initexmf --set-config-value=[MPM]AutoInstall=1'
   },
   mac: {
     label: 'macOS',
@@ -36,8 +34,6 @@ const INSTALL_GUIDE: Record<OS, { label: string; methods: { title: string; desc?
       { title: 'MacPorts', cmd: 'port install pandoc' },
       { title: 'Conda', cmd: 'conda install -c conda-forge pandoc' }
     ],
-    pdf: '导出 PDF 还需要 LaTeX，推荐 BasicTeX（完整的 MacTeX 约 4 GB），安装后需用 tlmgr 补装宏包',
-    pdfCmd: 'brew install librsvg python homebrew/cask/basictex && sudo /Library/TeX/texbin/tlmgr update --self && sudo /Library/TeX/texbin/tlmgr install xecjk unicode-math upquote microtype parskip xurl bookmark footnotehyper soul framed fancyvrb booktabs multirow setspace selnolig lua-ul luacolor fontspec etoolbox csquotes caption float'
   },
   linux: {
     label: 'Linux',
@@ -46,13 +42,12 @@ const INSTALL_GUIDE: Record<OS, { label: string; methods: { title: string; desc?
       { title: 'deb 安装包（推荐，版本最新）', desc: '从发布页下载 pandoc-x.y-1-amd64.deb 后执行', cmd: 'sudo dpkg -i pandoc-*-amd64.deb', url: RELEASES_URL },
       { title: 'Conda', cmd: 'conda install -c conda-forge pandoc' }
     ],
-    pdf: '导出 PDF 还需要 LaTeX，推荐通过软件源安装 TeX Live 及中文支持',
-    pdfCmd: 'sudo apt-get install texlive-xetex texlive-latex-extra texlive-lang-chinese lmodern fonts-noto-cjk'
   }
 }
 
 /** 各格式的可选项说明 */
 const FORMAT_HINTS: Record<string, string> = {
+  pdf: '按编辑区当前的样式（排版主题、Typora 主题）直接生成 PDF，无需安装 Pandoc',
   docx: '可指定参考文档，导出的 Word 会沿用其中的标题、正文等样式',
   odt: '可指定参考文档，导出的文档会沿用其中的样式',
   html: '独立的 HTML 文件，公式以 MathML 显示',
@@ -60,7 +55,7 @@ const FORMAT_HINTS: Record<string, string> = {
   pptx: '每个一级 / 二级标题生成一页幻灯片'
 }
 
-/** 常用纸张（键与 Go 侧 export.PaperSizes 一致） */
+/** 常用纸张（键与 Go 侧 pdfprint.PaperSizes 一致） */
 const PAPER_SIZES: [ExportConfig['paperSize'], string, string][] = [
   ['a4', 'A4', '210 × 297 mm'],
   ['a3', 'A3', '297 × 420 mm'],
@@ -114,7 +109,6 @@ export function ExportDialog({ markdown, docPath, isScratch, title, config: init
   const [detecting, setDetecting] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [error, setError] = useState('')
-  const [cjkFont, setCjkFont] = useState('')
 
   const detect = useCallback(async (path: string) => {
     setDetecting(true)
@@ -128,43 +122,42 @@ export function ExportDialog({ markdown, docPath, isScratch, title, config: init
   }, [])
   useEffect(() => {
     api.export.formats().then(setFormats)
-    api.export.defaultCjkFont().then(setCjkFont)
     detect(config.pandocPath)
     // 只在打开时检测一次，修改路径后由「重新检测」触发
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const format = formats.find((f) => f.id === config.lastFormat) ?? formats[0]
-  const hasEngine = !!pandoc?.found && pandoc.pdfEngines.length > 0
-  // PDF 是否通过系统打印对话框生成（无需安装 Pandoc 与 LaTeX）
-  const printPdf = format?.id === 'pdf' && (config.pdfMode === 'print' || (config.pdfMode === 'auto' && !hasEngine))
-
-  const print = async () => {
-    await flush()
-    onClose()
-    // 等对话框关闭、页面重绘后再打开打印对话框
-    window.setTimeout(() => {
-      printDocument({ title, paperSize: latest.current.paperSize, landscape: latest.current.landscape, margin: latest.current.margin }).catch((err) =>
-        toast(`无法打印：${(err as Error).message ?? err}`, 'error')
-      )
-    }, 200)
-  }
+  const isPdf = format?.id === 'pdf'
+  // 深色主题下打印出的 PDF 是深色背景，不允许导出
+  const darkPdf = isPdf && isDarkTheme()
 
   const run = async () => {
     if (!format) return
-    if (printPdf) return print()
     setError('')
     setExporting(true)
     try {
       await flush()
-      const res = await api.export.run({ format: format.id, markdown, docPath, title, scratch: isScratch })
+      const req = { format: format.id, markdown, docPath, title, scratch: isScratch }
+      if (isPdf) {
+        // 关闭对话框、等页面重绘后再打印，PDF 中不出现对话框
+        onClose()
+        await new Promise((r) => window.setTimeout(r, 200))
+        const res = await withPrintStyle(latest.current, () => api.export.run(req))
+        if (res.error) toast(`导出 PDF 失败：${res.error}`, 'error')
+        else if (res.path) toast('已导出 PDF', 'success')
+        return
+      }
+      const res = await api.export.run(req)
       if (res.error) setError(res.error)
       else if (res.path) {
         toast(`已导出 ${format.label}`, 'success')
         onClose()
       }
     } catch (err) {
-      setError((err as Error).message ?? String(err))
+      const msg = (err as Error).message ?? String(err)
+      if (isPdf) toast(`导出 PDF 失败：${msg}`, 'error')
+      else setError(msg)
     } finally {
       setExporting(false)
     }
@@ -180,11 +173,11 @@ export function ExportDialog({ markdown, docPath, isScratch, title, config: init
 
   return (
     <Modal title="导出" width={760} onClose={onClose}>
-      {!pandoc ? (
+      {!pandoc && !isPdf ? (
         <div className="modal-body export-loading">
           <Loader2 size={16} className="spin" /> 正在检测 Pandoc…
         </div>
-      ) : !pandoc.found ? (
+      ) : pandoc && !pandoc.found && !isPdf ? (
         <PandocGuide
           pandoc={pandoc}
           path={config.pandocPath}
@@ -192,10 +185,7 @@ export function ExportDialog({ markdown, docPath, isScratch, title, config: init
           onPath={(pandocPath) => onChange({ pandocPath })}
           onPick={() => pick('pandoc', 'pandocPath')}
           onDetect={() => detect(latest.current.pandocPath)}
-          onPrint={() => {
-            onChange({ lastFormat: 'pdf' })
-            print()
-          }}
+          onPdf={() => onChange({ lastFormat: 'pdf' })}
         />
       ) : (
         <>
@@ -209,34 +199,28 @@ export function ExportDialog({ markdown, docPath, isScratch, title, config: init
               ))}
             </nav>
             <div className="export-options">
-              <ExportOptions
-                config={config}
-                onChange={onChange}
-                pandoc={pandoc}
-                format={format}
-                printPdf={printPdf}
-                cjkFont={cjkFont}
-                onPick={pick}
-                onDetect={() => detect(latest.current.pandocPath)}
-              />
-              <Group title="Pandoc">
-                <Row label="程序位置" desc={`${pandoc.version ? `版本 ${pandoc.version} · ` : ''}${pandoc.path}`} stack>
-                  <div className="export-path">
-                    <input
-                      value={config.pandocPath}
-                      onChange={(e) => onChange({ pandocPath: e.target.value })}
-                      onBlur={() => detect(config.pandocPath)}
-                      placeholder="留空自动查找"
-                      spellCheck={false}
-                    />
-                    <button className="btn sm" onClick={() => pick('pandoc', 'pandocPath')}>
-                      选择…
-                    </button>
-                  </div>
-                </Row>
-              </Group>
+              <ExportOptions config={config} onChange={onChange} format={format} onPick={pick} />
+              {pandoc?.found && !isPdf && (
+                <Group title="Pandoc">
+                  <Row label="程序位置" desc={`${pandoc.version ? `版本 ${pandoc.version} · ` : ''}${pandoc.path}`} stack>
+                    <div className="export-path">
+                      <input
+                        value={config.pandocPath}
+                        onChange={(e) => onChange({ pandocPath: e.target.value })}
+                        onBlur={() => detect(config.pandocPath)}
+                        placeholder="留空自动查找"
+                        spellCheck={false}
+                      />
+                      <button className="btn sm" onClick={() => pick('pandoc', 'pandocPath')}>
+                        选择…
+                      </button>
+                    </div>
+                  </Row>
+                </Group>
+              )}
             </div>
           </div>
+          {darkPdf && <p className="export-error">深色主题下不能导出 PDF，请先在「设置 → 外观」中切换到浅色主题</p>}
           {error && <pre className="export-error">{error}</pre>}
           <div className="modal-footer">
             {onStyledHtml && (
@@ -247,13 +231,13 @@ export function ExportDialog({ markdown, docPath, isScratch, title, config: init
             <button className="btn" onClick={onClose}>
               取消
             </button>
-            <button className="btn primary" disabled={!format || exporting} onClick={run}>
+            <button className="btn primary" disabled={!format || exporting || darkPdf} onClick={run}>
               {exporting ? (
                 <>
                   <Loader2 size={14} className="spin" /> 正在导出…
                 </>
               ) : (
-                printPdf ? '打印为 PDF…' : `导出 ${format?.label ?? ''}…`
+                `导出 ${format?.label ?? ''}…`
               )}
             </button>
           </div>
@@ -269,25 +253,15 @@ type PickKind = 'docx' | 'odt' | 'css' | 'image' | 'pandoc'
 export function ExportOptions({
   config,
   onChange,
-  pandoc,
   format,
-  printPdf,
-  cjkFont,
-  onPick,
-  onDetect
+  onPick
 }: {
   config: ExportConfig
   onChange(patch: Partial<ExportConfig>): void
-  pandoc: PandocInfo | null
   format: ExportFormat | undefined
-  printPdf: boolean
-  cjkFont: string
   onPick(kind: PickKind, key: keyof ExportConfig): void
-  /** 重新检测 Pandoc 与 PDF 引擎（一键安装后） */
-  onDetect(): Promise<PandocInfo>
 }) {
-  const engines = pandoc?.pdfEngines ?? []
-  const hasEngine = !!pandoc?.found && engines.length > 0
+  const isPdf = format?.id === 'pdf'
   const pathInput = (key: 'docxReference' | 'odtReference' | 'htmlCss' | 'epubCover', kind: 'docx' | 'odt' | 'css' | 'image', placeholder: string) => (
     <div className="export-path">
       <input value={config[key]} onChange={(e) => onChange({ [key]: e.target.value })} placeholder={placeholder} spellCheck={false} />
@@ -307,48 +281,6 @@ export function ExportOptions({
 
     {format?.id === 'pdf' && (
       <Group title="PDF">
-        <Row
-          label="生成方式"
-          desc={
-            printPdf
-              ? '按编辑区当前的样式排版，在系统打印对话框中选择「存储为 PDF」/「Microsoft Print to PDF」保存，无需安装其他软件'
-              : '通过 Pandoc 与 PDF 引擎生成，排版由 LaTeX 等引擎决定'
-          }
-        >
-          <Segmented
-            value={config.pdfMode}
-            options={[
-              ['auto', '自动'],
-              ['print', '打印为 PDF'],
-              ['pandoc', 'Pandoc']
-            ]}
-            onChange={(pdfMode) => onChange({ pdfMode })}
-          />
-        </Row>
-        {config.pdfMode === 'auto' && (
-          <Row label="当前使用" desc={hasEngine ? `检测到 PDF 引擎 ${engines[0]}，使用 Pandoc 生成` : '未检测到 LaTeX 等 PDF 引擎，使用打印为 PDF'}>
-            <span className="export-mode-tag">{printPdf ? '打印为 PDF' : 'Pandoc'}</span>
-          </Row>
-        )}
-        {!printPdf && (
-          <Row
-            label="PDF 引擎"
-            desc={engines.length ? `本机可用：${engines.join('、')}` : '未检测到 PDF 引擎，请先安装 LaTeX（见下方说明）或 Typst'}
-          >
-            <Select
-              value={config.pdfEngine}
-              onChange={(pdfEngine) => onChange({ pdfEngine })}
-              options={[
-                { value: '', label: '自动', hint: engines[0] },
-                ...['xelatex', 'lualatex', 'pdflatex', 'tectonic', 'typst', 'weasyprint', 'wkhtmltopdf'].map((e) => ({
-                  value: e,
-                  label: e,
-                  hint: engines.includes(e) ? undefined : '未安装'
-                }))
-              ]}
-            />
-          </Row>
-        )}
         <Row label="纸张">
           <Select
             value={config.paperSize}
@@ -366,19 +298,49 @@ export function ExportOptions({
             onChange={(v) => onChange({ landscape: v === 'landscape' })}
           />
         </Row>
-        <Row label="页边距" desc="如 2.5cm、20mm、1in">
-          <input className="set-input narrow" value={config.margin} onChange={(e) => onChange({ margin: e.target.value })} placeholder="2.5cm" />
+        <Row label="页边距" desc="可选常用边距，或填写上下左右的边距（厘米）">
+          <Select
+            value={config.marginPreset}
+            onChange={(key) => {
+              const p = MARGIN_PRESETS.find((m) => m.key === key)
+              onChange(p ? { marginPreset: p.key, marginTop: p.top, marginBottom: p.bottom, marginLeft: p.left, marginRight: p.right } : { marginPreset: 'custom' })
+            }}
+            options={[
+              ...MARGIN_PRESETS.map((m) => ({ value: m.key, label: m.label, hint: `上下 ${m.top} · 左右 ${m.left} 厘米` })),
+              { value: 'custom' as const, label: '自定义' }
+            ]}
+          />
         </Row>
-        {!printPdf && (
-          <Row label="正文字体" desc={`留空时中文文档使用 ${cjkFont || '系统中文字体'}`}>
-            <input className="set-input" value={config.mainFont} onChange={(e) => onChange({ mainFont: e.target.value })} placeholder={cjkFont} />
-          </Row>
-        )}
-        {pandoc?.found && !engines.length && (
-          <Row label="安装 PDF 引擎" desc={`${INSTALL_GUIDE[CURRENT_OS].pdf}，安装后可通过 Pandoc 生成 PDF`} stack>
-            <InstallButton tool="pdf" onDetect={onDetect} done={(p) => p.pdfEngines.length > 0} />
-          </Row>
-        )}
+        <div className="export-margins">
+          {(
+            [
+              ['marginTop', '上'],
+              ['marginBottom', '下'],
+              ['marginLeft', '左'],
+              ['marginRight', '右']
+            ] as const
+          ).map(([key, label]) => (
+            <label key={key}>
+              <span>{label}</span>
+              <input
+                className="set-input"
+                type="number"
+                min={0}
+                max={10}
+                step={0.01}
+                value={config[key]}
+                onChange={(e) => {
+                  const v = Math.max(0, Number(e.target.value) || 0)
+                  onChange({ [key]: v, marginPreset: 'custom' })
+                }}
+              />
+              <small>厘米</small>
+            </label>
+          ))}
+        </div>
+        <Row label="一级标题分页" desc="每个一级标题另起一页（文档开头的一级标题除外）">
+          <Switch checked={config.pageBreakH1} onChange={(pageBreakH1) => onChange({ pageBreakH1 })} />
+        </Row>
       </Group>
     )}
     {format?.id === 'docx' && (
@@ -413,14 +375,17 @@ export function ExportOptions({
       </Group>
     )}
 
-    {printPdf && <p className="export-hint">打印为 PDF 使用编辑区的样式，下方的目录、标题编号与 Pandoc 参数不适用。</p>}
     <Group title="通用">
-      <Row label="生成目录">
-        <Switch checked={config.toc} onChange={(toc) => onChange({ toc })} />
-      </Row>
-      <Row label="标题编号" desc="为各级标题加上 1、1.1 这样的编号">
-        <Switch checked={config.numberSections} onChange={(numberSections) => onChange({ numberSections })} />
-      </Row>
+      {!isPdf && (
+        <>
+          <Row label="生成目录">
+            <Switch checked={config.toc} onChange={(toc) => onChange({ toc })} />
+          </Row>
+          <Row label="标题编号" desc="为各级标题加上 1、1.1 这样的编号">
+            <Switch checked={config.numberSections} onChange={(numberSections) => onChange({ numberSections })} />
+          </Row>
+        </>
+      )}
       <Row label="导出后">
         <Segmented
           value={config.afterExport}
@@ -434,21 +399,23 @@ export function ExportOptions({
       </Row>
     </Group>
 
-    <Group title="高级">
-      {format && (
-        <Row label={`${format.label} 额外参数`} desc="仅用于此格式的 Pandoc 命令行参数" stack>
-          <input
-            value={config.formatArgs[format.id] ?? ''}
-            onChange={(e) => onChange({ formatArgs: { ...config.formatArgs, [format.id]: e.target.value } })}
-            placeholder="如 --shift-heading-level-by=-1"
-            spellCheck={false}
-          />
+    {!isPdf && (
+      <Group title="高级">
+        {format && (
+          <Row label={`${format.label} 额外参数`} desc="仅用于此格式的 Pandoc 命令行参数" stack>
+            <input
+              value={config.formatArgs[format.id] ?? ''}
+              onChange={(e) => onChange({ formatArgs: { ...config.formatArgs, [format.id]: e.target.value } })}
+              placeholder="如 --shift-heading-level-by=-1"
+              spellCheck={false}
+            />
+          </Row>
+        )}
+        <Row label="通用额外参数" desc="所有格式都会附加的参数" stack>
+          <input value={config.extraArgs} onChange={(e) => onChange({ extraArgs: e.target.value })} placeholder="如 --metadata author=张三" spellCheck={false} />
         </Row>
-      )}
-      <Row label="通用额外参数" desc="所有格式都会附加的参数" stack>
-        <input value={config.extraArgs} onChange={(e) => onChange({ extraArgs: e.target.value })} placeholder="如 --metadata author=张三" spellCheck={false} />
-      </Row>
       </Group>
+    )}
     </>
   )
 }
@@ -458,7 +425,6 @@ export function ExportSettings({ config, onChange }: { config: ExportConfig; onC
   const [formats, setFormats] = useState<ExportFormat[]>([])
   const [pandoc, setPandoc] = useState<PandocInfo | null>(null)
   const [detecting, setDetecting] = useState(false)
-  const [cjkFont, setCjkFont] = useState('')
   const [formatId, setFormatId] = useState(config.lastFormat)
   const detect = useCallback(async (path: string) => {
     setDetecting(true)
@@ -472,13 +438,10 @@ export function ExportSettings({ config, onChange }: { config: ExportConfig; onC
   }, [])
   useEffect(() => {
     api.export.formats().then(setFormats)
-    api.export.defaultCjkFont().then(setCjkFont)
     detect(config.pandocPath)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const format = formats.find((f) => f.id === formatId) ?? formats[0]
-  const hasEngine = !!pandoc?.found && pandoc.pdfEngines.length > 0
-  const printPdf = format?.id === 'pdf' && (config.pdfMode === 'print' || (config.pdfMode === 'auto' && !hasEngine))
   const pick = async (kind: PickKind, key: keyof ExportConfig) => {
     const p = await api.export.pickFile(kind)
     if (p) {
@@ -496,8 +459,8 @@ export function ExportSettings({ config, onChange }: { config: ExportConfig; onC
             !pandoc
               ? '正在检测…'
               : pandoc.found
-                ? `已安装 Pandoc ${pandoc.version}${pandoc.pdfEngines.length ? ` · PDF 引擎：${pandoc.pdfEngines.join('、')}` : ' · 未检测到 PDF 引擎，PDF 将打印生成'}`
-                : pandoc.error || '未检测到 Pandoc：导出 Word、EPUB 等格式需先安装（导出时会显示安装方法），PDF 可直接打印生成'
+                ? `已安装 Pandoc ${pandoc.version}`
+                : pandoc.error || '未检测到 Pandoc：导出 Word、EPUB 等格式需先安装（导出时会显示安装方法），PDF 无需 Pandoc'
           }
         >
           <button className="btn sm" disabled={detecting} onClick={() => detect(config.pandocPath)}>
@@ -529,16 +492,7 @@ export function ExportSettings({ config, onChange }: { config: ExportConfig; onC
           <Select value={format?.id ?? ''} onChange={setFormatId} options={formats.map((f) => ({ value: f.id, label: f.label, hint: `.${f.ext}` }))} />
         </Row>
       </Group>
-      <ExportOptions
-        config={config}
-        onChange={onChange}
-        pandoc={pandoc}
-        format={format}
-        printPdf={printPdf}
-        cjkFont={cjkFont}
-        onPick={pick}
-        onDetect={() => detect(config.pandocPath)}
-      />
+      <ExportOptions config={config} onChange={onChange} format={format} onPick={pick} />
     </>
   )
 }
@@ -550,7 +504,7 @@ function PandocGuide({
   onPath,
   onPick,
   onDetect,
-  onPrint
+  onPdf
 }: {
   pandoc: PandocInfo
   path: string
@@ -558,7 +512,8 @@ function PandocGuide({
   onPath(p: string): void
   onPick(): void
   onDetect(): Promise<PandocInfo>
-  onPrint(): void
+  /** 切换到不需要 Pandoc 的 PDF 导出 */
+  onPdf(): void
 }) {
   const [os, setOs] = useState<OS>(CURRENT_OS)
   const guide = INSTALL_GUIDE[os]
@@ -566,7 +521,7 @@ function PandocGuide({
     <>
       <div className="modal-body export-guide">
         <p className="export-guide-lead">
-          导出 Word、EPUB 等格式需要先安装 <b>Pandoc</b>（免费开源的文档转换工具），安装完成后点击「重新检测」即可。只需要 PDF 的话，可以不安装，点击左下角「直接打印为 PDF」。
+          导出 Word、EPUB 等格式需要先安装 <b>Pandoc</b>（免费开源的文档转换工具），安装完成后点击「重新检测」即可。只需要 PDF 的话，可以不安装，点击左下角「导出 PDF」。
         </p>
         {pandoc.error && <pre className="export-error">{pandoc.error}</pre>}
         <div className="export-guide-install">
@@ -594,10 +549,6 @@ function PandocGuide({
           ))}
         </ol>
         <p className="export-guide-note">
-          {guide.pdf}
-          {guide.pdfCmd && <CopyCommand cmd={guide.pdfCmd} />}
-        </p>
-        <p className="export-guide-note">
           更多安装方式见{' '}
           <a href={INSTALL_URL} onClick={(e) => (e.preventDefault(), api.shell.openExternal(INSTALL_URL))}>
             Pandoc 官方安装说明
@@ -612,8 +563,8 @@ function PandocGuide({
         </div>
       </div>
       <div className="modal-footer">
-        <button className="btn export-print-btn" title="不安装 Pandoc：按编辑区的样式打印，在系统打印对话框中存储为 PDF" onClick={onPrint}>
-          <Printer size={14} /> 直接打印为 PDF…
+        <button className="btn export-print-btn" title="PDF 按编辑区的样式直接生成，无需安装 Pandoc" onClick={onPdf}>
+          <FileText size={14} /> 导出 PDF
         </button>
         <button className="btn primary" disabled={detecting} onClick={onDetect}>
           {detecting ? <Loader2 size={14} className="spin" /> : <RefreshCw size={14} />} 重新检测
@@ -658,7 +609,7 @@ function InstallButton({ tool, onDetect, done }: { tool: InstallTool; onDetect()
       } else {
         const info = await onDetect()
         setState('idle')
-        if (done(info)) toast(tool === 'pandoc' ? '已安装 Pandoc' : '已安装 PDF 引擎', 'success')
+        if (done(info)) toast('已安装 Pandoc', 'success')
         else setError('安装已完成，但未检测到程序，可能需要重新启动 MarkGo')
       }
     } catch (err) {

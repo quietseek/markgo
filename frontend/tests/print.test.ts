@@ -1,21 +1,37 @@
 import { describe, expect, it } from 'vitest'
-import { pageCss } from '../src/lib/print'
+import { MARGIN_PRESETS, h1BreakCss } from '../src/lib/print'
 
-describe('pageCss', () => {
-  it('uses paper size and margin', () => {
-    expect(pageCss({ paperSize: 'a4', margin: '2.5cm' })).toBe('@page { size: A4; margin: 2.5cm; }')
-    expect(pageCss({ paperSize: 'letter', margin: ' 1in ' })).toBe('@page { size: letter; margin: 1in; }')
+function editor(html: string): Element {
+  const root = document.createElement('div')
+  root.className = 'prose-editor'
+  root.innerHTML = html
+  return root
+}
+
+describe('h1BreakCss', () => {
+  it('breaks before every h1 except a leading one', () => {
+    const css = h1BreakCss(editor('<h1>A</h1><p>x</p><h2>B</h2><h1>C</h1><p>y</p><h1>D</h1>'))
+    expect(css).toContain('.prose-editor > :nth-child(4)')
+    expect(css).toContain('.prose-editor > :nth-child(6)')
+    expect(css).not.toContain(':nth-child(1)')
+    expect(css).toContain('break-before: page')
   })
-  it('falls back on invalid margin', () => {
-    expect(pageCss({ paperSize: 'a4', margin: '2cm; } body { display:none' })).toContain('margin: 2cm;')
-    expect(pageCss({ paperSize: 'a4', margin: '' })).toContain('margin: 2cm;')
+  it('ignores front matter and empty paragraphs before the first h1', () => {
+    const css = h1BreakCss(editor('<div class="front-matter">title: x</div><p></p><h1>A</h1><p>x</p><h1>B</h1>'))
+    expect(css).not.toContain(':nth-child(3)')
+    expect(css).toContain(':nth-child(5)')
+  })
+  it('breaks before the first h1 when content precedes it', () => {
+    expect(h1BreakCss(editor('<p>intro</p><h1>A</h1>'))).toContain(':nth-child(2)')
+  })
+  it('returns empty css without h1 or root', () => {
+    expect(h1BreakCss(editor('<p>x</p><h2>y</h2>'))).toBe('')
+    expect(h1BreakCss(null)).toBe('')
   })
 })
 
-describe('pageCss sizes', () => {
-  it('supports common sizes and landscape', () => {
-    expect(pageCss({ paperSize: 'b5', margin: '2cm' })).toBe('@page { size: B5; margin: 2cm; }')
-    expect(pageCss({ paperSize: 'a3', landscape: true, margin: '2cm' })).toBe('@page { size: A3 landscape; margin: 2cm; }')
-    expect(pageCss({ paperSize: 'legal', margin: '1in' })).toContain('size: legal;')
+describe('MARGIN_PRESETS', () => {
+  it('starts with the Word normal margins', () => {
+    expect(MARGIN_PRESETS[0]).toMatchObject({ key: 'normal', top: 2.54, left: 3.18 })
   })
 })

@@ -1,6 +1,6 @@
 package main
 
-// 通过 Pandoc 导出为 Word、PDF、EPUB 等格式
+// 导出：PDF 由编辑区直接打印生成，其他格式（Word、EPUB 等）通过 Pandoc 导出
 
 import (
 	"context"
@@ -10,16 +10,16 @@ import (
 	"strings"
 
 	"github.com/quietseek/markgo/internal/export"
+	"github.com/quietseek/markgo/internal/pdfprint"
 	"github.com/quietseek/markgo/internal/platform"
+	"github.com/quietseek/markgo/internal/settings"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 func (b *Bridge) ExportFormats() []export.Format { return export.Formats }
 
-// PandocStatus 检测 Pandoc 与可用的 PDF 引擎；pandocPath 为设置中的路径（未保存的修改也可检测）
+// PandocStatus 检测 Pandoc；pandocPath 为设置中的路径（未保存的修改也可检测）
 func (b *Bridge) PandocStatus(pandocPath string) export.Pandoc { return export.Detect(pandocPath) }
-
-// DefaultCJKFont 导出 PDF 时默认使用的中文字体
-func (b *Bridge) DefaultCJKFont() string { return export.DefaultCJKFont() }
 
 type exportRequest struct {
 	Format   string `json:"format"`
@@ -45,6 +45,9 @@ func (b *Bridge) ExportDocument(req exportRequest) exportResult {
 		return exportResult{Error: "不支持的导出格式"}
 	}
 	cfg := b.store.Get().Export
+	if f.ID == "pdf" {
+		return b.exportPDF(req, cfg)
+	}
 	pandoc := export.Detect(cfg.PandocPath)
 	if !pandoc.Found {
 		if pandoc.Error != "" {
@@ -57,23 +60,9 @@ func (b *Bridge) ExportDocument(req exportRequest) exportResult {
 	if req.DocPath != "" {
 		docDir = filepath.Dir(req.DocPath)
 	}
-	saveDir := docDir
-	if req.Scratch || saveDir == "" {
-		saveDir = platform.DocumentsDir()
-	}
-	name := sanitizeFileName(req.Title)
-	if name == "" {
-		name = "导出"
-	}
-	out, err := b.saveDialog(saveDir, name+"."+f.Ext).AddFilter(f.Label, "*."+f.Ext).PromptForSingleSelection()
-	if err != nil {
-		return exportResult{Error: err.Error()}
-	}
+	out, name, res := b.pickExportPath(req, f)
 	if out == "" {
-		return exportResult{Canceled: true}
-	}
-	if filepath.Ext(out) == "" {
-		out += "." + f.Ext
+		return res
 	}
 
 	opts := export.Options{
@@ -81,11 +70,6 @@ func (b *Bridge) ExportDocument(req exportRequest) exportResult {
 		NumberSections: cfg.NumberSections,
 		ExtraArgs:      cfg.ExtraArgs,
 		FormatArgs:     cfg.FormatArgs,
-		PdfEngine:      cfg.PdfEngine,
-		PaperSize:      cfg.PaperSize,
-		Landscape:      cfg.Landscape,
-		Margin:         cfg.Margin,
-		MainFont:       cfg.MainFont,
 		DocxReference:  cfg.DocxReference,
 		OdtReference:   cfg.OdtReference,
 		HTMLCSS:        cfg.HTMLCSS,
@@ -104,7 +88,61 @@ func (b *Bridge) ExportDocument(req exportRequest) exportResult {
 	if err := export.Run(context.Background(), pandoc.Path, args, req.Markdown, docDir); err != nil {
 		return exportResult{Error: err.Error()}
 	}
+	return b.afterExport(cfg, out)
+}
 
+// pickExportPath 选择保存位置；out 为空时返回 res（取消或出错）
+func (b *Bridge) pickExportPath(req exportRequest, f export.Format) (out, name string, res exportResult) {
+	saveDir := ""
+	if req.DocPath != "" {
+		saveDir = filepath.Dir(req.DocPath)
+	}
+	if req.Scratch || saveDir == "" {
+		saveDir = platform.DocumentsDir()
+	}
+	name = sanitizeFileName(req.Title)
+	if name == "" {
+		name = "导出"
+	}
+	out, err := b.saveDialog(saveDir, name+"."+f.Ext).AddFilter(f.Label, "*."+f.Ext).PromptForSingleSelection()
+	if err != nil {
+		return "", name, exportResult{Error: err.Error()}
+	}
+	if out == "" {
+		return "", name, exportResult{Canceled: true}
+	}
+	if filepath.Ext(out) == "" {
+		out += "." + f.Ext
+	}
+	return out, name, exportResult{}
+}
+
+// exportPDF 把编辑区按打印样式直接生成 PDF（前端已准备好打印样式，且为浅色主题）
+func (b *Bridge) exportPDF(req exportRequest, cfg settings.ExportConfig) exportResult {
+	if b.window == nil {
+		return exportResult{Error: "窗口尚未创建"}
+	}
+	f, _ := export.FindFormat("pdf")
+	out, _, res := b.pickExportPath(req, f)
+	if out == "" {
+		return res
+	}
+	paper, ok := pdfprint.PaperSizes[cfg.PaperSize]
+	if !ok {
+		paper = pdfprint.PaperSizes["a4"]
+	}
+	opts := pdfprint.Options{
+		Width: paper[0], Height: paper[1], Landscape: cfg.Landscape,
+		Top: cfg.MarginTop * 10, Bottom: cfg.MarginBottom * 10, Left: cfg.MarginLeft * 10, Right: cfg.MarginRight * 10,
+	}
+	if err := pdfprint.Print(b.window, out, opts, application.InvokeSync); err != nil {
+		return exportResult{Error: err.Error()}
+	}
+	return b.afterExport(cfg, out)
+}
+
+// afterExport 按设置打开导出的文件或在文件夹中显示
+func (b *Bridge) afterExport(cfg settings.ExportConfig, out string) exportResult {
 	switch cfg.AfterExport {
 	case "open":
 		_ = b.app.Browser.OpenFile(out)
@@ -144,10 +182,10 @@ func sanitizeFileName(s string) string {
 	return strings.Trim(strings.TrimSpace(s), ".")
 }
 
-// InstallCommand 一键安装执行的命令（tool 为 pandoc 或 pdf）
+// InstallCommand 一键安装 Pandoc 执行的命令
 func (b *Bridge) InstallCommand(tool string) string { return export.InstallCommand(tool) }
 
-// InstallTool 一键安装 Pandoc 或 PDF 引擎
+// InstallTool 一键安装 Pandoc
 func (b *Bridge) InstallTool(tool string) export.InstallResult {
 	return export.Install(context.Background(), tool)
 }

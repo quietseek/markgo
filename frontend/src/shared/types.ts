@@ -278,17 +278,19 @@ export const defaultSettings: AppSettings = {
   export: {
     pandocPath: '',
     lastFormat: 'docx',
-    pdfMode: 'auto',
     afterExport: 'reveal',
     toc: false,
     numberSections: false,
     extraArgs: '',
     formatArgs: {},
-    pdfEngine: '',
     paperSize: 'a4',
     landscape: false,
-    margin: '2.5cm',
-    mainFont: '',
+    marginPreset: 'normal',
+    marginTop: 2.54,
+    marginBottom: 2.54,
+    marginLeft: 3.18,
+    marginRight: 3.18,
+    pageBreakH1: true,
     docxReference: '',
     odtReference: '',
     htmlCss: '',
@@ -297,7 +299,9 @@ export const defaultSettings: AppSettings = {
   }
 }
 
-/** 通过 Pandoc 导出的配置 */
+export type MarginPreset = 'normal' | 'narrow' | 'moderate' | 'wide' | 'custom'
+
+/** 导出配置：PDF 直接打印生成，其他格式通过 Pandoc 导出 */
 export interface ExportConfig {
   /** Pandoc 程序路径，留空时自动查找 */
   pandocPath: string
@@ -310,16 +314,19 @@ export interface ExportConfig {
   extraArgs: string
   /** 各格式的额外 Pandoc 参数 */
   formatArgs: Record<string, string>
-  /** PDF 生成方式：auto 有 PDF 引擎时用 Pandoc，否则打印为 PDF；print 通过系统打印对话框存储为 PDF */
-  pdfMode: 'auto' | 'pandoc' | 'print'
-  /** PDF 引擎，留空自动选择 */
-  pdfEngine: string
+  /** PDF（按编辑区样式直接打印生成，不经过 Pandoc）：纸张 */
   paperSize: 'a3' | 'a4' | 'a5' | 'b4' | 'b5' | 'letter' | 'legal'
   /** 横向 */
   landscape: boolean
-  margin: string
-  /** PDF 正文字体，留空时中文文档使用系统中文字体 */
-  mainFont: string
+  /** 页边距方案 */
+  marginPreset: MarginPreset
+  /** 上下左右页边距（厘米） */
+  marginTop: number
+  marginBottom: number
+  marginLeft: number
+  marginRight: number
+  /** 每个一级标题另起一页 */
+  pageBreakH1: boolean
   docxReference: string
   odtReference: string
   htmlCss: string
@@ -334,7 +341,7 @@ export interface ExportFormat {
   ext: string
 }
 
-export type InstallTool = 'pandoc' | 'pdf'
+export type InstallTool = 'pandoc'
 
 export interface InstallResult {
   /** 已在终端中开始安装（macOS），完成后需重新检测 */
@@ -347,8 +354,6 @@ export interface PandocInfo {
   path: string
   version: string
   error?: string
-  /** 本机可用的 PDF 引擎 */
-  pdfEngines: string[]
 }
 
 export interface ExportRequest {
@@ -529,7 +534,6 @@ export interface MarkGoApi {
   export: {
     formats(): Promise<ExportFormat[]>
     pandoc(pandocPath: string): Promise<PandocInfo>
-    defaultCjkFont(): Promise<string>
     run(req: ExportRequest): Promise<{ path?: string; canceled?: boolean; error?: string }>
     /** 选择参考文档、样式表、封面图片或 Pandoc 程序 */
     pickFile(kind: 'docx' | 'odt' | 'css' | 'image' | 'pandoc'): Promise<string | null>
@@ -597,8 +601,6 @@ export interface MarkGoApi {
     minimize(): void
     toggleMaximize(): void
     close(): void
-    /** 打开系统打印对话框 */
-    print(): Promise<void>
     /** 本次启动是否使用系统原生窗口按钮（切换需重启） */
     nativeControls: boolean
     onMaximizeChange(cb: (maximized: boolean) => void): () => void

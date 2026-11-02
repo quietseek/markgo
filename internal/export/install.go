@@ -1,6 +1,6 @@
 package export
 
-// 一键安装 Pandoc 与 PDF 引擎：Windows 用 winget，macOS 在终端中用 Homebrew，Linux 用 pkexec + apt
+// 一键安装 Pandoc：Windows 用 winget，macOS 在终端中用 Homebrew，Linux 用 pkexec + apt
 
 import (
 	"context"
@@ -15,11 +15,8 @@ import (
 	"time"
 )
 
-// 可一键安装的工具
-const (
-	ToolPandoc = "pandoc"
-	ToolPDF    = "pdf"
-)
+// ToolPandoc 可一键安装的工具
+const ToolPandoc = "pandoc"
 
 // InstallResult 安装结果
 type InstallResult struct {
@@ -39,47 +36,12 @@ func installPlans(goos, tool string) (installPlan, bool) {
 	switch goos + "/" + tool {
 	case "windows/pandoc":
 		return installPlan{"winget", []string{"install", "--source", "winget", "--exact", "--id", "JohnMacFarlane.Pandoc"}}, true
-	case "windows/pdf":
-		return installPlan{"winget", []string{"install", "-e", "--id", "MiKTeX.MiKTeX"}}, true
 	case "darwin/pandoc":
 		return installPlan{"brew", []string{"install", "pandoc"}}, true
-	case "darwin/pdf":
-		return installPlan{"brew", []string{"install", "librsvg", "python", "homebrew/cask/basictex"}}, true
 	case "linux/pandoc":
 		return installPlan{"apt-get", []string{"install", "pandoc"}}, true
-	case "linux/pdf":
-		return installPlan{"apt-get", append([]string{"install"}, linuxTeXPackages...)}, true
 	}
 	return installPlan{}, false
-}
-
-// linuxTeXPackages Debian / Ubuntu 上 Pandoc 默认模板（含中文）所需的软件包
-var linuxTeXPackages = []string{"texlive-xetex", "texlive-latex-extra", "texlive-lang-chinese", "lmodern", "fonts-noto-cjk"}
-
-// texLivePackages BasicTeX 未包含、Pandoc 默认模板（含中文）用到的宏包
-var texLivePackages = []string{
-	"xecjk", "unicode-math", "upquote", "microtype", "parskip", "xurl", "bookmark", "footnotehyper",
-	"soul", "framed", "fancyvrb", "booktabs", "multirow", "setspace", "selnolig", "lua-ul", "luacolor",
-	"fontspec", "etoolbox", "csquotes", "caption", "float",
-}
-
-// macTeXScript BasicTeX 装好后补装宏包（tlmgr 需要管理员权限）
-func macTeXScript() string {
-	tlmgr := "/Library/TeX/texbin/tlmgr"
-	return "sudo " + tlmgr + " update --self && sudo " + tlmgr + " install " + strings.Join(texLivePackages, " ")
-}
-
-// MiKTeX 默认对每个缺失的宏包都弹窗询问，改为自动安装
-func enableMiKTeXAutoInstall(ctx context.Context) {
-	initexmf := lookPath("initexmf")
-	if initexmf == "" {
-		return
-	}
-	ctx, cancel := context.WithTimeout(ctx, time.Minute)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, initexmf, "--set-config-value=[MPM]AutoInstall=1")
-	hideWindow(cmd)
-	_ = cmd.Run()
 }
 
 // InstallCommand 安装命令（显示给用户）
@@ -89,18 +51,13 @@ func InstallCommand(tool string) string {
 		return ""
 	}
 	cmd := p.program + " " + strings.Join(p.args, " ")
-	switch {
-	case runtime.GOOS == "linux":
+	if runtime.GOOS == "linux" {
 		cmd = "sudo " + cmd
-	case runtime.GOOS == "darwin" && tool == ToolPDF:
-		cmd += " && " + macTeXScript()
-	case runtime.GOOS == "windows" && tool == ToolPDF:
-		cmd += " && initexmf --set-config-value=[MPM]AutoInstall=1"
 	}
 	return cmd
 }
 
-// Install 安装 Pandoc 或 PDF 引擎。Windows / Linux 等待安装完成；macOS 打开终端执行 Homebrew
+// Install 安装 Pandoc。Windows / Linux 等待安装完成；macOS 打开终端执行 Homebrew
 func Install(ctx context.Context, tool string) InstallResult {
 	p, ok := installPlans(runtime.GOOS, tool)
 	if !ok {
@@ -110,11 +67,8 @@ func Install(ctx context.Context, tool string) InstallResult {
 	switch runtime.GOOS {
 	case "windows":
 		err = installWindows(ctx, p)
-		if err == nil && tool == ToolPDF {
-			enableMiKTeXAutoInstall(ctx)
-		}
 	case "darwin":
-		err = installMac(p, tool == ToolPDF)
+		err = installMac(p)
 		if err == nil {
 			return InstallResult{Terminal: true}
 		}
@@ -127,7 +81,7 @@ func Install(ctx context.Context, tool string) InstallResult {
 	return InstallResult{}
 }
 
-// 安装耗时较长（MiKTeX、TeX Live 需下载数百 MB）
+// 安装耗时可能较长
 const installTimeout = 60 * time.Minute
 
 func installWindows(ctx context.Context, p installPlan) error {
@@ -174,16 +128,13 @@ func installLinux(ctx context.Context, p installPlan) error {
 	return installError(err, out)
 }
 
-// macOS 上 BasicTeX 的安装程序需要输入密码，在终端中执行以便查看进度与输入密码
-func installMac(p installPlan, tex bool) error {
+// macOS 在终端中执行 Homebrew，以便查看进度与输入密码
+func installMac(p installPlan) error {
 	brew := lookPath("brew")
 	if brew == "" {
 		return errors.New("未找到 Homebrew，请先安装 Homebrew（https://brew.sh），或下载安装包手动安装")
 	}
 	script := shellQuote(brew) + " " + strings.Join(p.args, " ")
-	if tex {
-		script += " && " + macTeXScript()
-	}
 	osa := fmt.Sprintf("tell application \"Terminal\"\nactivate\ndo script %s\nend tell", appleString(script))
 	if out, err := exec.Command("osascript", "-e", osa).CombinedOutput(); err != nil {
 		return installError(err, string(out))

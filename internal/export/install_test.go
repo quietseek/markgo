@@ -8,7 +8,7 @@ import (
 
 func TestInstallPlans(t *testing.T) {
 	for _, goos := range []string{"windows", "darwin", "linux"} {
-		for _, tool := range []string{ToolPandoc, ToolPDF} {
+		for _, tool := range []string{ToolPandoc} {
 			if _, ok := installPlans(goos, tool); !ok {
 				t.Fatalf("missing plan %s/%s", goos, tool)
 			}

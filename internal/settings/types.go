@@ -60,14 +60,18 @@ type ExportConfig struct {
 	ExtraArgs string `json:"extraArgs"`
 	// 各格式的额外 Pandoc 参数
 	FormatArgs map[string]string `json:"formatArgs"`
-	// PDF 生成方式：auto 有 PDF 引擎时用 Pandoc，否则打印为 PDF；pandoc；print 通过系统打印对话框存储为 PDF
-	PdfMode string `json:"pdfMode"`
-	// PDF：引擎（留空自动选择）、纸张、页边距、正文字体（留空时中文文档使用系统中文字体）
-	PdfEngine string `json:"pdfEngine"`
+	// PDF（按编辑区样式直接打印生成，不经过 Pandoc）：纸张、方向
 	PaperSize string `json:"paperSize"`
 	Landscape bool   `json:"landscape"`
-	Margin    string `json:"margin"`
-	MainFont  string `json:"mainFont"`
+	// 页边距方案：normal 常规、narrow 窄、moderate 适中、wide 宽、custom 自定义
+	MarginPreset string `json:"marginPreset"`
+	// 上下左右页边距（厘米）
+	MarginTop    float64 `json:"marginTop"`
+	MarginBottom float64 `json:"marginBottom"`
+	MarginLeft   float64 `json:"marginLeft"`
+	MarginRight  float64 `json:"marginRight"`
+	// 每个一级标题另起一页
+	PageBreakH1 bool `json:"pageBreakH1"`
 	// Word / OpenOffice 参考文档（决定样式）
 	DocxReference string `json:"docxReference"`
 	OdtReference  string `json:"odtReference"`
@@ -212,13 +216,17 @@ func Defaults() AppSettings {
 		},
 		ImageGen: ImageGenConfig{Provider: "openai", Model: "gpt-image-1", Timeout: 180},
 		Export: ExportConfig{
-			LastFormat:  "docx",
-			PdfMode:     "auto",
-			AfterExport: "reveal",
-			FormatArgs:  map[string]string{},
-			PaperSize:   "a4",
-			Margin:      "2.5cm",
-			HTMLEmbed:   true,
+			LastFormat:   "docx",
+			AfterExport:  "reveal",
+			FormatArgs:   map[string]string{},
+			PaperSize:    "a4",
+			MarginPreset: "normal",
+			MarginTop:    2.54,
+			MarginBottom: 2.54,
+			MarginLeft:   3.18,
+			MarginRight:  3.18,
+			PageBreakH1:  true,
+			HTMLEmbed:    true,
 		},
 	}
 }
