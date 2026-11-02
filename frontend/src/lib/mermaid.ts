@@ -3,6 +3,7 @@
  * mermaid 体积较大，首次用到时再加载。
  */
 import { findMermaidBlocks, setMermaidImage } from './render'
+import { mermaidThemeConfig } from './mermaid-theme'
 
 type MermaidApi = typeof import('mermaid').default
 
@@ -29,12 +30,11 @@ export function renderMermaidSvg(code: string, dark = false): Promise<string> {
       mermaid.initialize({
         startOnLoad: false,
         securityLevel: 'strict',
-        theme: dark ? 'dark' : 'default',
+        ...mermaidThemeConfig(dark),
         // 不用 foreignObject 渲染文字，导出 PNG 时画布才不会被污染
         htmlLabels: false,
         suppressErrorRendering: true,
-        flowchart: { htmlLabels: false },
-        fontFamily: '-apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif'
+        flowchart: { htmlLabels: false }
       })
       initializedDark = dark
     }
