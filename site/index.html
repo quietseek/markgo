@@ -93,7 +93,7 @@ nav .links a:hover { color: var(--ink); }
   font-size: 13px; color: var(--accent-ink); background: var(--accent-soft);
   padding: 4px 12px; border-radius: 999px; margin-bottom: 26px; text-decoration: none;
 }
-.eyebrow b { font-weight: 600; }
+.eyebrow b { font-weight: 600; white-space: nowrap; }
 h1 {
   font-family: var(--serif); font-weight: 700;
   font-size: clamp(40px, 7vw, 76px); line-height: 1.12; letter-spacing: .01em;
@@ -632,7 +632,8 @@ footer a { color: var(--ink-2); }
         }
       }
       document.getElementById('dl-sub').textContent = `最新版本 ${ver}，免费、开源。安装后有新版本时，应用内一键更新。`
-      document.querySelector('#release-tag span').textContent = `${ver} 已发布`
+      // 部署时已写入最新版本和亮点（scripts/site-release.mjs）就保留，否则只提示版本号
+      if (!document.querySelector('#release-tag b').textContent.includes(ver)) document.querySelector('#release-tag span').textContent = `${ver} 已发布`
     })
     .catch(() => {})
 })()

@@ -1,12 +1,19 @@
 name: Pages
 
-# 部署 site/ 目录下的介绍页到 GitHub Pages
+# 部署 site/ 目录下的介绍页到 GitHub Pages。
+# 除了 site/ 有改动时，每次发版（Build 工作流的 tag 构建成功、Release 已创建）后也会重新部署，
+# 部署前由 scripts/site-release.mjs 把最新版本号、安装包直链和 CHANGELOG 亮点写进页面。
+# Release 由 GITHUB_TOKEN 创建，不会触发 release 事件，所以监听 workflow_run。
 on:
   push:
     branches: [main]
     paths:
       - 'site/**'
+      - 'scripts/site-release.mjs'
       - '.github/workflows/pages.yml'
+  workflow_run:
+    workflows: [Build]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -21,6 +28,11 @@ concurrency:
 jobs:
   deploy:
     name: Deploy
+    # workflow_run 时只处理成功的 tag 构建（tag 推送时 head_branch 为 tag 名）
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' &&
+       startsWith(github.event.workflow_run.head_branch, 'v'))
     runs-on: ubuntu-24.04
     environment:
       name: github-pages
@@ -28,8 +40,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/configure-pages@v6
+      - name: Write latest release into the page
+        run: node scripts/site-release.mjs _site
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: site
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v5
