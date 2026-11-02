@@ -1,10 +1,10 @@
 {
 	"fixed": {
-		"file_version": "0.5.9"
+		"file_version": "0.5.10"
 	},
 	"info": {
 		"0409": {
-			"ProductVersion": "0.5.9",
+			"ProductVersion": "0.5.10",
 			"CompanyName": "quietseek",
 			"FileDescription": "小而美的桌面 Markdown 写作与笔记应用",
 			"LegalCopyright": "© 2026 quietseek",

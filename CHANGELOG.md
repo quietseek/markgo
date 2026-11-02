@@ -2,6 +2,22 @@
 
 每个版本发布时，GitHub Release 的说明取自本文件对应版本的小节，按「修复问题、新增功能、优化改进、下载地址」组织，没有内容的小节不写。发版前请先在这里补充内容。
 
+## v0.5.10
+
+### 优化改进
+
+- Mermaid 图表改用 PlantUML rose 配色（浅黄底、玫红描边与箭头、黄色便签、投影），流程图、时序图、甘特图、饼图、思维导图等风格统一；深色模式下按同样色相调暗，复制、导出与发布仍为浅色
+
+### 下载地址
+
+| 系统 | 安装包 |
+| --- | --- |
+| macOS（Apple 芯片与 Intel 通用） | [MarkGo-0.5.10-mac-universal.dmg](https://github.com/quietseek/markgo/releases/download/v0.5.10/MarkGo-0.5.10-mac-universal.dmg) |
+| Windows 10 / 11 | [MarkGo-0.5.10-win-x64-setup.exe](https://github.com/quietseek/markgo/releases/download/v0.5.10/MarkGo-0.5.10-win-x64-setup.exe) |
+| Linux（Debian / Ubuntu） | [MarkGo-0.5.10-linux-amd64.deb](https://github.com/quietseek/markgo/releases/download/v0.5.10/MarkGo-0.5.10-linux-amd64.deb) |
+
+> Windows 需要 WebView2 运行时（系统通常已自带，安装程序会自动补装）；Linux 需要 GTK 4 与 WebKitGTK 6.0（Ubuntu 24.04+ / Debian 13+）。
+
 ## v0.5.9
 
 ### 新增功能
