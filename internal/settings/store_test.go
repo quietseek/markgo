@@ -32,20 +32,17 @@ func raw(t *testing.T, v string) map[string]json.RawMessage {
 	return m
 }
 
-func TestDefaultsFollowPlatform(t *testing.T) {
-	mac := New(t.TempDir(), "darwin", nil).Get()
-	if mac.CloseAction != "background" || mac.WindowControls != "traffic" {
-		t.Fatalf("mac=%s/%s", mac.CloseAction, mac.WindowControls)
-	}
-	win := New(t.TempDir(), "windows", nil).Get()
-	if win.CloseAction != "quit" || win.WindowControls != "classic" || len(win.AI.Agents) != len(AgentPresets) {
-		t.Fatalf("win=%+v", win)
+func TestDefaults(t *testing.T) {
+	cfg := New(t.TempDir(), nil).Get()
+	if cfg.CloseAction != "background" || cfg.WindowControls != "traffic" || cfg.TrafficPosition != "right" ||
+		cfg.EditorWidth != "full" || len(cfg.AI.Agents) != len(AgentPresets) {
+		t.Fatalf("cfg=%+v", cfg)
 	}
 }
 
 func TestSetMergesNestedObjectsAndEncryptsSecrets(t *testing.T) {
 	dir := t.TempDir()
-	s := New(dir, "linux", fakeBox{})
+	s := New(dir, fakeBox{})
 	if _, err := s.Set(raw(t, `{"wechat":{"appId":"wx1","appSecret":"secret"},"themeKey":"github"}`)); err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +57,7 @@ func TestSetMergesNestedObjectsAndEncryptsSecrets(t *testing.T) {
 	if strings.Contains(string(disk), `"secret"`) || !strings.Contains(string(disk), "enc:SECRET") {
 		t.Fatalf("secret stored in plain text: %s", disk)
 	}
-	reloaded := New(dir, "linux", fakeBox{}).Get()
+	reloaded := New(dir, fakeBox{}).Get()
 	if reloaded.Wechat.AppSecret != "secret" || reloaded.Wechat.Author != "me" {
 		t.Fatalf("reloaded=%+v", reloaded.Wechat)
 	}
@@ -75,7 +72,7 @@ func TestMigratesOldSettings(t *testing.T) {
 		"wechat": {"appSecret": "enc:undecryptable"},
 		"ai": {"agents": [{"id": "codex", "name": "Codex", "command": "codex-acp"}], "activeAgentId": "codex"}
 	}`), 0o644)
-	cfg := New(dir, "linux", nil).Get()
+	cfg := New(dir, nil).Get()
 	if cfg.ThemeKey != "wechat" || cfg.EditorTheme != "sync" || cfg.EditorWidth != "default" {
 		t.Fatalf("theme=%s/%s width=%s", cfg.ThemeKey, cfg.EditorTheme, cfg.EditorWidth)
 	}
@@ -94,7 +91,7 @@ func TestMigratesOldSettings(t *testing.T) {
 }
 
 func TestSetNullDeletesAndAgentsDoNotInheritFields(t *testing.T) {
-	s := New(t.TempDir(), "linux", nil)
+	s := New(t.TempDir(), nil)
 	s.Set(raw(t, `{"lastWorkspace":"/notes","ai":{"agents":[{"id":"a","name":"A","command":"a","installed":true},{"id":"b","name":"B","command":"b"}]}}`))
 	next, err := s.Set(raw(t, `{"lastWorkspace":null,"ai":{"agents":[{"id":"b","name":"B","command":"b"}]}}`))
 	if err != nil {

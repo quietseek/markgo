@@ -35,7 +35,7 @@ var appIcon []byte
 const isMac = runtime.GOOS == "darwin"
 
 func main() {
-	store := settings.New(platform.DataDir(appName), runtime.GOOS, settings.NewKeyringBox(appName))
+	store := settings.New(platform.DataDir(appName), settings.NewKeyringBox(appName))
 	themeDir = filepath.Join(store.Dir(), "themes")
 	b := newBridge(store)
 

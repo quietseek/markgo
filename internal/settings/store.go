@@ -14,17 +14,16 @@ var nestedKeys = []string{"wechat", "ai", "writing", "imageGen", "export"}
 type Store struct {
 	mu       sync.Mutex
 	dir      string
-	platform string
 	secrets  SecretBox
 	cache    *AppSettings
 }
 
-// New 创建设置存储。dir 为用户数据目录，platform 取 runtime.GOOS（决定平台相关的默认值）。
-func New(dir, platform string, secrets SecretBox) *Store {
+// New 创建设置存储。dir 为用户数据目录。
+func New(dir string, secrets SecretBox) *Store {
 	if secrets == nil {
 		secrets = plainBox{}
 	}
-	return &Store{dir: dir, platform: platform, secrets: secrets}
+	return &Store{dir: dir, secrets: secrets}
 }
 
 func (s *Store) Dir() string { return s.dir }
@@ -73,14 +72,6 @@ func (s *Store) migrate(cfg *AppSettings, stored map[string]json.RawMessage) {
 			cfg.ThemeKey = cfg.EditorTheme
 		}
 		cfg.EditorTheme = "sync"
-	}
-	// 关闭行为与窗口按钮样式默认跟随平台习惯
-	isMac := s.platform == "darwin"
-	if !has("closeAction") {
-		cfg.CloseAction = map[bool]string{true: "background", false: "quit"}[isMac]
-	}
-	if !has("windowControls") {
-		cfg.WindowControls = map[bool]string{true: "traffic", false: "classic"}[isMac]
 	}
 	// 旧版本没有「安装」概念：已在使用的 Agent 视为已安装
 	if has("ai") && !slices.ContainsFunc(cfg.AI.Agents, func(a AgentProfile) bool { return a.Installed != nil }) {
