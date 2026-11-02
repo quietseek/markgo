@@ -322,8 +322,17 @@ const WRITE_LAYOUT = /^(max-width|min-width|width|height|min-height|margin.*|pad
 /** html / body 上不应带入编辑区的属性 */
 const PAGE_SKIP = /^(width|height|min-height|max-width|margin.*|padding.*|position|overflow.*|-webkit-text-size-adjust|-ms-text-size-adjust|fill)$/
 
-/** Typora 基础样式中代码块的默认外观（主题常依赖它） */
-const BASE_CSS = `${DOC_SCOPE} .md-fences { padding: 8px 12px; border-radius: 3px; background: var(--surface-muted); }`
+/**
+ * Typora 基础样式中主题常依赖的部分：
+ * - 写作区与列表、列表项是定位容器，主题用绝对定位的 ::before 画背景纹理、列表引导线等；
+ *   缺少时会相对编辑区外层定位，例如列表引导线变成编辑区左侧一整条线
+ * - 代码块的默认外观
+ */
+const BASE_CSS = [
+  `${DOC_SCOPE} { position: relative; }`,
+  `${DOC_SCOPE} ol, ${DOC_SCOPE} ul, ${DOC_SCOPE} li { position: relative; }`,
+  `${DOC_SCOPE} .md-fences { padding: 8px 12px; border-radius: 3px; background: var(--surface-muted); }`
+].join('\n')
 /** 主题规则之后的修正：代码块内的 pre / code 不再套用行内代码与 pre 的样式 */
 const AFTER_CSS = [
   `${DOC_SCOPE} .md-fences > pre { background: transparent; margin: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none; }`,

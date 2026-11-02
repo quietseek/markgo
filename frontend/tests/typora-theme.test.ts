@@ -69,6 +69,16 @@ describe('compileTyporaTheme', () => {
     expect(css).toContain(`${DOC} .md-fences .hljs-string { color: #D26B6B }`)
     expect(css).toContain('@font-face { font-family: X;')
   })
+  it('列表项与写作区是定位容器，主题绝对定位的 ::before 不会跑到编辑区外层（phycat 列表引导线）', () => {
+    const r = compileTyporaTheme(
+      '#write { position: relative; z-index: 0 } #write li:before { content: ""; position: absolute; left: -12.5px; border-left: .5px solid red }'
+    )
+    expect(r.css).toContain(`${DOC} { position: relative; }`)
+    expect(r.css).toContain(`${DOC} li { position: relative; }`)
+    expect(r.css).toContain(`${DOC} li:before {`)
+    // 基础样式在主题规则之前，主题仍可覆盖
+    expect(r.css.indexOf(`${DOC} li { position: relative; }`)).toBeLessThan(r.css.indexOf(`${DOC} li:before`))
+  })
   it('浅色主题没有变量时由 body 推导', () => {
     const r = compileTyporaTheme('body { background: #fffdf8; color: rgb(51, 51, 51) }')
     expect(r.dark).toBe(false)
