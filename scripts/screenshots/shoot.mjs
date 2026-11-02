@@ -2,9 +2,9 @@
 // usage: cd frontend && npm run screenshots [-- <名称过滤>]
 //   例：npm run screenshots -- themes/   只重拍主题画廊
 // 需要本机安装 Chrome / Chromium；路径可用 CHROME_PATH 指定。截图中的中文字体取决于本机字体。
-import { existsSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -54,6 +54,14 @@ const server = await createServer({
     {
       name: 'markgo-screenshots',
       configureServer(s) {
+        // 示例笔记中的本地图片（/mg-asset/<绝对路径>）按文件名从 assets/ 提供
+        s.middlewares.use((rq, res, next) => {
+          if (!rq.url?.startsWith('/mg-asset/')) return next()
+          const file = join(here, 'assets', basename(decodeURIComponent(rq.url.slice('/mg-asset/'.length).split('?')[0])))
+          if (!existsSync(file)) return next()
+          res.setHeader('Content-Type', file.endsWith('.svg') ? 'image/svg+xml' : 'application/octet-stream')
+          res.end(readFileSync(file))
+        })
         s.middlewares.use(async (rq, res, next) => {
           if (!rq.url?.startsWith(PAGE)) return next()
           res.setHeader('Content-Type', 'text/html; charset=utf-8')
@@ -79,7 +87,7 @@ const SHOTS = [
   { name: 'math', query: `doc=${encodeURIComponent('笔记/常用公式.md')}&editorTheme=default`, ...APP, wait: 4000 },
   ...themeList.map((t) => ({
     name: `themes/${t.key}`,
-    query: `theme=${t.key}&nosidebar&width=standard`,
+    query: `theme=${t.key}&nosidebar&width=default`,
     width: 1000,
     height: 680,
     scale: 1.6,

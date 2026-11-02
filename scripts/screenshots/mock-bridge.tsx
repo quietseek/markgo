@@ -21,10 +21,8 @@ let settings: AppSettings = {
   showAgent: q.has('agent'),
   showSidebar: !q.has('nosidebar'),
   editorWidth: (q.get('width') as AppSettings['editorWidth']) ?? defaultSettings.editorWidth,
-  windowControls: 'traffic',
   // 启动 5 秒后的更新检查会弹出提示，截图时关闭
-  autoCheckUpdate: false,
-  trafficPosition: 'left'
+  autoCheckUpdate: false
 }
 
 function tree(): FileNode[] {

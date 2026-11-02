@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 90 1200 350" width="1200" height="350">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f6e7d3"/>
+      <stop offset="1" stop-color="#efc9a4"/>
+    </linearGradient>
+    <linearGradient id="hill1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d98b62"/>
+      <stop offset="1" stop-color="#c46f4a"/>
+    </linearGradient>
+    <linearGradient id="hill2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8c5a45"/>
+      <stop offset="1" stop-color="#6e4334"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="440" fill="url(#sky)"/>
+  <circle cx="860" cy="190" r="78" fill="#fbf3e6" opacity="0.9"/>
+  <circle cx="860" cy="190" r="120" fill="#fbf3e6" opacity="0.25"/>
+  <g fill="#fff8ee" opacity="0.7">
+    <ellipse cx="260" cy="110" rx="90" ry="16"/>
+    <ellipse cx="320" cy="96" rx="60" ry="14"/>
+    <ellipse cx="1020" cy="80" rx="70" ry="12"/>
+  </g>
+  <path d="M0 300 C 160 220, 320 250, 480 280 S 820 220, 1000 260 S 1150 250, 1200 240 L1200 440 L0 440 Z" fill="url(#hill1)" opacity="0.85"/>
+  <path d="M0 350 C 200 300, 380 340, 560 330 S 900 290, 1200 330 L1200 440 L0 440 Z" fill="url(#hill2)"/>
+  <!-- 书桌上的笔记本与钢笔 -->
+  <g transform="translate(150 330)">
+    <rect x="0" y="0" width="260" height="70" rx="6" fill="#fbf6ee" stroke="#5a3a2c" stroke-width="3"/>
+    <line x1="130" y1="0" x2="130" y2="70" stroke="#5a3a2c" stroke-width="3"/>
+    <g stroke="#c9a68f" stroke-width="3" stroke-linecap="round">
+      <line x1="18" y1="20" x2="110" y2="20"/><line x1="18" y1="36" x2="96" y2="36"/><line x1="18" y1="52" x2="104" y2="52"/>
+      <line x1="150" y1="20" x2="240" y2="20"/><line x1="150" y1="36" x2="220" y2="36"/>
+    </g>
+    <rect x="200" y="44" width="110" height="9" rx="4.5" transform="rotate(-18 200 44)" fill="#3d2a22"/>
+  </g>
+  <!-- 茶杯 -->
+  <g transform="translate(470 352)">
+    <path d="M0 0 h56 v26 a28 22 0 0 1 -56 0 Z" fill="#fbf6ee" stroke="#5a3a2c" stroke-width="3"/>
+    <path d="M56 8 a12 11 0 0 1 0 22" fill="none" stroke="#5a3a2c" stroke-width="3"/>
+    <path d="M16 -10 c -8 -12, 8 -18, 0 -30 M34 -10 c -8 -12, 8 -18, 0 -30" fill="none" stroke="#fbf6ee" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+  </g>
+</svg>
