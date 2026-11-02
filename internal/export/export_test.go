@@ -1,6 +1,8 @@
 package export
 
 import (
+	"os"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -72,5 +74,39 @@ func TestPaperSizes(t *testing.T) {
 	args, _ = Args(pdf, Options{PdfEngine: "xelatex", PaperSize: "bogus"}, "x", "", "/o.pdf", "", "3.1")
 	if !slices.Contains(args, "papersize=a4") {
 		t.Fatal(args)
+	}
+}
+
+func TestMissingTeXPackage(t *testing.T) {
+	msg := "Error producing PDF.\n! LaTeX Error: File `xeCJK.sty' not found.\n\nType X to quit"
+	if f, p := missingTeXPackage(msg); f != "xeCJK.sty" || p != "xecjk" {
+		t.Fatalf("%s %s", f, p)
+	}
+	if _, p := missingTeXPackage("! LaTeX Error: File `lmodern.sty' not found."); p != "lm" {
+		t.Fatal(p)
+	}
+	if f, _ := missingTeXPackage("other error"); f != "" {
+		t.Fatal(f)
+	}
+}
+
+func TestIsMiKTeX(t *testing.T) {
+	// t.TempDir() 的路径含测试名（MiKTeX），这里另建目录
+	dir, err := os.MkdirTemp("", "tex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	if isMiKTeX(dir + "/xelatex") {
+		t.Fatal("plain path detected as MiKTeX")
+	}
+	if !isMiKTeX(`C:\Users\a\AppData\Local\Programs\MiKTeX\miktex\bin\x64\xelatex.exe`) && runtime.GOOS == "windows" {
+		t.Fatal("MiKTeX path not detected")
+	}
+	if err := os.WriteFile(dir+"/initexmf", nil, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if !isMiKTeX(dir + "/xelatex") {
+		t.Fatal("engine next to initexmf not detected")
 	}
 }

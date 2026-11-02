@@ -25,8 +25,8 @@ const INSTALL_GUIDE: Record<OS, { label: string; methods: { title: string; desc?
       { title: 'Chocolatey', cmd: 'choco install pandoc' },
       { title: 'Conda', cmd: 'conda install -c conda-forge pandoc' }
     ],
-    pdf: '导出 PDF 还需要 LaTeX，推荐 MiKTeX（https://miktex.org）',
-    pdfCmd: 'winget install -e --id MiKTeX.MiKTeX'
+    pdf: '导出 PDF 还需要 LaTeX，推荐 MiKTeX（https://miktex.org），并在 MiKTeX Console 中把缺失宏包设为自动安装',
+    pdfCmd: 'winget install -e --id MiKTeX.MiKTeX && initexmf --set-config-value=[MPM]AutoInstall=1'
   },
   mac: {
     label: 'macOS',
@@ -36,8 +36,8 @@ const INSTALL_GUIDE: Record<OS, { label: string; methods: { title: string; desc?
       { title: 'MacPorts', cmd: 'port install pandoc' },
       { title: 'Conda', cmd: 'conda install -c conda-forge pandoc' }
     ],
-    pdf: '导出 PDF 还需要 LaTeX，推荐 BasicTeX（完整的 MacTeX 约 4 GB）',
-    pdfCmd: 'brew install librsvg python homebrew/cask/basictex'
+    pdf: '导出 PDF 还需要 LaTeX，推荐 BasicTeX（完整的 MacTeX 约 4 GB），安装后需用 tlmgr 补装宏包',
+    pdfCmd: 'brew install librsvg python homebrew/cask/basictex && sudo /Library/TeX/texbin/tlmgr update --self && sudo /Library/TeX/texbin/tlmgr install xecjk unicode-math upquote microtype parskip xurl bookmark footnotehyper soul framed fancyvrb booktabs multirow setspace selnolig lua-ul luacolor fontspec etoolbox csquotes caption float'
   },
   linux: {
     label: 'Linux',
@@ -46,8 +46,8 @@ const INSTALL_GUIDE: Record<OS, { label: string; methods: { title: string; desc?
       { title: 'deb 安装包（推荐，版本最新）', desc: '从发布页下载 pandoc-x.y-1-amd64.deb 后执行', cmd: 'sudo dpkg -i pandoc-*-amd64.deb', url: RELEASES_URL },
       { title: 'Conda', cmd: 'conda install -c conda-forge pandoc' }
     ],
-    pdf: '导出 PDF 还需要 LaTeX，推荐通过软件源安装 TeX Live（中文文档另需 texlive-xetex texlive-lang-chinese）',
-    pdfCmd: 'sudo apt-get install texlive'
+    pdf: '导出 PDF 还需要 LaTeX，推荐通过软件源安装 TeX Live 及中文支持',
+    pdfCmd: 'sudo apt-get install texlive-xetex texlive-latex-extra texlive-lang-chinese lmodern fonts-noto-cjk'
   }
 }
 

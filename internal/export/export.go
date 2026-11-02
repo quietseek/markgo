@@ -330,6 +330,10 @@ func Args(f Format, o Options, markdown, docDir, outPath, title, version string)
 			}
 		}
 		args = append(args, "--pdf-engine="+engine)
+		// MiKTeX 默认对每个缺失的宏包都弹窗询问，导出时改为自动安装
+		if slices.Contains(latexEngines, engine) && isMiKTeX(engine) {
+			args = append(args, "--pdf-engine-opt=--enable-installer")
+		}
 		paper, ok := PaperSizes[o.PaperSize]
 		if !ok {
 			paper = PaperSizes["a4"]
@@ -414,6 +418,72 @@ func Args(f Format, o Options, markdown, docDir, outPath, title, version string)
 	return args, nil
 }
 
+// isMiKTeX 判断 LaTeX 引擎是否来自 MiKTeX（engine 为程序名或路径）
+func isMiKTeX(engine string) bool {
+	p := engine
+	if !filepath.IsAbs(p) {
+		p = lookPath(engine)
+	}
+	if p == "" {
+		return false
+	}
+	if r, err := filepath.EvalSymlinks(p); err == nil {
+		p = r
+	}
+	if strings.Contains(strings.ToLower(p), "miktex") {
+		return true
+	}
+	// MiKTeX 的引擎与 initexmf 在同一目录
+	for _, name := range []string{"initexmf", "initexmf.exe"} {
+		if _, err := os.Stat(filepath.Join(filepath.Dir(p), name)); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
+var missingFileRe = regexp.MustCompile("File `([^']+\\.(?:sty|cls|def|fd|cfg))' not found")
+
+// 文件名与 TeX Live 包名不同的常见宏包
+var texPackages = map[string]string{
+	"lmodern": "lm", "amssymb": "amsfonts", "graphicx": "graphics", "color": "graphics",
+	"longtable": "tools", "array": "tools", "calc": "tools", "luatexja-fontspec": "luatexja",
+	"luatexja-preset": "luatexja", "ctexhook": "ctex",
+}
+
+// missingTeXPackage 从 LaTeX 报错中找出缺失的文件及对应的包名
+func missingTeXPackage(msg string) (file, pkg string) {
+	m := missingFileRe.FindStringSubmatch(msg)
+	if m == nil {
+		return "", ""
+	}
+	file = m[1]
+	base := strings.TrimSuffix(file, filepath.Ext(file))
+	if p, ok := texPackages[base]; ok {
+		return file, p
+	}
+	return file, strings.ToLower(base)
+}
+
+// missingHint 缺少宏包时给出安装方法
+func missingHint(engine, msg string) string {
+	file, pkg := missingTeXPackage(msg)
+	if file == "" {
+		return ""
+	}
+	hint := fmt.Sprintf("缺少 LaTeX 宏包 %s（%s）。", pkg, file)
+	switch {
+	case isMiKTeX(engine):
+		return hint + "请打开 MiKTeX Console，在「设置」中把「自动安装缺失的宏包」设为「始终」，或在「宏包」中安装 " + pkg
+	case runtime.GOOS == "linux" && strings.HasPrefix(lookPath("tlmgr"), "/usr/"), runtime.GOOS == "linux" && lookPath("tlmgr") == "":
+		return hint + "请执行：sudo apt-get install " + strings.Join(linuxTeXPackages, " ")
+	case runtime.GOOS == "darwin":
+		return hint + "请在终端执行：sudo tlmgr update --self && sudo tlmgr install " + strings.Join(texLivePackages, " ")
+	default:
+		return hint + "请执行：tlmgr install " + pkg
+	}
+}
+
 var titleRe = regexp.MustCompile(`(?m)^title\s*:`)
 
 // hasTitle 判断 YAML front matter 中是否设置了 title
@@ -451,6 +521,15 @@ func Run(ctx context.Context, pandoc string, args []string, markdown, docDir str
 		const limit = 1500
 		if len(msg) > limit {
 			msg = msg[:limit] + "…"
+		}
+		engine := ""
+		for _, a := range args {
+			if v, ok := strings.CutPrefix(a, "--pdf-engine="); ok {
+				engine = v
+			}
+		}
+		if hint := missingHint(engine, msg); hint != "" && engine != "" {
+			msg = hint + "\n\n" + msg
 		}
 		return fmt.Errorf("Pandoc 导出失败：%s", msg)
 	}
