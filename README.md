@@ -8,7 +8,8 @@
 🌐 <a href="https://quietseek.github.io/markgo/">主页</a> | 🇨🇳 <a href="./README.md">简体中文</a> | 🇺🇸 <a href="./README.en.md">English</a>
 </p>
 
-MarkGo 是一款面向内容创作者的桌面端 Markdown 写作与笔记应用。**小**，是指它足够轻：基于 [Wails 3](https://v3.wails.io)（Go + 系统 WebView）构建，不捆绑浏览器内核与 Node.js，笔记就是本地文件夹里的 `.md` 文件，无需账号、不依赖云端；**美**，是指写出来的东西好看：15 种排版主题直接作用于编辑区，所见即所得，写完即可复制排版内容或一键发布。
+<img width="1280" height="764" alt="设置页" src="https://github.com/user-attachments/assets/98f40857-8108-4153-9ab4-ee1597a531c7" />
+
 
 ## 为什么是小而美
 
@@ -335,6 +336,4 @@ GitHub Actions 会在每次推送时执行类型检查与测试。推送 `v*` �
 
 ## 许可与致谢
 
-本项目基于 [MIT License](LICENSE) 发布。
-
-排版主题及公众号兼容处理移植自 [MarkNice](https://github.com/willmove/marknice)，© 2026 Willmove，遵循 MIT License。
+本项目基于 [MIT License](LICENSE) 发布。排版主题及公众号兼容处理移植自 [MarkNice](https://github.com/willmove/marknice)。感谢 [LINUX DO](https://linux.do/) 社区提供交流与开源推广平台。
