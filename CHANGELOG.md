@@ -4,6 +4,22 @@
 
 介绍页顶部的「新版本」提示取自版本小节里的 `<!-- 亮点：... -->`（在 GitHub Release 中不显示），没有写就截取第一条说明的开头。
 
+## v0.5.12
+
+### 修复问题
+
+- 修复点击底部状态栏「原生样式」时排版主题菜单不可见的问题；字号与段距菜单也可正常向上展开。
+
+### 下载地址
+
+| 系统 | 安装包 |
+| --- | --- |
+| macOS（Apple 芯片与 Intel 通用） | [MarkGo-0.5.12-mac-universal.dmg](https://github.com/quietseek/markgo/releases/download/v0.5.12/MarkGo-0.5.12-mac-universal.dmg) |
+| Windows 10 / 11 | [MarkGo-0.5.12-win-x64-setup.exe](https://github.com/quietseek/markgo/releases/download/v0.5.12/MarkGo-0.5.12-win-x64-setup.exe) |
+| Linux（Debian / Ubuntu） | [MarkGo-0.5.12-linux-amd64.deb](https://github.com/quietseek/markgo/releases/download/v0.5.12/MarkGo-0.5.12-linux-amd64.deb) |
+
+> Windows 需要 WebView2 运行时（系统通常已自带，安装程序会自动补装）；Linux 需要 GTK 4 与 WebKitGTK 6.0（Ubuntu 24.04+ / Debian 13+）。
+
 ## v0.5.11
 
 <!-- 亮点：默认设置更贴近写作习惯：铺满宽度、14 号字、宽松间距 -->

@@ -1211,7 +1211,9 @@ textarea {
   color: var(--text-muted);
   border-top: 1px solid var(--border);
   white-space: nowrap;
-  overflow: hidden;
+  /* 窄窗口裁掉横向溢出，排版菜单仍可向上展开 */
+  overflow-x: clip;
+  overflow-y: visible;
 }
 /* 编辑区较窄（如打开 AI 面板）时不换行、不压缩，只让保存状态以省略号收缩 */
 .statusbar > * {
