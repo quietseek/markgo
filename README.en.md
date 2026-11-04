@@ -8,7 +8,7 @@
 🌐 <a href="https://quietseek.github.io/markgo/">Website</a> | 🇨🇳 <a href="./README.md">简体中文</a> | 🇺🇸 <a href="./README.en.md">English</a>
 </p>
 
-MarkGo is a desktop Markdown writing and note-taking app for content creators. It is **small**: built with [Wails 3](https://v3.wails.io) (Go + the system WebView), it bundles neither a browser engine nor Node.js, and your notes are plain `.md` files in a local folder, with no account and no cloud required. It is **beautiful**: 15 layout themes apply directly in the editor, so what you see is what you publish, and you can copy the styled result or publish it in one click as soon as you finish writing.
+<img width="1280" height="764" alt="设置页" src="https://github.com/user-attachments/assets/98f40857-8108-4153-9ab4-ee1597a531c7" />
 
 > [!NOTE]
 > MarkGo's interface is currently available in Simplified Chinese only. UI labels below are quoted in Chinese with an English gloss, e.g. 「设置」(Settings).
@@ -338,6 +338,4 @@ Bug reports and suggestions are welcome via [Issues](https://github.com/quietsee
 
 ## License and Acknowledgments
 
-This project is released under the [MIT License](LICENSE).
-
-The layout themes and WeChat compatibility handling are ported from [MarkNice](https://github.com/willmove/marknice), © 2026 Willmove, under the MIT License.
+This project is released under the [MIT License](LICENSE). The layout themes and WeChat compatibility handling are ported from [MarkNice](https://github.com/willmove/marknice).Thank you to the [LINUX DO](https://linux.do/)  community for providing a platform for communication and open source promotion
