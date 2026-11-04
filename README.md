@@ -8,7 +8,7 @@
 🌐 <a href="https://quietseek.github.io/markgo/">主页</a> | 🇨🇳 <a href="./README.md">简体中文</a> | 🇺🇸 <a href="./README.en.md">English</a>
 </p>
 
-<img width="1280" height="764" alt="设置页" src="https://github.com/user-attachments/assets/98f40857-8108-4153-9ab4-ee1597a531c7" />
+<img width="1280" height="763" alt="PixPin_2026-11-04_18-26-18" src="https://github.com/user-attachments/assets/f4e34506-5380-4919-9b8d-2ca83fad6066" />
 
 
 ## 为什么是小而美
@@ -27,20 +27,6 @@
 - **AI 改动可审阅**：Agent 的每处修改都以段落级 + 词级差异呈现，逐处接受或拒绝后才会生效。
 - **安静地写**：专注模式、打字机模式、三档编辑区宽度，以及与 Typora 一致的段落快捷键。
 
-## 目录
-
-- [功能概览](#功能概览)
-- [安装](#安装)
-- [快速上手](#快速上手)
-- [AI 写作](#ai-写作)
-- [图床配置](#图床配置)
-- [发布](#发布)
-- [数学公式](#数学公式)
-- [键盘快捷键](#键盘快捷键)
-- [开发指南](#开发指南)
-- [版本发布](#版本发布)
-- [参与贡献](#参与贡献)
-- [许可与致谢](#许可与致谢)
 
 ## 功能概览
 
@@ -211,33 +197,6 @@ stable_token
 - 点击公式即可编辑 LaTeX 源码，实时预览，也可以用自然语言让 AI 生成。
 - 复制排版内容或发布时，公式会转换为 SVG，目标平台无需支持 LaTeX。
 
-## 键盘快捷键
-
-macOS 使用 `⌘`，Windows 与 Linux 对应 `Ctrl`。完整列表见「帮助 → 键盘快捷键」。段落类快捷键与 Typora 一致。
-
-| 操作 | macOS | Windows / Linux |
-| --- | --- | --- |
-| 标题 1–6 / 正文 | `⌘1`–`⌘6` / `⌘0` | `Ctrl+1`–`Ctrl+6` / `Ctrl+0` |
-| 代码块 | `⌘⌥C` | `Ctrl+Shift+K` |
-| 公式块 | `⌘⌥B` | `Ctrl+Shift+M` |
-| 表格 | `⌘⌥T` | `Ctrl+T` |
-| 有序 / 无序列表 | `⌘⌥O` / `⌘⌥U` | `Ctrl+Shift+[` / `Ctrl+Shift+]` |
-| 引用 | `⌘⌥Q` | `Ctrl+Shift+Q` |
-| 查找 / 替换 | `⌘F` / `⌘⌥F` | `Ctrl+F` / `Ctrl+H` |
-
-| 操作 | 快捷键 |
-| --- | --- |
-| 新建笔记 | `⌘N` |
-| 打开文件 / 打开文件夹 | `⌘O` / `⌘⇧O` |
-| 保存 / 另存为 | `⌘S` / `⌘⇧S` |
-| 设置 | `⌘,` |
-| 切换侧边栏 | `⌘\` |
-| 切换源码模式 | `⌘/` |
-| 专注模式 | `⌘⇧F` |
-| AI 助手 | `⌘J` |
-| 复制排版内容 | `⌘⇧C` |
-| 发布 | `⌘⇧E` |
-
 ## 开发指南
 
 ### 环境要求
@@ -336,4 +295,8 @@ GitHub Actions 会在每次推送时执行类型检查与测试。推送 `v*` �
 
 ## 许可与致谢
 
-本项目基于 [MIT License](LICENSE) 发布。排版主题及公众号兼容处理移植自 [MarkNice](https://github.com/willmove/marknice)。感谢 [LINUX DO](https://linux.do/) 社区提供交流与开源推广平台。
+本项目基于 [MIT License](LICENSE) 发布。
+
+排版主题及公众号兼容处理移植自 [MarkNice](https://github.com/willmove/marknice)。
+
+感谢 [LINUX DO](https://linux.do/) 社区提供交流与开源推广平台。
