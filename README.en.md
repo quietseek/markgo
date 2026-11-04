@@ -8,7 +8,7 @@
 🌐 <a href="https://quietseek.github.io/markgo/">Website</a> | 🇨🇳 <a href="./README.md">简体中文</a> | 🇺🇸 <a href="./README.en.md">English</a>
 </p>
 
-<img width="1280" height="764" alt="设置页" src="https://github.com/user-attachments/assets/98f40857-8108-4153-9ab4-ee1597a531c7" />
+<img width="1280" height="763" alt="PixPin_2026-11-04_18-26-18" src="https://github.com/user-attachments/assets/f4e34506-5380-4919-9b8d-2ca83fad6066" />
 
 > [!NOTE]
 > MarkGo's interface is currently available in Simplified Chinese only. UI labels below are quoted in Chinese with an English gloss, e.g. 「设置」(Settings).
@@ -38,7 +38,6 @@
 - [Image Hosting](#image-hosting)
 - [Publishing](#publishing)
 - [Math](#math)
-- [Keyboard Shortcuts](#keyboard-shortcuts)
 - [Development](#development)
 - [Releasing](#releasing)
 - [Contributing](#contributing)
@@ -213,33 +212,6 @@ By default, a level-1 heading identical to the title is removed from the body.
 - Click a formula to edit its LaTeX with a live preview, or let AI generate it from natural language.
 - When copying styled content or publishing, formulas are converted to SVG, so the target platform does not need LaTeX support.
 
-## Keyboard Shortcuts
-
-macOS uses `⌘`; Windows and Linux use `Ctrl` instead. See 「帮助 → 键盘快捷键」(Help → Keyboard Shortcuts) for the full list. Paragraph shortcuts match Typora.
-
-| Action | macOS | Windows / Linux |
-| --- | --- | --- |
-| Heading 1–6 / Paragraph | `⌘1`–`⌘6` / `⌘0` | `Ctrl+1`–`Ctrl+6` / `Ctrl+0` |
-| Code block | `⌘⌥C` | `Ctrl+Shift+K` |
-| Math block | `⌘⌥B` | `Ctrl+Shift+M` |
-| Table | `⌘⌥T` | `Ctrl+T` |
-| Ordered / bulleted list | `⌘⌥O` / `⌘⌥U` | `Ctrl+Shift+[` / `Ctrl+Shift+]` |
-| Blockquote | `⌘⌥Q` | `Ctrl+Shift+Q` |
-| Find / Replace | `⌘F` / `⌘⌥F` | `Ctrl+F` / `Ctrl+H` |
-
-| Action | Shortcut |
-| --- | --- |
-| New note | `⌘N` |
-| Open file / Open folder | `⌘O` / `⌘⇧O` |
-| Save / Save as | `⌘S` / `⌘⇧S` |
-| Settings | `⌘,` |
-| Toggle sidebar | `⌘\` |
-| Toggle source mode | `⌘/` |
-| Focus mode | `⌘⇧F` |
-| AI assistant | `⌘J` |
-| Copy styled content | `⌘⇧C` |
-| Publish | `⌘⇧E` |
-
 ## Development
 
 ### Requirements
@@ -338,4 +310,8 @@ Bug reports and suggestions are welcome via [Issues](https://github.com/quietsee
 
 ## License and Acknowledgments
 
-This project is released under the [MIT License](LICENSE). The layout themes and WeChat compatibility handling are ported from [MarkNice](https://github.com/willmove/marknice).Thank you to the [LINUX DO](https://linux.do/)  community for providing a platform for communication and open source promotion
+This project is released under the [MIT License](LICENSE). 
+
+The layout themes and WeChat compatibility handling are ported from [MarkNice](https://github.com/willmove/marknice).
+
+Thank you to the [LINUX DO](https://linux.do/)  community for providing a platform for communication and open source promotion
