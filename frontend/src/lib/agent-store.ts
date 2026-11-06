@@ -159,12 +159,14 @@ function finishTurn(error?: string) {
 }
 
 export function addUserMessage(text: string, selection?: string) {
+  // 正常事件流会复用这个占位条目，必须在创建时标记初稿，供编辑区提取正文。
+  const draft = state.writing?.phase === 'drafting' ? (state.writing.title ?? '') : undefined
   set({
     running: true,
     items: [
       ...state.items,
       { id: ++seq, kind: 'user', text, selection },
-      { id: ++seq, kind: 'agent', text: '', thought: '', tools: [], plan: [], running: true }
+      { id: ++seq, kind: 'agent', text: '', thought: '', tools: [], plan: [], running: true, draft }
     ]
   })
 }
