@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -41,18 +42,35 @@ type Bridge struct {
 	quitting atomic.Bool
 	relaunch atomic.Bool
 	// 自动更新进行中
-	updating  atomic.Bool
-	trayMu    sync.Mutex
-	tray      *application.SystemTray
-	openMu    sync.Mutex
-	pending   string // 前端就绪前收到的待打开文件（双击 / 拖到图标 / 命令行），由前端启动时取走
-	ready     bool
-	activeDoc atomic.Value // string
+	updating      atomic.Bool
+	trayMu        sync.Mutex
+	tray          *application.SystemTray
+	openMu        sync.Mutex
+	pending       string // 前端就绪前收到的待打开文件（双击 / 拖到图标 / 命令行），由前端启动时取走
+	ready         bool
+	activeDoc     atomic.Value // string
+	owner         *Bridge
+	windowsMu     sync.Mutex
+	windows       map[uint]*Bridge
+	focused       *Bridge
+	routeMu       sync.Mutex
+	settingsMu    sync.Mutex
+	workspace     string // guarded by openMu; window-local, unlike persisted last-used defaults
+	lastFile      string
+	document      string // claimed by this window while loading/editing
+	scratch       string
+	fresh         bool
+	allowClose    atomic.Bool
+	quitPending   map[uint]bool
+	quitCancelled bool
 }
 
 func newBridge(store *settings.Store) *Bridge {
 	b := &Bridge{store: store}
 	cfg := store.Get()
+	b.owner = b
+	b.windows = make(map[uint]*Bridge)
+	b.workspace, b.lastFile = cfg.LastWorkspace, cfg.LastFile
 	b.nativeControls = nativeControlsFor(&cfg)
 	b.activeDoc.Store("")
 	b.uploader = &images.Uploader{Config: func() images.Config {
@@ -61,7 +79,7 @@ func newBridge(store *settings.Store) *Bridge {
 	}}
 	b.wechat = &wechat.Client{Config: func() settings.WechatConfig { return store.Get().Wechat }}
 	b.acp = acp.NewManager(acp.Host{
-		Emit: func(e acp.Event) { b.emit("ai:event", e) },
+		Emit: func(e acp.Event) { emitTo(b.window, "ai:event", e) },
 		Profile: func() *settings.AgentProfile {
 			s := store.Get()
 			return s.ActiveAgent()
@@ -100,7 +118,7 @@ func dirExists(p string) bool {
 
 // Agent 会话的工作目录：笔记库 > 当前文档目录 > 用户目录
 func (b *Bridge) agentCwd() string {
-	if ws := b.store.Get().LastWorkspace; ws != "" && dirExists(ws) {
+	if ws := b.sessionSettings().LastWorkspace; ws != "" && dirExists(ws) {
 		return ws
 	}
 	if doc, _ := b.activeDoc.Load().(string); doc != "" && dirExists(filepath.Dir(doc)) {
@@ -123,7 +141,7 @@ func (b *Bridge) createWindow() {
 		hidden = application.ButtonHidden
 	}
 	w := b.app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Name:      "main",
+		Name:      "editor-" + windowToken(),
 		Title:     appName,
 		Width:     1320,
 		Height:    860,
@@ -145,18 +163,16 @@ func (b *Bridge) createWindow() {
 	w.OnWindowEvent(events.Common.WindowMaximise, func(*application.WindowEvent) { emitTo(w, "window:maximized", true) })
 	w.OnWindowEvent(events.Common.WindowUnMaximise, func(*application.WindowEvent) { emitTo(w, "window:maximized", false) })
 	b.window = w
+	b.owner.windowsMu.Lock()
+	b.owner.windows[w.ID()] = b
+	b.owner.focused = b
+	b.owner.windowsMu.Unlock()
 	w.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
-		if b.quitting.Load() {
-			return
-		}
-		if b.store.Get().CloseAction != "background" {
-			// 窗口关闭即退出应用（应用选项中关闭了「最后一个窗口关闭时退出」，由这里统一处理）
-			b.quitting.Store(true)
-			go b.app.Quit()
+		if b.owner.quitting.Load() || b.allowClose.Load() {
 			return
 		}
 		e.Cancel()
-		w.Hide()
+		emitTo(w, "window:close-request", nil)
 	})
 }
 
@@ -173,27 +189,38 @@ func (b *Bridge) showWindow() {
 
 func (b *Bridge) Platform() string { return runtime.GOOS }
 
-func (b *Bridge) NativeControls() bool { return b.nativeControls }
+func (b *Bridge) NativeControls(ctx context.Context) bool {
+	b = b.session(ctx)
+	return b.nativeControls
+}
 
-func (b *Bridge) SetDark(dark bool) {
+func (b *Bridge) SetDark(ctx context.Context, dark bool) {
+	b = b.session(ctx)
+
 	if b.window != nil {
 		b.window.SetBackgroundColour(map[bool]application.RGBA{true: darkBg, false: lightBg}[dark])
 	}
 }
 
-func (b *Bridge) Minimize() {
+func (b *Bridge) Minimize(ctx context.Context) {
+	b = b.session(ctx)
+
 	if b.window != nil {
 		b.window.Minimise()
 	}
 }
 
-func (b *Bridge) ToggleMaximize() {
+func (b *Bridge) ToggleMaximize(ctx context.Context) {
+	b = b.session(ctx)
+
 	if b.window != nil {
 		b.window.ToggleMaximise()
 	}
 }
 
-func (b *Bridge) CloseWindow() {
+func (b *Bridge) CloseWindow(ctx context.Context) {
+	b = b.session(ctx)
+
 	if b.window != nil {
 		b.window.Close()
 	}
@@ -206,7 +233,7 @@ func (b *Bridge) promptRelaunch() {
 	}
 	restart := dialog.AddButton("立即重启")
 	restart.OnClick(func() {
-		b.relaunch.Store(true)
+		b.owner.relaunch.Store(true)
 		b.app.Quit()
 	})
 	dialog.SetDefaultButton(restart)
@@ -222,7 +249,9 @@ func (b *Bridge) relaunchIfRequested() {
 
 func (b *Bridge) shutdown() {
 	b.quitting.Store(true)
-	b.acp.Dispose()
+	for _, session := range b.sessions() {
+		session.acp.Dispose()
+	}
 }
 
 // ---------- 打开文件 ----------
@@ -242,23 +271,29 @@ func (b *Bridge) openPath(file string) {
 
 func (b *Bridge) onSecondInstance(args []string, cwd string) {
 	if p := noteFromArgs(args, cwd); p != "" {
-		b.openPath(p)
+		b.openExternal(p)
+		return
 	}
-	b.showWindow()
+	b.activeSession().showWindow()
 }
 
 // PageLoading 前端（重新）加载时调用：在前端取走待打开文件之前，新的打开请求先排队
-func (b *Bridge) PageLoading() {
+func (b *Bridge) PageLoading(ctx context.Context) {
+	b = b.session(ctx)
+
 	b.openMu.Lock()
 	b.ready = false
 	b.openMu.Unlock()
 }
 
 // TakeOpenPath 前端启动时取走待打开的文件
-func (b *Bridge) TakeOpenPath() *string {
+func (b *Bridge) TakeOpenPath(ctx context.Context) *string {
+	b = b.session(ctx)
+
 	b.openMu.Lock()
 	defer b.openMu.Unlock()
 	b.ready = true
+	b.fresh = false
 	p := b.pending
 	b.pending = ""
 	if p == "" {
@@ -269,9 +304,14 @@ func (b *Bridge) TakeOpenPath() *string {
 
 // ---------- 设置 ----------
 
-func (b *Bridge) GetSettings() settings.AppSettings { return b.store.Get() }
+func (b *Bridge) GetSettings(ctx context.Context) settings.AppSettings {
+	return b.session(ctx).sessionSettings()
+}
 
-func (b *Bridge) SetSettings(patch map[string]json.RawMessage) (settings.AppSettings, error) {
+func (b *Bridge) SetSettings(ctx context.Context, patch map[string]json.RawMessage) (settings.AppSettings, error) {
+	b = b.session(ctx)
+	b.owner.settingsMu.Lock()
+	defer b.owner.settingsMu.Unlock()
 	launchKey := func(s settings.AppSettings) string {
 		if a := s.ActiveAgent(); a != nil {
 			return a.ID + "\n" + a.Command
@@ -284,18 +324,36 @@ func (b *Bridge) SetSettings(patch map[string]json.RawMessage) (settings.AppSett
 		return next, err
 	}
 	// 当前 Agent 或其启动命令变化后断开，下次提问时按新配置启动
-	if _, ok := patch["ai"]; ok && launchKey(prev) != launchKey(next) && b.acp.Status() != acp.StatusIdle {
-		b.acp.Stop()
+	if _, ok := patch["ai"]; ok && launchKey(prev) != launchKey(next) {
+		for _, session := range b.sessions() {
+			if session.acp.Status() != acp.StatusIdle {
+				session.acp.Stop()
+			}
+		}
 	}
+	b.openMu.Lock()
+	if _, ok := patch["lastWorkspace"]; ok {
+		b.workspace = next.LastWorkspace
+	}
+	if _, ok := patch["lastFile"]; ok {
+		b.lastFile = next.LastFile
+	}
+	b.openMu.Unlock()
 	_, trayChanged := patch["trayMenu"]
 	_, recentChanged := patch["recentWorkspaces"]
 	if trayChanged || recentChanged {
-		b.refreshTrayMenu()
+		b.owner.refreshTrayMenu()
 	}
 	if nextNative := nativeControlsFor(&next); nextNative != nativeControlsFor(&prev) && nextNative != b.nativeControls {
 		b.promptRelaunch()
 	}
-	return next, nil
+	for k := range patch {
+		if k != "lastWorkspace" && k != "lastFile" {
+			b.emit("settings:changed", nil)
+			break
+		}
+	}
+	return b.sessionSettings(), nil
 }
 
 // ---------- 文件 ----------
@@ -316,15 +374,21 @@ func (b *Bridge) saveDialog(dir, name string) *application.SaveFileDialogStruct 
 	return d
 }
 
-func (b *Bridge) OpenFolder() (string, error) {
+func (b *Bridge) OpenFolder(ctx context.Context) (string, error) {
+	b = b.session(ctx)
+
 	return b.openDialog().CanChooseDirectories(true).CanChooseFiles(false).CanCreateDirectories(true).PromptForSingleSelection()
 }
 
-func (b *Bridge) OpenFile() (string, error) {
+func (b *Bridge) OpenFile(ctx context.Context) (string, error) {
+	b = b.session(ctx)
+
 	return b.openDialog().AddFilter("Markdown", "*.md;*.markdown;*.txt").PromptForSingleSelection()
 }
 
-func (b *Bridge) PickImage() (string, error) {
+func (b *Bridge) PickImage(ctx context.Context) (string, error) {
+	b = b.session(ctx)
+
 	return b.openDialog().AddFilter("图片", "*.png;*.jpg;*.jpeg;*.gif;*.webp;*.bmp;*.svg").PromptForSingleSelection()
 }
 
@@ -359,8 +423,13 @@ func (b *Bridge) RemoveEntry(p string) error { return platform.MoveToTrash(p) }
 func (b *Bridge) Reveal(p string) error { return b.app.Env.OpenFileManager(p, true) }
 
 // ScratchPath 未命名草稿的持久化路径（位于用户数据目录）
-func (b *Bridge) ScratchPath() (string, error) {
-	p := filepath.Join(b.store.Dir(), "scratch.md")
+func (b *Bridge) ScratchPath(ctx context.Context) (string, error) {
+	b = b.session(ctx)
+
+	p := b.scratch
+	if p == "" {
+		p = filepath.Join(b.store.Dir(), "scratch.md")
+	}
 	if _, err := os.Stat(p); err == nil {
 		return p, nil
 	}
@@ -370,8 +439,10 @@ func (b *Bridge) ScratchPath() (string, error) {
 	return p, os.WriteFile(p, nil, 0o644)
 }
 
-func (b *Bridge) SaveAs(content, suggestedName string) (string, error) {
-	dir := b.store.Get().LastWorkspace
+func (b *Bridge) SaveAs(ctx context.Context, content, suggestedName string) (string, error) {
+	b = b.session(ctx)
+
+	dir := b.sessionSettings().LastWorkspace
 	if dir == "" {
 		dir = platform.DocumentsDir()
 	}
@@ -382,13 +453,25 @@ func (b *Bridge) SaveAs(content, suggestedName string) (string, error) {
 	if err != nil || p == "" {
 		return "", err
 	}
-	return p, os.WriteFile(p, []byte(content), 0o644)
+	b.openMu.Lock()
+	previous := b.document
+	b.openMu.Unlock()
+	if !b.ClaimDocument(ctx, p) {
+		return "", errors.New("该文件已在另一个窗口打开，请在对应窗口保存")
+	}
+	if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+		b.ClaimDocument(ctx, previous)
+		return "", err
+	}
+	return p, nil
 }
 
 var dataURIRe = regexp.MustCompile(`(?s)^data:[^;,]*;base64,(.*)$`)
 
 // SaveFile 导出图表等文件：data 为文本或 base64 data URI（二进制）
-func (b *Bridge) SaveFile(data, suggestedName string) (string, error) {
+func (b *Bridge) SaveFile(ctx context.Context, data, suggestedName string) (string, error) {
+	b = b.session(ctx)
+
 	ext := strings.TrimPrefix(filepath.Ext(suggestedName), ".")
 	if ext == "" {
 		ext = "txt"
@@ -406,7 +489,9 @@ func (b *Bridge) SaveFile(data, suggestedName string) (string, error) {
 	return p, os.WriteFile(p, content, 0o644)
 }
 
-func (b *Bridge) ExportHtml(html, suggestedName string) (string, error) {
+func (b *Bridge) ExportHtml(ctx context.Context, html, suggestedName string) (string, error) {
+	b = b.session(ctx)
+
 	if suggestedName == "" {
 		suggestedName = "导出.html"
 	}
@@ -476,7 +561,9 @@ type startResult struct {
 	Error string         `json:"error,omitempty"`
 }
 
-func (b *Bridge) AiStart() startResult {
+func (b *Bridge) AiStart(ctx context.Context) startResult {
+	b = b.session(ctx)
+
 	info, err := b.acp.Start()
 	if err != nil {
 		return startResult{Error: err.Error()}
@@ -484,7 +571,10 @@ func (b *Bridge) AiStart() startResult {
 	return startResult{OK: true, Info: info}
 }
 
-func (b *Bridge) AiStop() { b.acp.Stop() }
+func (b *Bridge) AiStop(ctx context.Context) {
+	b = b.session(ctx)
+	b.acp.Stop()
+}
 
 type promptResult struct {
 	OK         bool   `json:"ok"`
@@ -492,7 +582,9 @@ type promptResult struct {
 	Error      string `json:"error,omitempty"`
 }
 
-func (b *Bridge) AiPrompt(input acp.PromptInput) promptResult {
+func (b *Bridge) AiPrompt(ctx context.Context, input acp.PromptInput) promptResult {
+	b = b.session(ctx)
+
 	stop, err := b.acp.Prompt(input)
 	if err != nil {
 		return promptResult{Error: err.Error()}
@@ -500,17 +592,26 @@ func (b *Bridge) AiPrompt(input acp.PromptInput) promptResult {
 	return promptResult{OK: true, StopReason: stop}
 }
 
-func (b *Bridge) AiCancel(channel string) { b.acp.Cancel(channel) }
+func (b *Bridge) AiCancel(ctx context.Context, channel string) {
+	b = b.session(ctx)
+	b.acp.Cancel(channel)
+}
 
-func (b *Bridge) AiRespondPermission(requestID string, optionID *string) {
+func (b *Bridge) AiRespondPermission(ctx context.Context, requestID string, optionID *string) {
+	b = b.session(ctx)
+
 	b.acp.RespondPermission(requestID, optionID)
 }
 
-func (b *Bridge) AiResolveWrite(requestID string, accepted bool, content *string) {
+func (b *Bridge) AiResolveWrite(ctx context.Context, requestID string, accepted bool, content *string) {
+	b = b.session(ctx)
+
 	b.acp.ResolveWrite(requestID, accepted, content)
 }
 
-func (b *Bridge) AiSetActiveDoc(path *string, markdown string) {
+func (b *Bridge) AiSetActiveDoc(ctx context.Context, path *string, markdown string) {
+	b = b.session(ctx)
+
 	if path != nil {
 		b.activeDoc.Store(*path)
 	} else {
@@ -519,7 +620,10 @@ func (b *Bridge) AiSetActiveDoc(path *string, markdown string) {
 	b.acp.SetActiveDoc(path, markdown)
 }
 
-func (b *Bridge) AiMarkSaved(path, content string) { b.acp.MarkSaved(path, content) }
+func (b *Bridge) AiMarkSaved(ctx context.Context, path, content string) {
+	b = b.session(ctx)
+	b.acp.MarkSaved(path, content)
+}
 
 // ---------- 应用 ----------
 

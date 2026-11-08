@@ -132,7 +132,13 @@ export function SettingsDialog({ settings, initialTab = 'general', onSave, onClo
                 <TyporaThemes draft={draft} set={set} />
               </Group>
               <Group title="窗口">
-                <Row label="关闭窗口时">
+                <Row label="打开新文件" desc="同一工作区内打开文件时使用；文件已打开时切换到对应窗口">
+                  <Segmented value={draft.openFileMode} options={[["current", "当前窗口"], ["new", "新窗口"]]} onChange={(openFileMode) => set({ openFileMode })} />
+                </Row>
+                <Row label="打开不同工作区" desc="打开其他文件夹或工作区外的文件时使用；替换前自动保存当前文档">
+                  <Segmented value={draft.openWorkspaceMode} options={[["current", "覆盖当前窗口"], ["new", "新建窗口"]]} onChange={(openWorkspaceMode) => set({ openWorkspaceMode })} />
+                </Row>
+                <Row label="关闭最后一个窗口时">
                   <Segmented
                     value={draft.closeAction}
                     options={[

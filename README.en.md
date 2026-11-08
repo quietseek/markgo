@@ -92,6 +92,10 @@ Built-in layout themes: 暖陶米白, 极简留白, 暗夜深色, 简洁蓝, 优
 
 ## Installation
 
+Multiple windows are supported with `Ctrl+Shift+N` / `⌘⇧N` and **Open in new window** in the file context menu. In Settings → General → Window, choose whether files open in the current or a new window, and whether a different workspace replaces the current one or opens a new window. The workspace preference takes priority for files outside the current workspace. Documents, scratch drafts and AI sessions are isolated per window; opening an already open file focuses its window.
+
+Use **AI Diagram** from the `/` menu, toolbar or selection toolbar to generate Mermaid diagrams with the selected AI Agent. Edit the source, check the preview and insert a valid diagram; generation can be cancelled and insertion can be undone.
+
 Download the installer for your platform from the [Releases](https://github.com/quietseek/markgo/releases) page:
 
 | OS | Package | Requirements |
@@ -99,6 +103,8 @@ Download the installer for your platform from the [Releases](https://github.com/
 | macOS (universal: Apple silicon and Intel) | `MarkGo-<version>-mac-universal.dmg` | macOS 11+ |
 | Windows | `MarkGo-<version>-win-x64-setup.exe` | WebView2 runtime (usually preinstalled on Windows 10/11; the installer adds it if missing) |
 | Linux | `MarkGo-<version>-linux-amd64.deb` | GTK 4 and WebKitGTK 6.0 (Ubuntu 24.04+ / Debian 13+) |
+
+On Windows, right-click an `.md` or `.markdown` file and choose **Open with MarkGo** (under **Show more options** on Windows 11). The installer adds this menu entry on installation or upgrade and removes it on uninstall.
 
 Once installed, when a new version is available, click 「立即更新」(Update now) in About (or the update button at the bottom left of the sidebar): MarkGo downloads, installs and reopens itself, with no manual download needed.
 

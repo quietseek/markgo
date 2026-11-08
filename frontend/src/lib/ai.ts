@@ -20,25 +20,31 @@ export function cleanResult(text: string): string {
  * 在独立频道上运行一次请求，流式回调文本。以频道内的 done / error 事件作为结束信号：
  * 它们保证在最后一个文本片段之后到达，而 prompt 调用本身的返回可能更早。
  */
-export function runChannel(input: PromptInput, onText: (text: string) => void): Promise<{ stopReason: string }> {
+export function runChannel(input: PromptInput, onText: (text: string) => void, signal?: AbortSignal): Promise<{ stopReason: string }> {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) { reject(new DOMException('已取消', 'AbortError')); return }
+    const cleanup = () => { off(); signal?.removeEventListener('abort', abort) }
+    const fail = (err: unknown) => { cleanup(); reject(err) }
+    const abort = () => {
+      void window.markgo.ai.cancel(input.channel).catch(() => {})
+      fail(new DOMException('已取消', 'AbortError'))
+    }
     const off = onChannel(input.channel, (e) => {
       if (e.type === 'message') onText(e.text)
       else if (e.type === 'done') {
-        off()
+        cleanup()
         resolve({ stopReason: e.stopReason })
       } else if (e.type === 'error') {
-        off()
-        reject(new Error(e.error))
+        fail(new Error(e.error))
       }
     })
+    signal?.addEventListener('abort', abort, { once: true })
     window.markgo.ai.prompt(input).then((res) => {
       // Agent 启动失败等情况不会产生频道事件
       if (!res.ok) {
-        off()
-        reject(new Error(res.error || '请求失败'))
+        fail(new Error(res.error || '请求失败'))
       }
-    })
+    }).catch(fail)
   })
 }
 

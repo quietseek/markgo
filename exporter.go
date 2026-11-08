@@ -39,7 +39,9 @@ type exportResult struct {
 }
 
 // ExportDocument 选择保存位置后调用 Pandoc 导出
-func (b *Bridge) ExportDocument(req exportRequest) exportResult {
+func (b *Bridge) ExportDocument(ctx context.Context, req exportRequest) exportResult {
+	b = b.session(ctx)
+
 	f, ok := export.FindFormat(req.Format)
 	if !ok {
 		return exportResult{Error: "不支持的导出格式"}
@@ -153,7 +155,9 @@ func (b *Bridge) afterExport(cfg settings.ExportConfig, out string) exportResult
 }
 
 // PickExportFile 为导出设置选择参考文档、样式表或封面图片
-func (b *Bridge) PickExportFile(kind string) (string, error) {
+func (b *Bridge) PickExportFile(ctx context.Context, kind string) (string, error) {
+	b = b.session(ctx)
+
 	d := b.openDialog()
 	switch kind {
 	case "docx":

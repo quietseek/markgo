@@ -109,6 +109,8 @@ type AppSettings struct {
 	WindowControls    string         `json:"windowControls"`
 	TrafficPosition   string         `json:"trafficPosition"`
 	StartupOpen       string         `json:"startupOpen"`
+	OpenFileMode      string         `json:"openFileMode"`
+	OpenWorkspaceMode string         `json:"openWorkspaceMode"`
 	ShowHiddenFiles   bool           `json:"showHiddenFiles"`
 	AutoCheckUpdate   bool           `json:"autoCheckUpdate"`
 	TrayMenu          []string       `json:"trayMenu"`
@@ -205,6 +207,8 @@ func Defaults() AppSettings {
 		WindowControls:    "traffic",
 		TrafficPosition:   "right",
 		StartupOpen:       "last",
+		OpenFileMode:      "current",
+		OpenWorkspaceMode: "current",
 		AutoCheckUpdate:   true,
 		TrayMenu:          []string{"show", "new-file", "recent", "quit"},
 		RecentWorkspaces:  []string{},

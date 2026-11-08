@@ -63,6 +63,7 @@ async function writeImage(dataUrl: string) {
  */
 const SHORTCUTS: { key: string; shift?: boolean; action: string }[] = [
   { key: 'n', action: 'new-file' },
+  { key: 'n', shift: true, action: 'new-window' },
   { key: 'o', action: 'open-file' },
   { key: 'o', shift: true, action: 'open-folder' },
   { key: 's', action: 'save' },
@@ -118,12 +119,14 @@ export async function installBridge(): Promise<void> {
   const [platform, nativeControls] = await Promise.all([call<string>('Platform'), call<boolean>('NativeControls'), call('PageLoading')])
   if (platform !== 'darwin') installShortcuts()
   installNavigationGuards()
+  window.addEventListener('focus', () => void call('FocusWindow'))
 
   const api: MarkGoApi = {
     settings: {
       get: () => call('GetSettings'),
       // undefined 表示删除该项（如关闭文件夹时的 lastWorkspace），JSON 会丢弃 undefined，改为 null 传给 Go
-      set: (patch) => call('SetSettings', Object.fromEntries(Object.entries(patch).map(([k, v]) => [k, v === undefined ? null : v])))
+      set: (patch) => call('SetSettings', Object.fromEntries(Object.entries(patch).map(([k, v]) => [k, v === undefined ? null : v]))),
+      onChange: (cb) => on<null>('settings:changed', cb)
     },
     themes: {
       list: () => call('ListThemes'),
@@ -199,6 +202,11 @@ export async function installBridge(): Promise<void> {
       onSaveRequest: (cb) => on<null>('app:save', () => cb())
     },
     window: {
+      newWindow: () => call('NewWindow'),
+      claimDocument: (path) => call('ClaimDocument', path),
+      routeOpen: (path, kind, forceNew = false) => call('RouteOpen', path, kind, forceNew),
+      completeClose: (saved) => call('CompleteClose', saved),
+      onCloseRequest: (cb) => on<null>('window:close-request', cb),
       setDark: (dark) => void call('SetDark', dark),
       minimize: () => void call('Minimize'),
       toggleMaximize: () => void call('ToggleMaximize'),

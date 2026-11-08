@@ -4,6 +4,36 @@
 
 介绍页顶部的「新版本」提示取自版本小节里的 `<!-- 亮点：... -->`（在 GitHub Release 中不显示），没有写就截取第一条说明的开头。
 
+## v0.6.0
+
+<!-- 亮点：多窗口写作与 AI Mermaid 图表生成 -->
+
+### 修复问题
+
+- Windows「打开方式」中的应用名称统一显示为 MarkGo，不再显示整句应用描述。
+
+### 新增功能
+
+- 支持新建独立窗口（`Ctrl+Shift+N` / `⌘⇧N`），文件右键可选择「在新窗口打开」。
+- 在「设置 → 通用设置 → 窗口」中选择打开文件使用当前窗口或新窗口、打开不同工作区时覆盖或新建窗口；跨工作区时优先使用工作区设置，已打开的文件会切换到对应窗口。
+- 新增 AI Mermaid 图表生成：从 `/` 命令、顶部工具栏或选中文字后的图表按钮进入，支持自然语言描述、停止生成、源码编辑和图表预览，确认后插入并支持撤销。
+- Windows 安装版为 `.md` 和 `.markdown` 文件添加「用 MarkGo 打开」右键菜单，随安装或升级注册、卸载时移除；Windows 11 中位于「显示更多选项」。
+
+### 优化改进
+
+- 各窗口独立管理文档、工作区、草稿和 AI 会话，共享应用设置；关闭单个窗口不影响其他窗口，最后一个窗口按设置退出或保留在后台。
+- 切换文档和关闭窗口前等待保存完成，保存失败时保留窗口，避免遗漏编辑器尚未同步的输入。
+
+### 下载地址
+
+| 系统 | 安装包 |
+| --- | --- |
+| macOS（Apple 芯片与 Intel 通用） | [MarkGo-0.6.0-mac-universal.dmg](https://github.com/quietseek/markgo/releases/download/v0.6.0/MarkGo-0.6.0-mac-universal.dmg) |
+| Windows 10 / 11 | [MarkGo-0.6.0-win-x64-setup.exe](https://github.com/quietseek/markgo/releases/download/v0.6.0/MarkGo-0.6.0-win-x64-setup.exe) |
+| Linux（Debian / Ubuntu） | [MarkGo-0.6.0-linux-amd64.deb](https://github.com/quietseek/markgo/releases/download/v0.6.0/MarkGo-0.6.0-linux-amd64.deb) |
+
+> Windows 需要 WebView2 运行时（系统通常已自带，安装程序会自动补装）；Linux 需要 GTK 4 与 WebKitGTK 6.0（Ubuntu 24.04+ / Debian 13+）。
+
 ## v0.5.13
 
 ### 修复问题

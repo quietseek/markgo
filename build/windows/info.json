@@ -1,12 +1,12 @@
 {
 	"fixed": {
-		"file_version": "0.5.13"
+		"file_version": "0.6.0"
 	},
 	"info": {
 		"0409": {
-			"ProductVersion": "0.5.13",
+			"ProductVersion": "0.6.0",
 			"CompanyName": "quietseek",
-			"FileDescription": "小而美的桌面 Markdown 写作与笔记应用",
+			"FileDescription": "MarkGo",
 			"LegalCopyright": "© 2026 quietseek",
 			"ProductName": "MarkGo",
 			"Comments": "所见即所得 Markdown 编辑、AI 写作辅助、PicGo 图床、15 种排版主题"

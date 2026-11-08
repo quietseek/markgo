@@ -2,7 +2,6 @@ package acp
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,7 +32,15 @@ func setup(t *testing.T, env string) *harness {
 	h := &harness{t: t, dir: t.TempDir()}
 	h.doc = filepath.Join(h.dir, "note.md")
 	os.WriteFile(h.doc, []byte("# 标题\n\n磁盘上的旧内容\n"), 0o644)
-	command := strings.TrimSpace(fmt.Sprintf("MARKGO_MOCK_AGENT=1 %s %q", env, exe))
+	t.Setenv("MARKGO_MOCK_AGENT", "1")
+	for _, assignment := range strings.Fields(env) {
+		key, value, ok := strings.Cut(assignment, "=")
+		if !ok {
+			t.Fatalf("invalid mock environment: %s", assignment)
+		}
+		t.Setenv(key, value)
+	}
+	command := `"` + exe + `"`
 	h.manager = NewManager(Host{
 		Emit: h.emit,
 		Profile: func() *settings.AgentProfile {

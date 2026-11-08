@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -124,7 +125,7 @@ func runMockAgent() {
 			say(sid, string(raw))
 			return end, nil
 
-		case strings.Contains(text, "[MarkGo 内联编辑]"):
+			case strings.Contains(text, "[MarkGo 内联编辑]") && !strings.Contains(text, "Mermaid 11"):
 			selected := ""
 			if m := regexp.MustCompile(`(?s)"""\n(.*?)\n"""`).FindStringSubmatch(text); m != nil {
 				selected = m[1]
@@ -142,6 +143,10 @@ func runMockAgent() {
 			say(sid, selected)
 			return end, nil
 
+		case strings.Contains(text, "Mermaid 11"):
+			say(sid, "```mermaid\nflowchart LR\n")
+			say(sid, " A[\"写作\"] --> B{\"审阅通过？\"}\n B -->|是| C[\"发布\"]\n B -->|否| A\n```")
+			return end, nil
 		case strings.Contains(text, "slow"):
 			for i := 0; i < 100 && !isCancelled(sid); i++ {
 				say(sid, ".")
@@ -155,6 +160,11 @@ func runMockAgent() {
 		case strings.Contains(text, "edit") && docURI != "":
 			u, _ := url.Parse(docURI)
 			path := u.Path
+			// file:///C:/... URLs have a leading slash; ACP expects a native path.
+			if len(path) >= 3 && path[0] == '/' && path[2] == ':' {
+				path = path[1:]
+			}
+			path = filepath.FromSlash(path)
 			update(sid, map[string]any{"sessionUpdate": "plan", "entries": []any{
 				map[string]any{"content": "读取文档", "priority": "high", "status": "in_progress"},
 				map[string]any{"content": "修改标题", "priority": "high", "status": "pending"}}})

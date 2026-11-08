@@ -8,10 +8,10 @@ info:
   companyName: "quietseek" # The name of the company
   productName: "MarkGo" # The name of the application
   productIdentifier: "ai.markgo.app" # The unique product identifier
-  description: "小而美的桌面 Markdown 写作与笔记应用" # The application description
+  description: "MarkGo" # Also used as Windows FileDescription / Open with display name
   copyright: "© 2026 quietseek" # Copyright text
   comments: "所见即所得 Markdown 编辑、AI 写作辅助、PicGo 图床、15 种排版主题" # Comments
-  version: "0.5.13" # The application version
+  version: "0.6.0" # The application version
   # cfBundleIconName: "appicon" # The macOS icon name in Assets.car icon bundles (optional)
   #                               # Should match the name of your .icon file without the extension
   #                               # If not set and Assets.car exists, defaults to "appicon"

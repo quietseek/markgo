@@ -35,6 +35,7 @@ interface Props {
   onOpenWorkspace(dir: string): void
   onCloseWorkspace(): void
   onOpenFile(path: string): void
+  onOpenInNewWindow(path: string): void
   onRefresh(): void
   onCreate(dir: string, kind: 'file' | 'dir'): void
   onRename(path: string, name: string): void
@@ -462,6 +463,7 @@ export function Sidebar(props: Props) {
           )}
           {menu.node?.type === 'file' && (
             <>
+              <button onClick={() => props.onOpenInNewWindow(menu.node!.path)}>在新窗口打开</button>
               <button onClick={() => props.onExport(menu.node!.path)}>导出…</button>
               <div className="menu-sep" />
             </>

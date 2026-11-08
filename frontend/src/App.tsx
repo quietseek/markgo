@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Code2, FileCode, FileOutput, Loader2, PanelLeft, Sparkles } from 'lucide-react'
+import { Code2, FileCode, FileOutput, Loader2, PanelLeft, Sparkles, AppWindow } from 'lucide-react'
 import { MAX_RECENT_WORKSPACES, type AppSettings, type FileNode, type WriteProposal } from '@shared/types'
 import { Editor, type EditorHandle, type HeadingInfo } from './components/Editor'
 import { Sidebar, type SidebarTab } from './components/Sidebar'
@@ -64,6 +64,8 @@ export function App() {
 
   const editorRef = useRef<EditorHandle>(null)
   const saveTimer = useRef<number>(undefined)
+  const saveQueue = useRef<Promise<void>>(Promise.resolve())
+  const navigationQueue = useRef<Promise<unknown>>(Promise.resolve())
   const latest = useRef({ doc, markdown, saveState })
   latest.current = { doc, markdown, saveState }
 
@@ -72,6 +74,8 @@ export function App() {
     const next = await api.settings.set(patch)
     setSettings(next)
   }, [])
+
+  useEffect(() => api.settings.onChange(() => { void api.settings.get().then(setSettings) }), [])
 
   // ---------- 外观 ----------
   useEffect(() => {
@@ -92,16 +96,26 @@ export function App() {
   // ---------- 文件 ----------
   const flushSave = useCallback(async () => {
     window.clearTimeout(saveTimer.current)
-    const { doc: d, markdown: md, saveState: st } = latest.current
-    if (!d || st === 'saved') return
+    const { doc: d, markdown: previous, saveState: st } = latest.current
+    if (!d) return
+    if (st === 'saved' && !editorRef.current?.hasPendingChanges()) return saveQueue.current
+    const md = editorRef.current?.getMarkdown() ?? previous
+    latest.current = { doc: d, markdown: md, saveState: 'saving' }
+    setMarkdown(md)
     setSaveState('saving')
     try {
-      await api.fs.write(d.path, md)
+      const task = saveQueue.current.catch(() => {}).then(() => api.fs.write(d.path, md))
+      saveQueue.current = task
+      await task
       api.ai.markSaved(d.path, md)
-      if (latest.current.markdown === md) setSaveState('saved')
+      if (latest.current.doc?.path === d.path && latest.current.markdown === md) {
+        latest.current.saveState = 'saved'
+        setSaveState('saved')
+      }
     } catch (err) {
       setSaveState('unsaved')
       toast(`保存失败：${(err as Error).message}`, 'error')
+      throw err
     }
   }, [])
 
@@ -130,30 +144,59 @@ export function App() {
    */
   const loadDoc = useCallback(
     async (path: string, isScratch = false, external = false) => {
-      await flushSave()
-      let content = await api.fs.read(path)
-      if (isScratch && !content.trim()) content = WELCOME_MD
-      setDoc((prev) => ({ path, isScratch, initial: content, version: (prev?.version || 0) + 1 }))
-      setMarkdown(content)
-      api.ai.markSaved(path, content)
-      setSaveState('saved')
-      setSourceMode(false)
-      if (!isScratch) {
-        await api.settings.set({ lastFile: path })
-        const ws = (await api.settings.get()).lastWorkspace
-        const dir = dirname(path)
-        if (external ? ws !== dir : !ws || !isInside(path, ws)) await openWorkspace(dir)
-      } else api.settings.set({ lastFile: undefined })
+      const task = navigationQueue.current.catch(() => {}).then(async () => {
+        await flushSave()
+        if (!(await api.window.claimDocument(path))) return false
+        let content: string
+        try {
+          content = await api.fs.read(path)
+        } catch (err) {
+          await api.window.claimDocument(latest.current.doc?.path ?? '')
+          throw err
+        }
+        if (isScratch && !content.trim()) content = WELCOME_MD
+        setDoc((prev) => ({ path, isScratch, initial: content, version: (prev?.version || 0) + 1 }))
+        setMarkdown(content)
+        api.ai.markSaved(path, content)
+        setSaveState('saved')
+        setSourceMode(false)
+        if (!isScratch) {
+          await api.settings.set({ lastFile: path })
+          const ws = (await api.settings.get()).lastWorkspace
+          const dir = dirname(path)
+          if (external ? ws !== dir : !ws || !isInside(path, ws)) await openWorkspace(dir)
+        } else await api.settings.set({ lastFile: undefined })
+        return true
+      })
+      navigationQueue.current = task
+      return task
     },
     [flushSave, openWorkspace]
   )
 
   const openScratch = useCallback(async () => loadDoc(await api.fs.scratchPath(), true), [loadDoc])
 
+  const requestFile = useCallback(async (path: string, forceNew = false) => {
+    try {
+      if (await api.window.routeOpen(path, 'file', forceNew)) return
+      if (path !== latest.current.doc?.path) await loadDoc(path)
+    } catch (err) { toast((err as Error).message, 'error') }
+  }, [loadDoc])
+
+  const requestWorkspace = useCallback(async (dir: string) => {
+    try {
+      if (await api.window.routeOpen(dir, 'workspace')) return
+      if ((await api.settings.get()).lastWorkspace === dir) return
+      await flushSave()
+      await openWorkspace(dir)
+      await openScratch()
+    } catch (err) { toast((err as Error).message, 'error') }
+  }, [flushSave, openWorkspace, openScratch])
+
   const openFolder = useCallback(async () => {
     const dir = await api.fs.openFolder()
-    if (dir) await openWorkspace(dir)
-  }, [openWorkspace])
+    if (dir) await requestWorkspace(dir)
+  }, [requestWorkspace])
 
   const closeWorkspace = useCallback(async () => {
     await updateSettings({ lastWorkspace: undefined })
@@ -162,8 +205,8 @@ export function App() {
 
   const openFileDialog = useCallback(async () => {
     const p = await api.fs.openFile()
-    if (p && p !== latest.current.doc?.path) await loadDoc(p)
-  }, [loadDoc])
+    if (p) await requestFile(p)
+  }, [requestFile])
 
   useEffect(() => {
     ;(async () => {
@@ -173,8 +216,8 @@ export function App() {
       const external = await api.app.takeOpenPath()
       if (s.lastWorkspace && !external) refreshTree(s.lastWorkspace)
       try {
-        if (external) return await loadDoc(external, false, true)
-        if (s.lastFile && s.startupOpen !== 'scratch') return await loadDoc(s.lastFile)
+        if (external && await loadDoc(external, false, true)) return
+        if (!external && s.lastFile && s.startupOpen !== 'scratch' && await loadDoc(s.lastFile)) return
       } catch {
         /* 文件已不存在：侧栏仍显示上次的文件夹 */
         if (external && s.lastWorkspace) refreshTree(s.lastWorkspace)
@@ -186,16 +229,20 @@ export function App() {
 
   const onEditorChange = useCallback(
     (md: string) => {
+      latest.current = { ...latest.current, markdown: md, saveState: 'unsaved' }
       setMarkdown(md)
       setSaveState('unsaved')
       window.clearTimeout(saveTimer.current)
-      saveTimer.current = window.setTimeout(flushSave, 800)
+      saveTimer.current = window.setTimeout(() => { void flushSave().catch(() => {}) }, 800)
     },
     [flushSave]
   )
 
   // 自动更新安装前写盘
-  useEffect(() => api.app.onSaveRequest(() => void flushSave()), [flushSave])
+  useEffect(() => api.app.onSaveRequest(() => void flushSave().catch(() => {})), [flushSave])
+  useEffect(() => api.window.onCloseRequest(() => {
+    void flushSave().then(() => api.window.completeClose(true), () => api.window.completeClose(false))
+  }), [flushSave])
 
   // 窗口关闭或刷新前写盘
   useEffect(() => {
@@ -494,6 +541,7 @@ export function App() {
   const handlers = useRef<Record<string, () => void>>({})
   handlers.current = {
     'new-file': newNote,
+    'new-window': () => { void api.window.newWindow() },
     'open-file': openFileDialog,
     'open-folder': openFolder,
     save,
@@ -529,8 +577,8 @@ export function App() {
       api.onMenu((action) => handlers.current[action]?.()),
     []
   )
-  useEffect(() => api.onOpenPath((p) => loadDoc(p, false, true)), [loadDoc])
-  useEffect(() => api.onOpenWorkspace((dir) => openWorkspace(dir)), [openWorkspace])
+  useEffect(() => api.onOpenPath((p) => { void loadDoc(p).catch((err) => toast((err as Error).message, 'error')) }), [loadDoc])
+  useEffect(() => api.onOpenWorkspace((dir) => { void requestWorkspace(dir) }), [requestWorkspace])
 
   const openPublish = () => {
     const md = editorRef.current?.getMarkdown()
@@ -582,6 +630,9 @@ export function App() {
           >
             <PanelLeft size={17} />
           </button>
+          <button className="icon-btn" title={isMac ? '新建窗口 ⇧⌘N' : '新建窗口 Ctrl+Shift+N'} onClick={() => void api.window.newWindow()}>
+            <AppWindow size={17} />
+          </button>
         </div>
         <div className="titlebar-title">
           <span className="doc-title" title={doc.isScratch ? undefined : doc.path}>
@@ -607,9 +658,10 @@ export function App() {
             isScratch={doc.isScratch}
             headings={headings}
             onOpenFolder={openFolder}
-            onOpenWorkspace={openWorkspace}
+            onOpenWorkspace={requestWorkspace}
             onCloseWorkspace={closeWorkspace}
-            onOpenFile={(p) => p !== doc.path && loadDoc(p)}
+            onOpenFile={(p) => void requestFile(p)}
+            onOpenInNewWindow={(p) => void requestFile(p, true)}
             onRefresh={() => refreshTree()}
             onCreate={createEntry}
             onRename={renameEntry}

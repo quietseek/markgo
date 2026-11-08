@@ -3,6 +3,7 @@ package main
 // Typora 主题：导入、列出与删除（文件经 /mg-theme/ 提供给前端）
 
 import (
+	"context"
 	"os"
 
 	"github.com/quietseek/markgo/internal/themes"
@@ -16,7 +17,9 @@ type themeImport struct {
 }
 
 // ImportTheme 选择一个或多个 Typora 主题的 .css 文件导入；取消时返回空结果
-func (b *Bridge) ImportTheme() (themeImport, error) {
+func (b *Bridge) ImportTheme(ctx context.Context) (themeImport, error) {
+	b = b.session(ctx)
+
 	res := themeImport{Themes: []themes.Theme{}, Errors: []string{}}
 	paths, err := b.openDialog().AddFilter("Typora 主题", "*.css").PromptForMultipleSelection()
 	if err != nil || len(paths) == 0 {
@@ -35,7 +38,9 @@ func (b *Bridge) ImportTheme() (themeImport, error) {
 }
 
 // ImportThemeFolder 选择文件夹（如 Typora 的主题文件夹），批量导入其中所有主题；取消时返回空结果
-func (b *Bridge) ImportThemeFolder() (themeImport, error) {
+func (b *Bridge) ImportThemeFolder(ctx context.Context) (themeImport, error) {
+	b = b.session(ctx)
+
 	res := themeImport{Themes: []themes.Theme{}, Errors: []string{}}
 	dir, err := b.openDialog().CanChooseDirectories(true).CanChooseFiles(false).PromptForSingleSelection()
 	if err != nil || dir == "" {

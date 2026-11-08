@@ -13,6 +13,7 @@ const GROUPS: { title: string; items: [string, string][] }[] = [
     title: '文件',
     items: [
       ['新建笔记', 'Mod+N'],
+      ['新建窗口', 'Mod+Shift+N'],
       ['打开文件', 'Mod+O'],
       ['打开文件夹', 'Mod+Shift+O'],
       ['保存', 'Mod+S'],

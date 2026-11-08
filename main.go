@@ -22,7 +22,7 @@ import (
 )
 
 // Version 应用版本，发布时与 build/config.yml、frontend/package.json 保持一致
-const Version = "0.5.13"
+const Version = "0.6.0"
 
 const appName = "MarkGo"
 
@@ -61,19 +61,16 @@ func main() {
 			},
 		},
 		FileAssociations: []string{".md", ".markdown"},
-		ShouldQuit: func() bool {
-			b.quitting.Store(true)
-			return true
-		},
-		OnShutdown:   b.shutdown,
-		PostShutdown: b.relaunchIfRequested,
+		ShouldQuit:       b.shouldQuit,
+		OnShutdown:       b.shutdown,
+		PostShutdown:     b.relaunchIfRequested,
 	})
 	b.app = app
 
 	// 从访达双击 / 拖到程序坞图标 / 文件关联打开
 	app.Event.OnApplicationEvent(events.Common.ApplicationOpenedWithFile, func(e *application.ApplicationEvent) {
 		if p := e.Context().Filename(); p != "" {
-			b.openPath(p)
+			b.openExternal(p)
 		}
 	})
 	app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
@@ -86,7 +83,7 @@ func main() {
 	})
 	if isMac {
 		// 点击程序坞图标时重新显示隐藏的窗口
-		app.Event.OnApplicationEvent(events.Mac.ApplicationShouldHandleReopen, func(*application.ApplicationEvent) { b.showWindow() })
+		app.Event.OnApplicationEvent(events.Mac.ApplicationShouldHandleReopen, func(*application.ApplicationEvent) { b.activeSession().showWindow() })
 		app.Menu.SetApplicationMenu(buildAppMenu(app, b))
 	}
 

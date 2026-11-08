@@ -31,6 +31,7 @@ export interface ToolbarActions {
   image(): void
   imageGen(): void
   mermaid(): void
+  mermaidGen(): void
 }
 
 interface Item {
@@ -108,6 +109,7 @@ export function EditorToolbar({ editor, actions }: { editor: Editor; actions: To
       { key: 'image', title: '图片', icon: <ImageIcon />, run: actions.image },
       { key: 'imageGen', title: 'AI 生图', icon: <ImagePlus />, run: actions.imageGen },
       { key: 'mermaid', title: 'Mermaid 图表', icon: <Workflow />, run: actions.mermaid },
+      { key: 'mermaidGen', title: 'AI 图表', icon: <Workflow />, run: actions.mermaidGen },
       { key: 'hr', title: '分割线', icon: <Minus />, run: () => chain().setHorizontalRule().run() }
     ]
   ]

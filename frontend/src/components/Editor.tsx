@@ -57,6 +57,7 @@ import { FrontMatterView } from './FrontMatterView'
 import { EditorToolbar } from './EditorToolbar'
 import { ImageView } from './ImageView'
 import { ImageGenDialog } from './ImageGenDialog'
+import { MermaidGenDialog } from './MermaidGenDialog'
 import type { AppSettings } from '@shared/types'
 import { MathPopover, type MathTarget } from './MathPopover'
 import { FindBar } from './FindBar'
@@ -110,6 +111,8 @@ function insertMermaid(editor: TiptapEditor) {
 
 export interface EditorHandle {
   getMarkdown(): string
+  /** Captures edits still inside the editor's debounce, without rewriting untouched files. */
+  hasPendingChanges(): boolean
   focus(): void
   scrollToHeading(index: number): void
   insertImageFromPicker(): void
@@ -208,6 +211,11 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
   const openLinkRef = useRef<() => void>(() => {})
   // 公式：点击已有公式编辑，或新建（扩展的配置在创建编辑器时就固定了，通过 ref 调用最新的实现）
   const [math, setMath] = useState<MathTarget | null>(null)
+  const [mermaidGen, setMermaidGen] = useState<{ prompt: string; pos: number } | null>(null)
+  const openMermaidGen = useCallback((ed: TiptapEditor) => {
+    const { from, to } = ed.state.selection
+    setMermaidGen({ prompt: ed.state.doc.textBetween(from, to, '\n'), pos: to })
+  }, [])
   const editMathRef = useRef<(node: PMNode, pos: number) => void>(() => {})
   const newMathRef = useRef<(display: boolean, describe?: string) => void>(() => {})
   const openFindRef = useRef<(replace: boolean) => void>(() => {})
@@ -546,6 +554,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
       { key: 'ai-img', label: 'AI 生图', hint: 'ai image img draw sct', icon: <ImagePlus size={16} />, run: (e) => openImageGen(e) },
       { key: 'ai-continue', label: 'AI 续写', hint: 'ai continue xx', icon: <PenLine size={16} />, run: (e) => openInlineAi(e, 'continue') },
       { key: 'ai-math', label: 'AI 公式', hint: 'ai math formula gs', icon: <Sigma size={16} />, run: () => newMathRef.current(true, '') },
+      { key: 'ai-mermaid', label: 'AI 图表', hint: 'ai mermaid chart diagram flow tb lct', icon: <Workflow size={16} />, run: openMermaidGen },
       { key: 'ai-ask', label: 'AI 指令', hint: 'ai ask zl', icon: <Sparkles size={16} />, run: (e) => openInlineAi(e, 'ask') }
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -599,6 +608,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
     ref,
     () => ({
       getMarkdown: () => (sourceMode ? source : (editor?.getMarkdown() ?? '')),
+      hasPendingChanges: () => !sourceMode && !!editor && normalizeMd(editor.getMarkdown()) !== normalizeMd(lastEmitted.current),
       focus: () => editor?.commands.focus(),
       scrollToHeading(index) {
         if (!editor) return
@@ -747,6 +757,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
           <BubbleBtn onClick={() => selectionToMath(editor)} title="转为公式（描述文字会由 AI 生成公式）">
             <Sigma size={15} />
           </BubbleBtn>
+          <BubbleBtn onClick={() => openMermaidGen(editor)} title="根据选中文字生成 AI 图表"><Workflow size={15} /></BubbleBtn>
           <span className="bubble-sep" />
           <BubbleBtn active={editor.isActive('heading', { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} title="标题">
             <Heading2 size={15} />
@@ -812,12 +823,19 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
             math: () => newMathRef.current(true),
             image: () => pickImage(editor),
             imageGen: () => openImageGen(editor),
+            mermaidGen: () => openMermaidGen(editor),
             mermaid: () => insertMermaid(editor)
           }}
         />
       )}
       <EditorContent editor={editor} className={`editor-content${typewriter ? ' typewriter' : ''}`} />
       {editor && math && <MathPopover key={`${math.from}-${math.to}`} editor={editor} target={math} onClose={() => setMath(null)} />}
+      {editor && mermaidGen && <MermaidGenDialog initialPrompt={mermaidGen.prompt} onClose={() => setMermaidGen(null)} onInsert={(code) => {
+        if (editor.isDestroyed || !editor.isEditable) return
+        editor.chain().focus().insertContentAt(Math.min(mermaidGen.pos, editor.state.doc.content.size), {
+          type: 'codeBlock', attrs: { language: 'mermaid' }, content: [{ type: 'text', text: code }]
+        }).run()
+      }} />}
       {genImage && (
         <ImageGenDialog
           config={imageGen}

@@ -58,6 +58,8 @@ export interface AppSettings {
   trafficPosition: 'left' | 'right'
   /** 启动时打开：last 上次的文件；scratch 草稿 */
   startupOpen: 'last' | 'scratch'
+  openFileMode: 'current' | 'new'
+  openWorkspaceMode: 'current' | 'new'
   /** 文件树显示以 . 开头的文件与文件夹 */
   showHiddenFiles: boolean
   /** 启动后自动检查更新 */
@@ -245,6 +247,8 @@ export const defaultSettings: AppSettings = {
   windowControls: 'traffic',
   trafficPosition: 'right',
   startupOpen: 'last',
+  openFileMode: 'current',
+  openWorkspaceMode: 'current',
   showHiddenFiles: false,
   autoCheckUpdate: true,
   trayMenu: ['show', 'new-file', 'recent', 'quit'],
@@ -495,6 +499,7 @@ export interface MarkGoApi {
   settings: {
     get(): Promise<AppSettings>
     set(patch: Partial<AppSettings>): Promise<AppSettings>
+    onChange(cb: () => void): () => void
   }
   fs: {
     openFolder(): Promise<string | null>
@@ -596,6 +601,11 @@ export interface MarkGoApi {
     onSaveRequest(cb: () => void): () => void
   }
   window: {
+    newWindow(): Promise<void>
+    claimDocument(path: string): Promise<boolean>
+    routeOpen(path: string, kind: 'file' | 'workspace', forceNew?: boolean): Promise<boolean>
+    completeClose(saved: boolean): Promise<void>
+    onCloseRequest(cb: () => void): () => void
     setDark(dark: boolean): void
     minimize(): void
     toggleMaximize(): void

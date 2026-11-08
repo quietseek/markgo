@@ -69,6 +69,8 @@ ManifestDPIAware true
 !insertmacro MUI_LANGUAGE "English"
 !insertmacro MUI_LANGUAGE "SimpChinese"
 
+!include "context_menu.nsh"
+
 LangString MSG_APP_RUNNING ${LANG_ENGLISH} "${INFO_PRODUCTNAME} is running. Click OK to close it and continue, or Cancel to quit."
 LangString MSG_APP_RUNNING ${LANG_SIMPCHINESE} "${INFO_PRODUCTNAME} 正在运行。点击「确定」关闭它并继续，点击「取消」退出。"
 
@@ -147,6 +149,7 @@ Section
 
     !insertmacro wails.associateFiles
     !insertmacro wails.associateCustomProtocols
+    !insertmacro markgo.installContextMenu
     
     !insertmacro wails.writeUninstaller
 
@@ -175,6 +178,7 @@ Section "uninstall"
 
     !insertmacro wails.unassociateFiles
     !insertmacro wails.unassociateCustomProtocols
+    !insertmacro markgo.uninstallContextMenu
 
     !insertmacro wails.deleteUninstaller
 SectionEnd

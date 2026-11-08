@@ -11,7 +11,7 @@ import (
 )
 
 func (b *Bridge) sendMenu(action string) func(*application.Context) {
-	return func(*application.Context) { emitTo(b.window, "menu", action) }
+	return func(*application.Context) { emitTo(b.activeSession().window, "menu", action) }
 }
 
 // buildAppMenu macOS 菜单栏；Windows / Linux 为无边框窗口，快捷键由前端处理（frontend/src/bridge.ts）
@@ -21,6 +21,7 @@ func buildAppMenu(app *application.App, b *Bridge) *application.Menu {
 
 	file := menu.AddSubmenu("文件")
 	file.Add("新建笔记").SetAccelerator("CmdOrCtrl+N").OnClick(b.sendMenu("new-file"))
+	file.Add("新建窗口").SetAccelerator("CmdOrCtrl+Shift+N").OnClick(b.sendMenu("new-window"))
 	file.Add("打开文件…").SetAccelerator("CmdOrCtrl+O").OnClick(b.sendMenu("open-file"))
 	file.Add("打开文件夹…").SetAccelerator("CmdOrCtrl+Shift+O").OnClick(b.sendMenu("open-folder"))
 	file.AddSeparator()
@@ -89,7 +90,7 @@ func (b *Bridge) ensureTray() {
 	b.tray.SetIcon(appIcon)
 	b.tray.SetTooltip(appName)
 	b.tray.SetMenu(b.buildTrayMenu())
-	b.tray.OnClick(b.showWindow)
+	b.tray.OnClick(func() { b.activeSession().showWindow() })
 }
 
 func (b *Bridge) refreshTrayMenu() {
@@ -107,8 +108,9 @@ func (b *Bridge) buildTrayMenu() *application.Menu {
 	// 先显示窗口再执行，窗口隐藏在后台时也能看到结果
 	run := func(action string) func(*application.Context) {
 		return func(*application.Context) {
-			b.showWindow()
-			emitTo(b.window, "menu", action)
+			s := b.activeSession()
+			s.showWindow()
+			emitTo(s.window, "menu", action)
 		}
 	}
 	lastSep := true
@@ -124,7 +126,7 @@ func (b *Bridge) buildTrayMenu() *application.Menu {
 		}
 		switch item.Key {
 		case "show":
-			menu.Add(item.Label).OnClick(func(*application.Context) { b.showWindow() })
+			menu.Add(item.Label).OnClick(func(*application.Context) { b.activeSession().showWindow() })
 		case "quit":
 			sep()
 			menu.Add(item.Label).OnClick(func(*application.Context) { b.app.Quit() })
@@ -139,8 +141,9 @@ func (b *Bridge) buildTrayMenu() *application.Menu {
 			for _, dir := range recent {
 				dir := dir
 				sub.Add(filepath.Base(dir)).SetTooltip(dir).OnClick(func(*application.Context) {
-					b.showWindow()
-					emitTo(b.window, "open-workspace", dir)
+					s := b.activeSession()
+					s.showWindow()
+					emitTo(s.window, "open-workspace", dir)
 				})
 			}
 		default:

@@ -4248,3 +4248,13 @@ textarea {
 }
 
 
+.mermaid-gen { display: grid; gap: 12px; padding: 20px; overflow: auto; }
+.mermaid-gen label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 600; }
+.mermaid-gen textarea { width: 100%; resize: vertical; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); }
+.mermaid-gen-actions { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.mermaid-gen-actions .grow { flex: 1; }
+.mermaid-gen-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.mermaid-gen-grid textarea { min-height: 270px; font-family: var(--mono); font-size: 13px; }
+.mermaid-gen-preview { min-height: 270px; max-height: 400px; overflow: auto; padding: 16px; border: 1px solid var(--border); border-radius: 8px; }
+.mermaid-gen-preview svg { max-width: 100%; height: auto; }
+@media (max-width: 700px) { .mermaid-gen-grid { grid-template-columns: 1fr; } }
