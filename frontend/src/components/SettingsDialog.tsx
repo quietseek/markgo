@@ -8,6 +8,7 @@ import { EDITOR_WIDTHS } from './EditorWidthSwitch'
 import { useAgentState } from '../lib/agent-store'
 import { ExportSettings } from './ExportDialog'
 import { ComboBox, Select } from './Select'
+import { TypographySettings } from './TypographySettings'
 
 const isMac = window.markgo.platform === 'darwin'
 
@@ -226,7 +227,7 @@ export function SettingsDialog({ settings, initialTab = 'general', onSave, onClo
                 </Row>
               </Group>
               <Group title="原生样式">
-                <Row label="字体" desc="编辑区选择「原生样式」时的正文排版；套用排版主题或 Typora 主题时由主题决定">
+                <Row label="默认字体" desc="正文字体选择「跟随主题」时，原生样式使用的字体">
                   <Segmented
                     value={draft.editorFont}
                     options={[
@@ -249,6 +250,7 @@ export function SettingsDialog({ settings, initialTab = 'general', onSave, onClo
                 <Row label="段落间距">
                   <Segmented value={String(draft.editorParaSpacing)} options={PARA_SPACINGS} onChange={(v) => set({ editorParaSpacing: Number(v) })} />
                 </Row>
+                <TypographySettings draft={draft} settings={settings} set={set} />
               </Group>
               <Group title="文件">
                 <Row label="启动时打开">

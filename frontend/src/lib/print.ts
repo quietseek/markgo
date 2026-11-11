@@ -4,6 +4,32 @@ import type { ExportConfig, MarginPreset } from '@shared/types'
 
 const STYLE_ID = 'mk-print-pdf'
 
+/** 纵向尺寸（毫米），与 Go 侧 pdfprint.PaperSizes 一致。 */
+export const PAPER_SIZES: { key: ExportConfig['paperSize']; label: string; width: number; height: number; hint: string }[] = [
+  { key: 'a4', label: 'A4', width: 210, height: 297, hint: '210 × 297 mm' },
+  { key: 'a3', label: 'A3', width: 297, height: 420, hint: '297 × 420 mm' },
+  { key: 'a5', label: 'A5', width: 148, height: 210, hint: '148 × 210 mm' },
+  { key: 'b5', label: 'B5', width: 176, height: 250, hint: '176 × 250 mm' },
+  { key: 'b4', label: 'B4', width: 250, height: 353, hint: '250 × 353 mm' },
+  { key: 'letter', label: 'Letter', width: 215.9, height: 279.4, hint: '8.5 × 11 in' },
+  { key: 'legal', label: 'Legal', width: 215.9, height: 355.6, hint: '8.5 × 14 in' }
+]
+
+export function pageLayout(config: Pick<ExportConfig, 'paperSize' | 'landscape' | 'marginTop' | 'marginBottom' | 'marginLeft' | 'marginRight'>) {
+  const paper = PAPER_SIZES.find((p) => p.key === config.paperSize) ?? PAPER_SIZES[0]
+  const width = config.landscape ? paper.height : paper.width
+  const height = config.landscape ? paper.width : paper.height
+  const top = config.marginTop * 10
+  const bottom = config.marginBottom * 10
+  const left = config.marginLeft * 10
+  const right = config.marginRight * 10
+  const contentWidth = Math.max(0, width - left - right)
+  const contentHeight = Math.max(0, height - top - bottom)
+  // 与 PDF 导出校验一致：正文宽高至少 20 mm。
+  const valid = [top, bottom, left, right].every((m) => Number.isFinite(m) && m >= 0) && contentWidth >= 20 && contentHeight >= 20
+  return { paper, width, height, top, bottom, left, right, contentWidth, contentHeight, valid }
+}
+
 /** 常用页边距（厘米，与 Word 的预设一致） */
 export const MARGIN_PRESETS: { key: Exclude<MarginPreset, 'custom'>; label: string; top: number; bottom: number; left: number; right: number }[] = [
   { key: 'normal', label: '常规', top: 2.54, bottom: 2.54, left: 3.18, right: 3.18 },

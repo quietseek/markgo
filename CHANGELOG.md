@@ -4,6 +4,31 @@
 
 介绍页顶部的「新版本」提示取自版本小节里的 `<!-- 亮点：... -->`（在 GitHub Release 中不显示），没有写就截取第一条说明的开头。
 
+## v0.6.1
+
+<!-- 亮点：自定义字体与字重，直观调整 PDF 页边距 -->
+
+### 新增功能
+
+- 在「设置 → 编辑器 → 原生样式」中自定义正文字体、字重及代码字体，支持搜索本机字体、中英文名称匹配、实时预览与恢复默认；自定义项覆盖编辑区主题，PDF 沿用编辑效果。
+- PDF 页边距新增等比例纸张预览，上下左右输入框位于纸张对应方向，随纸张尺寸、横竖方向和边距实时更新；导出窗口与导出配置共用。
+
+### 优化改进
+
+- 本机字体优先显示中文名称，同时保留英文名与别名搜索；Windows 补充扫描注册字体路径，避免遗漏非标准目录中的字体。
+- 字体选择控件统一宽度并右侧对齐，预览采用紧凑字号与间距，减少重复提示。
+- AI 图表改用魔法棒图标，与 Mermaid 流程节点图标区分；工具栏、斜杠菜单和浮动工具栏保持一致。
+
+### 下载地址
+
+| 系统 | 安装包 |
+| --- | --- |
+| macOS（Apple 芯片与 Intel 通用） | [MarkGo-0.6.1-mac-universal.dmg](https://github.com/quietseek/markgo/releases/download/v0.6.1/MarkGo-0.6.1-mac-universal.dmg) |
+| Windows 10 / 11 | [MarkGo-0.6.1-win-x64-setup.exe](https://github.com/quietseek/markgo/releases/download/v0.6.1/MarkGo-0.6.1-win-x64-setup.exe) |
+| Linux（Debian / Ubuntu） | [MarkGo-0.6.1-linux-amd64.deb](https://github.com/quietseek/markgo/releases/download/v0.6.1/MarkGo-0.6.1-linux-amd64.deb) |
+
+> Windows 需要 WebView2 运行时（系统通常已自带，安装程序会自动补装）；Linux 需要 GTK 4 与 WebKitGTK 6.0（Ubuntu 24.04+ / Debian 13+）。
+
 ## v0.6.0
 
 <!-- 亮点：多窗口写作与 AI Mermaid 图表生成 -->

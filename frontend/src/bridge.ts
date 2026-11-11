@@ -122,6 +122,7 @@ export async function installBridge(): Promise<void> {
   window.addEventListener('focus', () => void call('FocusWindow'))
 
   const api: MarkGoApi = {
+    fonts: { list: () => call('ListFonts') },
     settings: {
       get: () => call('GetSettings'),
       // undefined 表示删除该项（如关闭文件夹时的 lastWorkspace），JSON 会丢弃 undefined，改为 null 传给 Go

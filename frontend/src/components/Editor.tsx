@@ -47,6 +47,7 @@ import {
   Table as TableIcon,
   Trash2,
   Wand2,
+  WandSparkles,
   Workflow
 } from 'lucide-react'
 import { resolveDisplaySrc, setAssetBase } from '../lib/assets'
@@ -554,7 +555,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
       { key: 'ai-img', label: 'AI 生图', hint: 'ai image img draw sct', icon: <ImagePlus size={16} />, run: (e) => openImageGen(e) },
       { key: 'ai-continue', label: 'AI 续写', hint: 'ai continue xx', icon: <PenLine size={16} />, run: (e) => openInlineAi(e, 'continue') },
       { key: 'ai-math', label: 'AI 公式', hint: 'ai math formula gs', icon: <Sigma size={16} />, run: () => newMathRef.current(true, '') },
-      { key: 'ai-mermaid', label: 'AI 图表', hint: 'ai mermaid chart diagram flow tb lct', icon: <Workflow size={16} />, run: openMermaidGen },
+      { key: 'ai-mermaid', label: 'AI 图表', hint: 'ai mermaid chart diagram flow tb lct', icon: <WandSparkles size={16} />, run: openMermaidGen },
       { key: 'ai-ask', label: 'AI 指令', hint: 'ai ask zl', icon: <Sparkles size={16} />, run: (e) => openInlineAi(e, 'ask') }
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -757,7 +758,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
           <BubbleBtn onClick={() => selectionToMath(editor)} title="转为公式（描述文字会由 AI 生成公式）">
             <Sigma size={15} />
           </BubbleBtn>
-          <BubbleBtn onClick={() => openMermaidGen(editor)} title="根据选中文字生成 AI 图表"><Workflow size={15} /></BubbleBtn>
+          <BubbleBtn onClick={() => openMermaidGen(editor)} title="根据选中文字生成 AI 图表"><WandSparkles size={15} /></BubbleBtn>
           <span className="bubble-sep" />
           <BubbleBtn active={editor.isActive('heading', { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} title="标题">
             <Heading2 size={15} />

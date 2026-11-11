@@ -102,6 +102,9 @@ type AppSettings struct {
 	Typewriter        bool           `json:"typewriter"`
 	EditorWidth       string         `json:"editorWidth"`
 	EditorFont        string         `json:"editorFont"`
+	EditorFontFamily  string         `json:"editorFontFamily"`
+	EditorFontWeight  int            `json:"editorFontWeight"`
+	EditorCodeFont    string         `json:"editorCodeFont"`
 	EditorFontSize    float64        `json:"editorFontSize"`
 	EditorLineHeight  float64        `json:"editorLineHeight"`
 	EditorParaSpacing float64        `json:"editorParaSpacing"`

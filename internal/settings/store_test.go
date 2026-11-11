@@ -40,6 +40,32 @@ func TestDefaults(t *testing.T) {
 	}
 }
 
+func TestTypographyPreservesLegacyAndPersistsOverrides(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(`{"editorFont":"serif"}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	s := New(dir, nil)
+	old := s.Get()
+	if old.EditorFont != "serif" || old.EditorFontFamily != "" || old.EditorFontWeight != 0 || old.EditorCodeFont != "" {
+		t.Fatalf("legacy settings changed: %+v", old)
+	}
+	if _, err := s.Set(raw(t, `{"editorFontFamily":"Microsoft YaHei","editorFontWeight":500,"editorCodeFont":"Consolas"}`)); err != nil {
+		t.Fatal(err)
+	}
+	loaded := New(dir, nil).Get()
+	if loaded.EditorFontFamily != "Microsoft YaHei" || loaded.EditorFontWeight != 500 || loaded.EditorCodeFont != "Consolas" {
+		t.Fatalf("overrides lost: %+v", loaded)
+	}
+	if _, err := s.Set(raw(t, `{"editorFontFamily":"","editorFontWeight":0,"editorCodeFont":""}`)); err != nil {
+		t.Fatal(err)
+	}
+	reset := New(dir, nil).Get()
+	if reset.EditorFontFamily != "" || reset.EditorFontWeight != 0 || reset.EditorCodeFont != "" {
+		t.Fatal("reset did not persist")
+	}
+}
+
 func TestSetMergesNestedObjectsAndEncryptsSecrets(t *testing.T) {
 	dir := t.TempDir()
 	s := New(dir, fakeBox{})

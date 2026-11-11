@@ -57,6 +57,7 @@ function stub<T extends object>(impl: Partial<T> = {}): T {
 }
 
 const api: MarkGoApi = {
+  fonts: stub(),
   platform: q.get('platform') ?? 'darwin',
   settings: {
     get: async () => settings,

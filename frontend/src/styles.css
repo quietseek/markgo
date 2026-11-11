@@ -763,6 +763,45 @@ textarea {
   caret-color: var(--text-strong);
   word-break: break-word;
 }
+/* 用户主动选择的字体覆盖主题；限定到文档文字，保留公式、图表和编辑控件的字体。 */
+.editor-pane[data-custom-font] .prose-editor,
+.editor-pane[data-custom-font] .prose-editor :is(p, li, blockquote, td, th, a, em, strong, b, mark, h1, h2, h3, h4, h5, h6):not(:where(.katex *, .mermaid-view *, .front-matter *)) {
+  font-family: var(--custom-font) !important;
+}
+.editor-pane[data-custom-weight] .prose-editor,
+.editor-pane[data-custom-weight] .prose-editor :is(p, li, blockquote, td):not(:where(.katex *, .mermaid-view *, .front-matter *)) {
+  font-weight: var(--custom-weight) !important;
+}
+.editor-pane[data-custom-weight] .prose-editor :is(strong, b):not(:where(.katex *, .mermaid-view *, .front-matter *)) {
+  font-weight: var(--custom-strong-weight) !important;
+}
+.editor-pane[data-custom-weight] .prose-editor :is(pre, code) {
+  font-weight: 400;
+}
+.editor-pane[data-custom-code] .prose-editor :is(pre, code, code *),
+.editor-pane[data-custom-code] .source-editor {
+  font-family: var(--custom-code-font) !important;
+}
+.font-settings-preview {
+  padding: 16px;
+  border-top: 1px solid var(--border);
+}
+.set-control > .font-setting-select { width: 240px; min-width: 240px; max-width: 240px; }
+.font-preview {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--surface-muted);
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.font-preview h3 { margin: 0 0 6px; font-size: 14px; line-height: 1.5; color: var(--text-strong); }
+.font-preview p { margin: 3px 0; }
+.font-preview code { display: block; margin-top: 6px; font-family: var(--mono); font-size: 12px; line-height: 1.5; }
+.font-settings-note { margin: 10px 0 0; font-size: 12px; line-height: 1.6; color: var(--text-muted); }
+.font-settings-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.font-settings-actions .font-settings-note { flex: 1; min-width: 150px; margin: 0; }
 .prose-editor > * + * {
   margin-top: var(--ed-para-spacing, 0.85em);
 }
@@ -3940,35 +3979,38 @@ textarea {
   font-size: 12px;
   line-height: 1.6;
 }
-/* PDF 上下左右页边距 */
-.export-margins {
+/* PDF 边距输入按方向围绕纸张，缩窄时仍保持对应位置。 */
+.page-margin-preview {
+  margin: 0 0 12px;
+  padding: 16px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 0;
+}
+.page-margin-controls {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  padding: 4px 0 10px;
-}
-.export-margins label {
-  display: flex;
+  grid-template-areas: '. top .' 'left page right' '. bottom .';
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, 1fr);
   align-items: center;
-  gap: 4px;
-  min-width: 0;
-  font-size: 12px;
-  color: var(--text-muted);
+  justify-items: center;
+  gap: 8px;
+  max-width: 440px;
+  margin: 0 auto;
 }
-.export-margins input {
-  flex: 1;
-  min-width: 0;
-  width: 100%;
-}
-.export-margins small {
-  flex-shrink: 0;
-  font-size: 11px;
-}
-@media (max-width: 640px) {
-  .export-margins {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
+.page-margin-paper { grid-area: page; display: block; width: 100%; max-width: 184px; height: auto; }
+.page-margin-field { display: block; width: 100%; max-width: 126px; min-width: 0; font-size: 12px; color: var(--text-muted); }
+.page-margin-field.margin-top { grid-area: top; }
+.page-margin-field.margin-bottom { grid-area: bottom; }
+.page-margin-field.margin-left { grid-area: left; }
+.page-margin-field.margin-right { grid-area: right; }
+.page-margin-input { display: flex; align-items: center; gap: 4px; }
+.page-margin-input input { min-width: 0; width: 100%; font-variant-numeric: tabular-nums; }
+.modal .page-margin-input input { padding-left: 6px; padding-right: 6px; appearance: textfield; }
+.page-margin-input input::-webkit-inner-spin-button,
+.page-margin-input input::-webkit-outer-spin-button { appearance: none; margin: 0; }
+.page-margin-input small { flex-shrink: 0; font-size: 11px; }
+.page-margin-preview figcaption { margin-top: 12px; text-align: center; font-size: 12px; color: var(--text-muted); }
+.page-margin-invalid { margin: 8px 0 0; line-height: 1.7; color: var(--danger); }
 .export-path {
   display: flex;
   align-items: center;

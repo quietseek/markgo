@@ -5,7 +5,8 @@ import { Modal } from './Modal'
 import { Group, Row, Segmented, Switch } from './SettingsDialog'
 import { Select } from './Select'
 import { toast } from '../lib/toast'
-import { MARGIN_PRESETS, isDarkTheme, withPrintStyle } from '../lib/print'
+import { MARGIN_PRESETS, PAPER_SIZES, isDarkTheme, withPrintStyle } from '../lib/print'
+import { PageMarginPreview } from './PageMarginPreview'
 
 const api = window.markgo
 
@@ -54,17 +55,6 @@ const FORMAT_HINTS: Record<string, string> = {
   epub: '电子书，可设置封面图片；标题取自 front matter 的 title',
   pptx: '每个一级 / 二级标题生成一页幻灯片'
 }
-
-/** 常用纸张（键与 Go 侧 pdfprint.PaperSizes 一致） */
-const PAPER_SIZES: [ExportConfig['paperSize'], string, string][] = [
-  ['a4', 'A4', '210 × 297 mm'],
-  ['a3', 'A3', '297 × 420 mm'],
-  ['a5', 'A5', '148 × 210 mm'],
-  ['b5', 'B5', '176 × 250 mm'],
-  ['b4', 'B4', '250 × 353 mm'],
-  ['letter', 'Letter', '8.5 × 11 in'],
-  ['legal', 'Legal', '8.5 × 14 in']
-]
 
 interface Props {
   markdown: string
@@ -285,7 +275,7 @@ export function ExportOptions({
           <Select
             value={config.paperSize}
             onChange={(paperSize) => onChange({ paperSize })}
-            options={PAPER_SIZES.map(([value, label, hint]) => ({ value, label, hint }))}
+            options={PAPER_SIZES.map(({ key, label, hint }) => ({ value: key, label, hint }))}
           />
         </Row>
         <Row label="方向">
@@ -298,7 +288,7 @@ export function ExportOptions({
             onChange={(v) => onChange({ landscape: v === 'landscape' })}
           />
         </Row>
-        <Row label="页边距" desc="可选常用边距，或填写上下左右的边距（厘米）">
+        <Row label="页边距">
           <Select
             value={config.marginPreset}
             onChange={(key) => {
@@ -311,33 +301,7 @@ export function ExportOptions({
             ]}
           />
         </Row>
-        <div className="export-margins">
-          {(
-            [
-              ['marginTop', '上'],
-              ['marginBottom', '下'],
-              ['marginLeft', '左'],
-              ['marginRight', '右']
-            ] as const
-          ).map(([key, label]) => (
-            <label key={key}>
-              <span>{label}</span>
-              <input
-                className="set-input"
-                type="number"
-                min={0}
-                max={10}
-                step={0.01}
-                value={config[key]}
-                onChange={(e) => {
-                  const v = Math.max(0, Number(e.target.value) || 0)
-                  onChange({ [key]: v, marginPreset: 'custom' })
-                }}
-              />
-              <small>厘米</small>
-            </label>
-          ))}
-        </div>
+        <PageMarginPreview config={config} onChange={onChange} />
         <Row label="一级标题分页" desc="每个一级标题另起一页（文档开头的一级标题除外）">
           <Switch checked={config.pageBreakH1} onChange={(pageBreakH1) => onChange({ pageBreakH1 })} />
         </Row>

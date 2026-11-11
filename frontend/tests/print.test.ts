@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { MARGIN_PRESETS, h1BreakCss } from '../src/lib/print'
+import { MARGIN_PRESETS, h1BreakCss, pageLayout } from '../src/lib/print'
+import { defaultSettings } from '../src/shared/types'
 
 function editor(html: string): Element {
   const root = document.createElement('div')
@@ -33,5 +34,30 @@ describe('h1BreakCss', () => {
 describe('MARGIN_PRESETS', () => {
   it('starts with the Word normal margins', () => {
     expect(MARGIN_PRESETS[0]).toMatchObject({ key: 'normal', top: 2.54, left: 3.18 })
+  })
+})
+
+describe('pageLayout', () => {
+  it('converts asymmetric margins from centimeters to millimeters', () => {
+    const p = pageLayout({ ...defaultSettings.export, marginTop: 1, marginBottom: 2, marginLeft: 3, marginRight: 4 })
+    expect(p).toMatchObject({ width: 210, height: 297, top: 10, bottom: 20, left: 30, right: 40, contentWidth: 140, contentHeight: 267, valid: true })
+  })
+
+  it('rotates the paper while keeping margins on their named edges', () => {
+    const p = pageLayout({ ...defaultSettings.export, paperSize: 'letter', landscape: true, marginTop: 1, marginBottom: 2, marginLeft: 3, marginRight: 4 })
+    expect(p.width).toBe(279.4)
+    expect(p.height).toBe(215.9)
+    expect(p.contentWidth).toBeCloseTo(209.4)
+    expect(p.contentHeight).toBeCloseTo(185.9)
+    expect(p.left).toBe(30)
+    expect(p.top).toBe(10)
+  })
+
+  it('flags margins leaving less than 20 mm of content, including overlapping margins', () => {
+    const p = pageLayout({ ...defaultSettings.export, paperSize: 'a5', marginLeft: 10, marginRight: 10 })
+    expect(p.valid).toBe(false)
+    expect(p.contentWidth).toBe(0)
+    expect(pageLayout({ ...defaultSettings.export, paperSize: 'a4', marginLeft: 10, marginRight: 10 }).valid).toBe(false)
+    expect(pageLayout({ ...defaultSettings.export, marginLeft: 10, marginRight: 9 }).valid).toBe(true)
   })
 })

@@ -25,14 +25,10 @@ import { confirmDialog } from './lib/confirm'
 import { ConfirmHost } from './components/ConfirmHost'
 import { WELCOME_MD } from './lib/welcome'
 import { useTyporaTheme } from './lib/use-typora-theme'
+import { bodyWeight, typographyStyle } from './lib/typography'
 
 const api = window.markgo
 const isMac = api.platform === 'darwin'
-/** 原生样式的正文字体 */
-const EDITOR_FONTS: Record<AppSettings['editorFont'], string> = {
-  sans: 'var(--font)',
-  serif: "'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', STSong, SimSun, serif"
-}
 
 interface Doc {
   path: string
@@ -682,17 +678,10 @@ export function App() {
 
         <main
           className={`editor-pane width-${settings.editorWidth}${proposal ? ' reviewing' : ''}${editorThemeKey && !sourceMode ? ' mk-themed' : ''}${typora && !editorThemeKey ? ' mk-typora' : ''}`}
-          // 字体、字号、行距与段距只作用于原生样式；套用排版主题或 Typora 主题时由主题决定
-          style={
-            editorThemeKey || typora
-              ? undefined
-              : ({
-                  '--ed-font': EDITOR_FONTS[settings.editorFont] ?? EDITOR_FONTS.sans,
-                  '--ed-font-size': `${settings.editorFontSize}px`,
-                  '--ed-line-height': settings.editorLineHeight,
-                  '--ed-para-spacing': `${settings.editorParaSpacing}em`
-                } as React.CSSProperties)
-          }
+          data-custom-font={settings.editorFontFamily?.trim() ? '' : undefined}
+          data-custom-weight={bodyWeight(settings.editorFontWeight) ? '' : undefined}
+          data-custom-code={settings.editorCodeFont?.trim() ? '' : undefined}
+          style={typographyStyle(settings, !editorThemeKey && !typora)}
         >
           {proposal && (
             <DiffReview

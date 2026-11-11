@@ -9,6 +9,8 @@ export interface SelectOption<T extends string = string> {
   label: string
   /** 右侧的灰色说明，如「未安装」 */
   hint?: string
+  /** 搜索用的别名，不额外显示 */
+  searchText?: string
   disabled?: boolean
 }
 
@@ -239,12 +241,14 @@ export function ComboBox({
   options,
   onChange,
   placeholder,
+  ariaLabel,
   className = ''
 }: {
   value: string
-  options: string[]
+  options: (string | SelectOption)[]
   onChange(value: string): void
   placeholder?: string
+  ariaLabel?: string
   className?: string
 }) {
   const [open, setOpen] = useState(false)
@@ -254,9 +258,8 @@ export function ComboBox({
   const box = useRef<HTMLDivElement>(null)
   const input = useRef<HTMLInputElement>(null)
   const menu = useRef<HTMLDivElement>(null)
-  const items: SelectOption[] = options
-    .filter((o) => !filter || o.toLowerCase().includes(filter.toLowerCase()))
-    .map((o) => ({ value: o, label: o }))
+  const entries: SelectOption[] = options.map((o) => typeof o === 'string' ? { value: o, label: o } : o)
+  const items = entries.filter((o) => !filter || `${o.label} ${o.value} ${o.searchText ?? ''}`.toLowerCase().includes(filter.toLowerCase()))
   const visible = open && items.length > 0
   const style = useMenuPosition(visible, box, items.length)
 
@@ -297,7 +300,8 @@ export function ComboBox({
     <div ref={box} className={`combo${visible ? ' open' : ''} ${className}`}>
       <input
         ref={input}
-        value={value}
+        aria-label={ariaLabel}
+        value={value ? entries.find((o) => o.value === value)?.label ?? value : ''}
         placeholder={placeholder}
         spellCheck={false}
         onChange={(e) => {

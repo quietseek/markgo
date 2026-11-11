@@ -1,5 +1,12 @@
 export type ImageUploadMode = 'picgo' | 'local'
 
+export interface SystemFont {
+  family: string
+  displayName?: string
+  aliases?: string[]
+  monospace: boolean
+}
+
 export interface TyporaThemeImport {
   themes: TyporaThemeInfo[]
   errors: string[]
@@ -44,6 +51,12 @@ export interface AppSettings {
   sidebarView: 'tree' | 'list'
   /** 原生样式的正文字体：sans 黑体；serif 宋体 */
   editorFont: 'sans' | 'serif'
+  /** 编辑区字体覆盖：空为跟随主题，sans / serif 为预设，其余为本机字体名 */
+  editorFontFamily: string
+  /** 正文字重：0 跟随主题，300–700 */
+  editorFontWeight: number
+  /** 代码及源码字体：空为跟随主题 */
+  editorCodeFont: string
   /** 原生样式的正文字号（px） */
   editorFontSize: number
   /** 原生样式的行距（倍数） */
@@ -240,6 +253,9 @@ export const defaultSettings: AppSettings = {
   editorWidth: 'full',
   sidebarView: 'tree',
   editorFont: 'sans',
+  editorFontFamily: '',
+  editorFontWeight: 0,
+  editorCodeFont: '',
   editorFontSize: 14,
   editorLineHeight: 2,
   editorParaSpacing: 1.3,
@@ -496,6 +512,9 @@ export interface PromptInput {
 }
 
 export interface MarkGoApi {
+  fonts: {
+    list(): Promise<SystemFont[]>
+  }
   settings: {
     get(): Promise<AppSettings>
     set(patch: Partial<AppSettings>): Promise<AppSettings>
