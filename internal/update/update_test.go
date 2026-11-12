@@ -44,8 +44,8 @@ func TestLatestAndDownload(t *testing.T) {
 	var srv *httptest.Server
 	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/repos/" + Repo + "/releases/latest":
-			w.Write([]byte(`{"tag_name":"v9.0.0","html_url":"https://example.com","assets":[{"name":"MarkGo-9.0.0-linux-amd64.deb","browser_download_url":"` + srv.URL + `/pkg","size":1048576}]}`))
+		case "/latest.json":
+			w.Write([]byte(`{"tag_name":"v9.0.0","html_url":"https://github.com/quietseek/markgo/releases/tag/v9.0.0","assets":[{"name":"MarkGo-9.0.0-linux-amd64.deb","browser_download_url":"https://github.com/quietseek/markgo/releases/download/v9.0.0/MarkGo-9.0.0-linux-amd64.deb","size":1048576}]}`))
 		case "/pkg":
 			w.Write([]byte(body))
 		default:
@@ -53,17 +53,18 @@ func TestLatestAndDownload(t *testing.T) {
 		}
 	}))
 	defer srv.Close()
-	apiBase = srv.URL
-	c := Latest("0.2.1", KindDeb)
+	checker := NewChecker("")
+	checker.url = srv.URL + "/latest.json"
+	c := checker.Check("0.2.1", KindDeb, false)
 	if !c.OK || !c.HasUpdate || !c.Installable || c.Asset == nil {
 		t.Fatalf("check = %+v", c)
 	}
-	if Latest("0.2.1", KindMac).Installable {
+	if checker.Check("0.2.1", KindMac, false).Installable {
 		t.Fatal("mac asset should be missing")
 	}
 	dest := filepath.Join(t.TempDir(), "pkg")
 	var last int64
-	if err := Download(c.Asset.URL, dest, func(r, _ int64) { last = r }); err != nil {
+	if err := Download(srv.URL+"/pkg", dest, func(r, _ int64) { last = r }); err != nil {
 		t.Fatal(err)
 	}
 	if st, _ := os.Stat(dest); st.Size() != int64(len(body)) || last != int64(len(body)) {

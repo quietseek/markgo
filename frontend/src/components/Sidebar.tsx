@@ -47,6 +47,7 @@ interface Props {
   onMove(path: string, destDir: string): void
   /** 文件的显示方式：文件树或平铺列表 */
   view: 'tree' | 'list'
+  outlinePosition: 'tab' | 'below-files'
   onView(view: 'tree' | 'list'): void
   onHeadingClick(index: number): void
   onSettings(): void
@@ -75,6 +76,7 @@ const displayName = (node: FileNode) => (node.type === 'file' ? node.name.replac
 
 export function Sidebar(props: Props) {
   const tab = props.tab
+  const belowFiles = props.outlinePosition === 'below-files'
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [menu, setMenu] = useState<Menu | null>(null)
   const [renaming, setRenaming] = useState<string | null>(null)
@@ -290,7 +292,7 @@ export function Sidebar(props: Props) {
   return (
     <aside className="sidebar">
       <div className="sidebar-tabs">
-        {(
+        {belowFiles ? <span className="sidebar-section-label">文件</span> : (
           [
             ['files', '文件'],
             ['outline', '大纲']
@@ -302,7 +304,8 @@ export function Sidebar(props: Props) {
           ))}
       </div>
 
-      {tab === 'files' ? (
+      {(belowFiles || tab === 'files') && <div className="sidebar-files">
+        {(
         props.workspace ? (
           <>
             <div className="sidebar-head">
@@ -373,24 +376,28 @@ export function Sidebar(props: Props) {
             )}
           </div>
         )
-      ) : (
+        )}
+      </div>}
+      {(belowFiles || tab === 'outline') && <section className={`sidebar-outline${belowFiles ? ' below-files' : ''}`} aria-label="当前文档大纲">
+        {belowFiles && <div className="sidebar-outline-head"><span>大纲</span><small title={props.activePath}>{props.activePath ? basename(props.activePath) : '当前文档'}</small></div>}
         <div className="outline">
           {props.headings.length ? (
             props.headings.map((h, i) => (
-              <div
+              <button
                 key={i}
                 className="outline-item"
+                title={h.text || '（空标题）'}
                 style={{ paddingLeft: 12 + (h.level - minLevel) * 14 }}
                 onClick={() => props.onHeadingClick(i)}
               >
                 {h.text || '（空标题）'}
-              </div>
+              </button>
             ))
           ) : (
             <div className="sidebar-empty">文档中还没有标题</div>
           )}
         </div>
-      )}
+      </section>}
 
       <div className="sidebar-foot">
         <button className="icon-btn sm" title="设置" onClick={props.onSettings}>

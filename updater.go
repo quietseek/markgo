@@ -54,7 +54,9 @@ func installKind() update.Kind {
 	return ""
 }
 
-func (b *Bridge) CheckUpdate() update.Check { return update.Latest(Version, installKind()) }
+func (b *Bridge) CheckUpdate(manual bool) update.Check {
+	return b.owner.updateChecker.Check(Version, installKind(), manual)
+}
 
 type updateProgress struct {
 	Phase    string `json:"phase"` // download | install
@@ -87,7 +89,7 @@ func (b *Bridge) InstallUpdate() installResult {
 
 func (b *Bridge) installUpdate() error {
 	kind := installKind()
-	c := update.Latest(Version, kind)
+	c := b.owner.updateChecker.Check(Version, kind, true)
 	switch {
 	case !c.OK:
 		return errors.New(c.Error)

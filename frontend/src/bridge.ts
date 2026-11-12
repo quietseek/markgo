@@ -206,7 +206,7 @@ export async function installBridge(): Promise<void> {
     app: {
       info: () => call('AppInfo'),
       takeOpenPath: () => call('TakeOpenPath'),
-      checkUpdate: () => call('CheckUpdate'),
+      checkUpdate: (manual = true) => call('CheckUpdate', manual),
       installUpdate: () => call('InstallUpdate'),
       onUpdateProgress: (cb) => on<UpdateProgress>('update:progress', cb),
       onSaveRequest: (cb) => on<null>('app:save', () => cb())

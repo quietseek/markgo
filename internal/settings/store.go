@@ -12,10 +12,10 @@ import (
 var nestedKeys = []string{"wechat", "ai", "writing", "imageGen", "export"}
 
 type Store struct {
-	mu       sync.Mutex
-	dir      string
-	secrets  SecretBox
-	cache    *AppSettings
+	mu      sync.Mutex
+	dir     string
+	secrets SecretBox
+	cache   *AppSettings
 }
 
 // New 创建设置存储。dir 为用户数据目录。
@@ -114,6 +114,9 @@ func (s *Store) migrate(cfg *AppSettings, stored map[string]json.RawMessage) {
 	}
 	if cfg.SidebarView != "list" {
 		cfg.SidebarView = "tree"
+	}
+	if cfg.OutlinePosition != "below-files" {
+		cfg.OutlinePosition = "tab"
 	}
 }
 

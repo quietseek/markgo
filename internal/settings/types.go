@@ -94,6 +94,7 @@ type AppSettings struct {
 	ShowSidebar       bool    `json:"showSidebar"`
 	// 侧栏文件的显示方式："tree" 文件树 | "list" 平铺列表
 	SidebarView       string         `json:"sidebarView"`
+	OutlinePosition   string         `json:"outlinePosition"` // "tab" | "below-files"
 	EditorTheme       string         `json:"editorTheme"`
 	Appearance        string         `json:"appearance"`
 	LightTheme        string         `json:"lightTheme"`
@@ -199,6 +200,7 @@ func Defaults() AppSettings {
 		LinkToFootnote:    true,
 		ShowSidebar:       true,
 		SidebarView:       "tree",
+		OutlinePosition:   "tab",
 		EditorTheme:       "default",
 		Appearance:        "system",
 		ShowToolbar:       true,

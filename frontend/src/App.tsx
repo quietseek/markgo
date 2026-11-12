@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Code2, FileCode, FileOutput, Loader2, PanelLeft, Sparkles, AppWindow } from 'lucide-react'
-import { MAX_RECENT_WORKSPACES, type AppSettings, type FileNode, type WriteProposal } from '@shared/types'
+import { MAX_RECENT_WORKSPACES, type AppSettings, type FileNode, type WriteProposal, type UpdateCheck } from '@shared/types'
 import { Editor, type EditorHandle, type HeadingInfo } from './components/Editor'
 import { Sidebar, type SidebarTab } from './components/Sidebar'
 import { SettingsDialog } from './components/SettingsDialog'
@@ -623,22 +623,26 @@ export function App() {
       resolveWrite(proposal, true, proposal.after, 'accepted', true)
   }, [proposal, agent.writing, doc])
 
-  const checkUpdate = useCallback(async () => {
+  const checkUpdate = useCallback(async (manual = true) => {
     setUpdate((u) => ({ ...u, checking: true }))
-    const result = await api.app.checkUpdate()
+    let result: UpdateCheck
+    try { result = await api.app.checkUpdate(manual) }
+    catch (err) { result = { ok: false, error: err instanceof Error ? err.message : String(err) } }
     setUpdate({ checking: false, result })
     return result
   }, [])
-  // 启动后静默检查一次更新，有新版本时在左下角提示
+  // 启动后静默检查，之后每六小时检查；后端在多窗口间共享缓存。
   const autoCheckUpdate = settings?.autoCheckUpdate
   useEffect(() => {
     if (!autoCheckUpdate) return
-    const timer = window.setTimeout(async () => {
-      const r = await checkUpdate()
+    const run = async () => {
+      const r = await checkUpdate(false)
       if (r.ok && r.hasUpdate)
         toast(`发现新版本 v${r.latest}，${r.installable ? '可在「关于」中一键更新' : '可在「关于」中前往下载'}`, 'info', 6000)
-    }, 5000)
-    return () => window.clearTimeout(timer)
+    }
+    const timer = window.setTimeout(run, 5000)
+    const interval = window.setInterval(run, 6 * 60 * 60 * 1000)
+    return () => { window.clearTimeout(timer); window.clearInterval(interval) }
   }, [checkUpdate, autoCheckUpdate])
   const openUpdate = () => {
     setDialog('about')
@@ -781,6 +785,7 @@ export function App() {
             onExport={exportEntry}
             onMove={moveEntry}
             view={settings.sidebarView}
+            outlinePosition={settings.outlinePosition}
             onView={(sidebarView) => updateSettings({ sidebarView })}
             onReveal={(p) => api.fs.reveal(p)}
             onHeadingClick={(i) => editorRef.current?.scrollToHeading(i)}
@@ -921,7 +926,7 @@ export function App() {
         />
       )}
       {dialog === 'shortcuts' && <ShortcutsDialog onClose={() => setDialog(null)} />}
-      {dialog === 'about' && <AboutDialog update={update} onCheck={checkUpdate} onClose={() => setDialog(null)} />}
+      {dialog === 'about' && <AboutDialog update={update} onCheck={() => void checkUpdate(true)} onClose={() => setDialog(null)} />}
       <ConfirmHost />
       <Toasts />
     </div>

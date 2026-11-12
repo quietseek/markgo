@@ -373,6 +373,13 @@ textarea {
   color: var(--text-strong);
   background: var(--surface-active);
 }
+.sidebar-section-label { padding: 4px 8px; font-size: 12px; font-weight: 500; color: var(--text-strong); }
+.sidebar-files, .sidebar-outline { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+.sidebar-files .sidebar-welcome { overflow-y: auto; }
+.sidebar-outline.below-files { flex: 0 1 40%; min-height: 96px; border-top: 1px solid var(--border); }
+.sidebar-outline-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px 6px; color: var(--text-strong); font-size: 12px; }
+.sidebar-outline-head > span { flex: none; font-weight: 500; }
+.sidebar-outline-head small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: 11px; }
 .sidebar-foot {
   margin-top: auto;
   flex: none;
@@ -605,6 +612,12 @@ textarea {
   outline: none;
 }
 .outline-item {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
   padding: 5px 10px;
   border-radius: 6px;
   color: var(--text);
@@ -617,6 +630,7 @@ textarea {
   background: var(--surface-hover);
   color: var(--text-strong);
 }
+.outline-item:focus-visible { outline: 2px solid var(--text-muted); outline-offset: -2px; }
 .sidebar-empty {
   padding: 24px 14px;
   color: var(--text-muted);
@@ -689,10 +703,13 @@ textarea {
   gap: 4px;
   padding: 4px 8px;
   overflow-x: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
   scroll-padding-inline: 8px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
+}
+.document-tabs::-webkit-scrollbar {
+  display: none;
 }
 .document-tab {
   display: flex;

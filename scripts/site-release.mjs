@@ -1,31 +1,44 @@
 // 部署介绍页前，把最新 Release 的版本号、安装包直链与大小、CHANGELOG 亮点写进 site/index.html，输出到另一个目录。
-// 页面里读取 GitHub API 的脚本仍保留作兜底；这里写好后，即使访客被限流或没有执行 JS，看到的也是最新版本。
+// 同时生成供客户端和网页使用的 latest.json；只有部署任务访问 GitHub API。
 // usage: node scripts/site-release.mjs <输出目录>   （可用 GITHUB_TOKEN 提高 API 限额，GITHUB_REPOSITORY 指定仓库）
 //
 // 亮点取自 CHANGELOG.md 对应版本小节里的 `<!-- 亮点：... -->`，没有就截取第一条说明的开头。
 import { cpSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const out = process.argv[2]
 if (!out) {
   console.error('usage: node scripts/site-release.mjs <输出目录>')
   process.exit(1)
 }
-const root = new URL('..', import.meta.url).pathname
+const root = fileURLToPath(new URL('..', import.meta.url))
 const repo = process.env.GITHUB_REPOSITORY || 'quietseek/markgo'
 
 cpSync(join(root, 'site'), out, { recursive: true })
 
 const headers = { Accept: 'application/vnd.github+json' }
 if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`
-const res = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, { headers })
+const res = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, { headers, signal: AbortSignal.timeout(20000) })
 if (!res.ok) {
-  // 读不到 Release 时照常部署原页面，由页面脚本在浏览器里补上版本信息
-  console.warn(`::warning::读取最新 Release 失败（HTTP ${res.status}），介绍页按原样部署`)
-  process.exit(0)
+  // 不部署缺失更新清单的站点，保留线上最后一次成功部署的版本。
+  throw new Error(`读取最新 Release 失败（HTTP ${res.status}），取消部署`)
 }
 const rel = await res.json()
 const ver = rel.tag_name
+if (!/^v\d+\.\d+\.\d+$/.test(ver) || rel.draft || rel.prerelease || rel.html_url !== `https://github.com/${repo}/releases/tag/${ver}`) {
+  throw new Error('最新 Release 信息无效，取消部署')
+}
+const suffixes = ['mac-universal.dmg', 'win-x64-setup.exe', 'linux-amd64.deb']
+const assets = suffixes.map((suffix) => {
+  const name = `MarkGo-${ver.slice(1)}-${suffix}`
+  const asset = rel.assets?.find((item) => item.name === name)
+  const url = `https://github.com/${repo}/releases/download/${ver}/${name}`
+  if (!asset || asset.browser_download_url !== url || !Number.isSafeInteger(asset.size) || asset.size <= 0 || asset.state !== 'uploaded') {
+    throw new Error(`安装包 ${name} 尚未就绪，取消部署`)
+  }
+  return { name, browser_download_url: url, size: asset.size }
+})
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 const mb = (n) => (n / 1048576).toFixed(1) + ' MB'
@@ -87,4 +100,5 @@ for (const os of ['mac', 'win', 'linux']) {
 }
 
 writeFileSync(file, html)
-console.log(`介绍页已写入 ${ver}${hl ? `（亮点：${hl}）` : ''}`)
+writeFileSync(join(out, 'latest.json'), JSON.stringify({ tag_name: ver, html_url: rel.html_url, published_at: rel.published_at, body: rel.body || '', assets }, null, 2) + '\n')
+console.log(`介绍页与 latest.json 已写入 ${ver}${hl ? `（亮点：${hl}）` : ''}`)

@@ -51,6 +51,8 @@ export interface AppSettings {
   editorWidth: EditorWidth
   /** 侧栏文件的显示方式：文件树或平铺列表 */
   sidebarView: 'tree' | 'list'
+  /** 大纲在独立标签中，或显示在文件列表下方 */
+  outlinePosition: 'tab' | 'below-files'
   /** 原生样式的正文字体：sans 黑体；serif 宋体 */
   editorFont: 'sans' | 'serif'
   /** 编辑区字体覆盖：空为跟随主题，sans / serif 为预设，其余为本机字体名 */
@@ -269,6 +271,7 @@ export const defaultSettings: AppSettings = {
   darkTheme: '',
   editorWidth: 'full',
   sidebarView: 'tree',
+  outlinePosition: 'tab',
   editorFont: 'sans',
   editorFontFamily: '',
   editorFontWeight: 0,
@@ -666,7 +669,7 @@ export interface MarkGoApi {
     info(): Promise<AppInfo>
     /** 启动时取走待打开的文件（从桌面等外部打开 MarkGo 时） */
     takeOpenPath(): Promise<string | null>
-    checkUpdate(): Promise<UpdateCheck>
+    checkUpdate(manual?: boolean): Promise<UpdateCheck>
     /** 下载并安装最新版本，成功后应用会退出并自动重新打开 */
     installUpdate(): Promise<{ ok: boolean; error?: string }>
     onUpdateProgress(cb: (p: UpdateProgress) => void): () => void

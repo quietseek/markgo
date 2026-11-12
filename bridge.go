@@ -48,6 +48,7 @@ type Bridge struct {
 	relaunch atomic.Bool
 	// 自动更新进行中
 	updating      atomic.Bool
+	updateChecker *update.Checker
 	trayMu        sync.Mutex
 	tray          *application.SystemTray
 	openMu        sync.Mutex
@@ -72,7 +73,7 @@ type Bridge struct {
 }
 
 func newBridge(store *settings.Store) *Bridge {
-	b := &Bridge{store: store}
+	b := &Bridge{store: store, updateChecker: update.NewChecker(filepath.Join(store.Dir(), "update-cache.json"))}
 	cfg := store.Get()
 	b.owner = b
 	b.windows = make(map[uint]*Bridge)

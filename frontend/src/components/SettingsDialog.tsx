@@ -133,6 +133,9 @@ export function SettingsDialog({ settings, initialTab = 'general', onSave, onClo
                 <TyporaThemes draft={draft} set={set} />
               </Group>
               <Group title="窗口">
+                <Row label="大纲位置" desc="在文件与大纲之间切换，或在文件列表下方显示当前文档的大纲">
+                  <Segmented value={draft.outlinePosition} options={[["tab", "标签切换"], ["below-files", "文件下方"]]} onChange={(outlinePosition) => set({ outlinePosition })} />
+                </Row>
                 <Row label="文档标签页" desc="在同一窗口快速切换文档；关闭最后一个标签后显示示例文档">
                   <Switch checked={draft.showDocumentTabs} onChange={(showDocumentTabs) => set({ showDocumentTabs })} />
                 </Row>
@@ -201,7 +204,7 @@ export function SettingsDialog({ settings, initialTab = 'general', onSave, onClo
                 </Group>
               )}
               <Group title="更新">
-                <Row label="自动检查更新" desc="启动后在后台检查，有新版本时在左下角提示">
+                <Row label="自动检查更新" desc="启动后及每 6 小时在后台检查，有新版本时在左下角提示">
                   <Switch checked={draft.autoCheckUpdate} onChange={(autoCheckUpdate) => set({ autoCheckUpdate })} />
                 </Row>
               </Group>

@@ -1,8 +1,7 @@
-// Package update 通过 GitHub Releases 检查新版本，并下载对应平台的安装包。
+// Package update 通过官网静态清单检查新版本，从 GitHub Releases 下载安装包。
 package update
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -17,9 +16,6 @@ import (
 const Repo = "quietseek/markgo"
 
 var RepoURL = "https://github.com/" + Repo
-
-// 测试中指向模拟服务
-var apiBase = "https://api.github.com"
 
 type Check struct {
 	OK        bool   `json:"ok"`
@@ -88,39 +84,6 @@ func CompareVersions(a, b string) int {
 		}
 	}
 	return 0
-}
-
-// Latest 查询 GitHub 最新 Release；kind 为本机的安装方式，用于挑选自动更新的安装包
-func Latest(current string, kind Kind) Check {
-	req, _ := http.NewRequest(http.MethodGet, apiBase+"/repos/"+Repo+"/releases/latest", nil)
-	req.Header.Set("Accept", "application/vnd.github+json")
-	res, err := (&http.Client{Timeout: 20 * time.Second}).Do(req)
-	if err != nil {
-		return Check{Error: fmt.Sprintf("检查更新失败：%v", err)}
-	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return Check{Error: fmt.Sprintf("GitHub 返回 %d", res.StatusCode)}
-	}
-	var data struct {
-		TagName string  `json:"tag_name"`
-		HTMLURL string  `json:"html_url"`
-		Assets  []Asset `json:"assets"`
-	}
-	if err := json.NewDecoder(res.Body).Decode(&data); err != nil {
-		return Check{Error: fmt.Sprintf("检查更新失败：%v", err)}
-	}
-	latest := strings.TrimPrefix(data.TagName, "v")
-	asset := PickAsset(data.Assets, kind)
-	return Check{
-		OK:          true,
-		Current:     current,
-		Latest:      latest,
-		HasUpdate:   CompareVersions(latest, current) > 0,
-		URL:         data.HTMLURL,
-		Installable: asset != nil,
-		Asset:       asset,
-	}
 }
 
 // Download 下载安装包到 dest，progress 报告已下载与总字节数（总数未知时为 0）

@@ -614,7 +614,7 @@ footer a { color: var(--ink-2); }
     document.getElementById('cta-label').textContent = `下载 ${OS_NAME[os]} 版`
   }
   const mb = (n) => (n / 1048576).toFixed(1) + ' MB'
-  fetch('https://api.github.com/repos/quietseek/markgo/releases/latest', { headers: { Accept: 'application/vnd.github+json' } })
+  fetch('./latest.json')
     .then((r) => r.ok ? r.json() : Promise.reject(r.status))
     .then((rel) => {
       const ver = rel.tag_name
