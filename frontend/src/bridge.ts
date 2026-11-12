@@ -122,6 +122,13 @@ export async function installBridge(): Promise<void> {
   window.addEventListener('focus', () => void call('FocusWindow'))
 
   const api: MarkGoApi = {
+    history: {
+      document: (path) => call('HistoryDocument', path),
+      list: (id) => call('HistoryList', id),
+      load: (id) => call('HistoryLoad', id),
+      bind: (id, path) => call('HistoryBind', id, path),
+      delete: (id) => call('HistoryDelete', id)
+    },
     fonts: { list: () => call('ListFonts') },
     settings: {
       get: () => call('GetSettings'),
@@ -169,7 +176,9 @@ export async function installBridge(): Promise<void> {
       testPicgo: () => call('TestPicgo'),
       uploadToHost: (src, docPath) => call('UploadToHost', src, docPath ?? ''),
       download: (src, docPath) => call('DownloadImage', src, docPath ?? ''),
-      generate: (prompt) => call('GenerateImage', prompt),
+      generate: (request) => call('GenerateImage', request),
+      capabilities: (provider, model) => call('ImageGenCapabilities', provider, model),
+      readReference: (src, docPath) => call('ReadImageReference', src, docPath || ''),
       reveal: (src, docPath) => call('RevealImage', src, docPath ?? ''),
       // 网页拖放拿不到文件的磁盘路径，由调用方改为上传文件内容
       pathForFile: () => ''
@@ -205,6 +214,8 @@ export async function installBridge(): Promise<void> {
     window: {
       newWindow: () => call('NewWindow'),
       claimDocument: (path) => call('ClaimDocument', path),
+      setOpenDocuments: (paths) => call('SetOpenDocuments', paths),
+      onDocumentsMoved: (cb) => on('documents:moved', cb),
       routeOpen: (path, kind, forceNew = false) => call('RouteOpen', path, kind, forceNew),
       completeClose: (saved) => call('CompleteClose', saved),
       onCloseRequest: (cb) => on<null>('window:close-request', cb),

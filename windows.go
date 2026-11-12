@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 
 	"github.com/quietseek/markgo/internal/settings"
@@ -115,7 +116,7 @@ func (b *Bridge) ClaimDocument(ctx context.Context, path string) bool {
 			continue
 		}
 		other.openMu.Lock()
-		owned := key != "" && (key == pathKey(other.document) || key == pathKey(other.lastFile) || key == pathKey(other.pending))
+		owned := key != "" && (key == pathKey(other.document) || key == pathKey(other.lastFile) || key == pathKey(other.pending) || slices.ContainsFunc(other.openDocuments, func(p string) bool { return pathKey(p) == key }))
 		other.openMu.Unlock()
 		if owned {
 			other.showWindow()
@@ -124,8 +125,32 @@ func (b *Bridge) ClaimDocument(ctx context.Context, path string) bool {
 	}
 	s.openMu.Lock()
 	s.document = path
+	if !s.store.Get().ShowDocumentTabs {
+		s.openDocuments = nil
+	}
+	if key != "" && !slices.ContainsFunc(s.openDocuments, func(p string) bool { return pathKey(p) == key }) {
+		s.openDocuments = append(s.openDocuments, path)
+	}
 	s.openMu.Unlock()
 	return true
+}
+
+// Release closed/hidden tabs while retaining the active document claim. Only
+// previously claimed paths may be retained; this cannot claim another window's file.
+func (b *Bridge) SetOpenDocuments(ctx context.Context, paths []string) {
+	s := b.session(ctx)
+	r := b.owner
+	r.routeMu.Lock()
+	defer r.routeMu.Unlock()
+	s.openMu.Lock()
+	defer s.openMu.Unlock()
+	kept := []string{}
+	for _, p := range s.openDocuments {
+		if pathKey(p) == pathKey(s.document) || slices.ContainsFunc(paths, func(want string) bool { return pathKey(want) == pathKey(p) }) {
+			kept = append(kept, p)
+		}
+	}
+	s.openDocuments = kept
 }
 
 func pathKey(path string) string {
@@ -143,6 +168,34 @@ func pathKey(path string) string {
 		path = strings.ToLower(path)
 	}
 	return path
+}
+
+func (b *Bridge) moveDocumentClaims(from, to string) {
+	r := b.owner
+	r.routeMu.Lock()
+	defer r.routeMu.Unlock()
+	remap := func(p string) string {
+		if p == "" {
+			return p
+		}
+		old, key := pathKey(from), pathKey(p)
+		if key == old {
+			return to
+		}
+		if strings.HasPrefix(key, old+string(filepath.Separator)) {
+			return filepath.Join(to, strings.TrimPrefix(key, old+string(filepath.Separator)))
+		}
+		return p
+	}
+	for _, s := range r.sessions() {
+		s.openMu.Lock()
+		s.document, s.lastFile, s.pending = remap(s.document), remap(s.lastFile), remap(s.pending)
+		for i, p := range s.openDocuments {
+			s.openDocuments[i] = remap(p)
+		}
+		s.openMu.Unlock()
+		emitTo(s.window, "documents:moved", map[string]string{"from": from, "to": to})
+	}
 }
 
 func withinWorkspace(file, workspace string) bool {
@@ -165,7 +218,7 @@ func openInNewWindow(cfg settings.AppSettings, file, workspace, kind, path strin
 	if workspace != "" && !withinWorkspace(path, workspace) {
 		return cfg.OpenWorkspaceMode == "new"
 	}
-	return cfg.OpenFileMode == "new"
+	return !cfg.ShowDocumentTabs && cfg.OpenFileMode == "new"
 }
 
 // RouteOpen returns true when a window already handles the request. Otherwise the
@@ -197,15 +250,22 @@ func (b *Bridge) routeOpen(path, kind string, forceNew bool) (bool, error) {
 		cfg := s.sessionSettings()
 		s.openMu.Lock()
 		pending, document := s.pending, s.document
+		inTab := slices.ContainsFunc(s.openDocuments, func(p string) bool { return pathKey(p) == key })
 		s.openMu.Unlock()
-		matches := kind == "file" && (key == pathKey(cfg.LastFile) || key == pathKey(pending) || key == pathKey(document))
+		matches := kind == "file" && (key == pathKey(cfg.LastFile) || key == pathKey(pending) || key == pathKey(document) || inTab)
 		matches = matches || kind == "workspace" && key == pathKey(cfg.LastWorkspace)
 		if matches && s != b {
+			if kind == "file" && key != pathKey(document) {
+				s.openPath(path)
+			}
 			s.showWindow()
 			return true, nil
 		}
 		if matches && s == b {
 			s.showWindow()
+			if kind == "file" && key != pathKey(document) {
+				return false, nil
+			}
 			return true, nil
 		}
 	}

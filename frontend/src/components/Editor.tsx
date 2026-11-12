@@ -1,11 +1,11 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { EditorContent, ReactNodeViewRenderer, useEditor, type Editor as TiptapEditor } from '@tiptap/react'
-import { BubbleMenu } from '@tiptap/react/menus'
+import { BubbleMenu, FloatingMenu } from '@tiptap/react/menus'
 import { mergeAttributes } from '@tiptap/core'
 import { PluginKey } from '@tiptap/pm/state'
 import StarterKit from '@tiptap/starter-kit'
 import { Markdown } from '@tiptap/markdown'
-import Image from '@tiptap/extension-image'
+import Image, { type ImageOptions } from '@tiptap/extension-image'
 import Highlight from '@tiptap/extension-highlight'
 import { TableKit } from '@tiptap/extension-table'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
@@ -21,6 +21,7 @@ import {
   BetweenVerticalStart,
   Bold,
   Code,
+  Ellipsis,
   Heading1,
   Heading2,
   Heading3,
@@ -70,6 +71,7 @@ import { Subscript, Superscript } from '../lib/sub-sup'
 const lowlight = createLowlight(common)
 const bubbleMenuKey = new PluginKey('markgoBubbleMenu')
 const tableMenuKey = new PluginKey('markgoTableMenu')
+const floatingMenuKey = new PluginKey('markgoFloatingMenu')
 
 /** 代码块带语言选择与复制按钮 */
 const CodeBlock = CodeBlockLowlight.extend({
@@ -86,7 +88,7 @@ const FrontMatterBlock = FrontMatter.extend({
 })
 
 /** 显示时把本地路径映射到 /mg-asset/，序列化 markdown 时仍保留原始 src */
-const LocalImage = Image.extend({
+const LocalImage = Image.extend<ImageOptions & { onEditImage?: (pos: number) => void }>({
   renderHTML({ HTMLAttributes }) {
     return ['img', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, { src: resolveDisplaySrc(HTMLAttributes.src) })]
   },
@@ -248,25 +250,51 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
   )
 
   // AI 生图：记下打开时的插入位置，选中的文字作为初始描述
-  const [genImage, setGenImage] = useState<{ prompt: string; pos: number } | null>(null)
+  const [genImage, setGenImage] = useState<{ prompt: string; pos: number; src?: string; docPath?: string; invalid?: boolean } | null>(null)
+  const genImageRef = useRef(genImage)
+  genImageRef.current = genImage
+  const editImageRef = useRef<(pos: number) => void>(() => {})
   const openImageGen = useCallback((editor: TiptapEditor) => {
+    if (!editor.isEditable) return
     const { from, to, empty } = editor.state.selection
-    setGenImage({ prompt: empty ? '' : editor.state.doc.textBetween(from, to, ' '), pos: to })
+    const node = editor.state.doc.nodeAt(from)
+    setGenImage(node?.type.name === 'image'
+      ? { prompt: '', pos: from, src: node.attrs.src, docPath: docPathRef.current }
+      : { prompt: empty ? '' : editor.state.doc.textBetween(from, to, ' '), pos: to, docPath: docPathRef.current })
   }, [])
-  const insertGenerated = async (dataUrl: string, prompt: string, pos: number) => {
+  const insertGenerated = async (dataUrl: string, prompt: string, replace: boolean) => {
     const ed = editorRef.current
+    const target = genImageRef.current
+    const validate = () => {
+      if (!ed || ed.isDestroyed || !ed.isEditable || !target || target.docPath !== docPathRef.current) throw new Error('文档已切换，图片可另存后再插入')
+      const current = genImageRef.current
+      if (!current || current.invalid) throw new Error('原插入位置已改变，图片可另存后再插入')
+      const node = ed.state.doc.nodeAt(current.pos)
+      if (replace && (node?.type.name !== 'image' || node.attrs.src !== current.src)) throw new Error('原图已改变，请另存结果后重新打开改图')
+      return current
+    }
+    validate()
     if (!ed) return false
     const blob = await (await fetch(dataUrl)).blob()
     const tid = toast('正在保存图片…', 'loading')
-    const res = await window.markgo.image.uploadBuffer(await blob.arrayBuffer(), IMAGE_EXT_BY_MIME[blob.type] || 'png', docPathRef.current)
-    if (!res.ok) {
-      resolveToast(tid, res.error || '保存失败', 'error')
-      return false
+    try {
+      const res = await window.markgo.image.uploadBuffer(await blob.arrayBuffer(), IMAGE_EXT_BY_MIME[blob.type] || 'png', target!.docPath)
+      if (!res.ok || !res.urls[0]) throw new Error(res.error || '保存失败')
+      const current = validate()
+      const original = current.src ? ed.state.doc.nodeAt(current.pos) : null
+      if (replace) {
+        ed.view.dispatch(ed.state.tr.setNodeMarkup(current.pos, undefined, { ...original!.attrs, src: res.urls[0] }))
+      } else {
+        const pos = Math.min(current.pos + (original?.type.name === 'image' ? original.nodeSize : 0), ed.state.doc.content.size)
+        const alt = prompt.replace(/\s+/g, ' ').slice(0, 40)
+        ed.chain().focus().insertContentAt(pos, { type: 'image', attrs: { src: res.urls[0], alt } }).run()
+      }
+      resolveToast(tid, replace ? '图片已替换，可撤销恢复原图' : '图片已插入', 'success')
+      return true
+    } catch (err) {
+      resolveToast(tid, err instanceof Error ? err.message : String(err), 'error')
+      throw err
     }
-    resolveToast(tid, '图片已插入', 'success')
-    const alt = prompt.replace(/\s+/g, ' ').slice(0, 40)
-    ed.chain().focus().insertContentAt(Math.min(pos, ed.state.doc.content.size), { type: 'image', attrs: { src: res.urls[0], alt } }).run()
-    return true
   }
 
   const emitHeadings = useCallback(
@@ -293,7 +321,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
       Search,
       Markdown.configure({ markedOptions: { gfm: true } }),
       FrontMatterBlock,
-      LocalImage.configure({ allowBase64: true }),
+      LocalImage.configure({ allowBase64: true, onEditImage: (pos) => editImageRef.current(pos) }),
       Highlight,
       Subscript,
       Superscript,
@@ -347,6 +375,10 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
           return true
         }
         const s = slashRef.current
+        if (!s && event.key === 'Escape' && empty && $from.depth === 1 && $from.parent.type.name === 'paragraph' && !$from.parent.content.size) {
+          view.dispatch(view.state.tr.setMeta(floatingMenuKey, 'hide'))
+          return true
+        }
         if (!s) return false
         const items = filteredRef.current
         if (event.key === 'ArrowDown') {
@@ -402,6 +434,25 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
   })
   const editorRef = useRef(editor)
   editorRef.current = editor
+  editImageRef.current = (pos) => {
+    const ed = editorRef.current
+    if (!ed?.isEditable || readOnly) return
+    const node = ed.state.doc.nodeAt(pos)
+    if (node?.type.name === 'image') setGenImage({ prompt: '', pos, src: node.attrs.src, docPath: docPathRef.current })
+  }
+  useEffect(() => {
+    if (!editor) return
+    const mapTarget = ({ transaction }: { transaction: import('@tiptap/pm/state').Transaction }) => {
+      const target = genImageRef.current
+      if (!target || !transaction.docChanged) return
+      const mapped = transaction.mapping.mapResult(target.pos)
+      const next = { ...target, pos: mapped.pos, invalid: target.invalid || mapped.deleted }
+      genImageRef.current = next
+      setGenImage(next)
+    }
+    editor.on('transaction', mapTarget)
+    return () => { editor.off('transaction', mapTarget) }
+  }, [editor])
 
   /** 浮层定位：相对 .editor-scroll 的坐标 */
   const anchorAt = (ed: TiptapEditor, pos: number, width: number) => {
@@ -662,6 +713,22 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
   }
   openLinkRef.current = openLinkEditor
 
+  const editorScroll = editor?.view.dom.closest<HTMLElement>('.editor-scroll') ?? undefined
+  const floatingOptions = useMemo(() => ({
+    placement: 'top-start' as const,
+    offset: 6,
+    flip: { padding: 8 },
+    shift: { padding: 8 },
+    hide: true,
+    scrollTarget: editorScroll
+  }), [editorScroll])
+  const showFloating = useCallback(({ editor: ed, view, state }: Parameters<NonNullable<React.ComponentProps<typeof FloatingMenu>['shouldShow']>>[0]) => {
+    const { empty, $from } = state.selection
+    return ed.isEditable && !readOnly && view.hasFocus() && empty && $from.depth === 1 &&
+      $from.parent.type.name === 'paragraph' && $from.parent.content.size === 0 &&
+      !aiReq && !math && !mermaidGen && !genImage && !find
+  }, [readOnly, aiReq, math, mermaidGen, genImage, find])
+
   if (sourceMode) {
     return (
       <div className="editor-scroll">
@@ -682,12 +749,24 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
 
   return (
     <div className="editor-scroll">
+      {editor && !readOnly && (
+        <FloatingMenu editor={editor} pluginKey={floatingMenuKey} className="bubble-menu floating-menu"
+          role="toolbar" aria-label="空段落快捷插入" options={floatingOptions} shouldShow={showFloating} updateDelay={100}>
+          <BubbleBtn title="二级标题" onClick={() => editor.chain().focus().setHeading({ level: 2 }).run()}><Heading2 size={15} /></BubbleBtn>
+          <BubbleBtn title="无序列表" onClick={() => editor.chain().focus().toggleBulletList().run()}><List size={15} /></BubbleBtn>
+          <BubbleBtn title="引用" onClick={() => editor.chain().focus().toggleBlockquote().run()}><Quote size={15} /></BubbleBtn>
+          <BubbleBtn title="代码块" onClick={() => editor.chain().focus().toggleCodeBlock().run()}><SquareCode size={15} /></BubbleBtn>
+          <BubbleBtn title="图片" onClick={() => pickImage(editor)}><ImageIcon size={15} /></BubbleBtn>
+          <BubbleBtn title="更多插入命令 /" onClick={() => editor.chain().focus().insertContent('/').run()}><Ellipsis size={15} /></BubbleBtn>
+        </FloatingMenu>
+      )}
       {editor && (
         <BubbleMenu
           editor={editor}
           pluginKey={bubbleMenuKey}
           className="bubble-menu"
           shouldShow={({ editor: ed, state }) =>
+            ed.isEditable &&
             !state.selection.empty &&
             !ed.isActive('codeBlock') &&
             !ed.isActive('image') &&
@@ -841,7 +920,9 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
         <ImageGenDialog
           config={imageGen}
           initialPrompt={genImage.prompt}
-          onInsert={(dataUrl, prompt) => insertGenerated(dataUrl, prompt, genImage.pos)}
+          initialImage={genImage.src}
+          docPath={genImage.docPath}
+          onInsert={insertGenerated}
           onOpenSettings={() => {
             setGenImage(null)
             onOpenImageSettings()
@@ -871,7 +952,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
 
 function BubbleBtn(props: { active?: boolean; onClick(): void; title: string; children: React.ReactNode }) {
   return (
-    <button className={props.active ? 'active' : ''} onMouseDown={(e) => e.preventDefault()} onClick={props.onClick} title={props.title}>
+    <button className={props.active ? 'active' : ''} onMouseDown={(e) => e.preventDefault()} onClick={props.onClick} title={props.title} aria-label={props.title}>
       {props.children}
     </button>
   )

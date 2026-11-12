@@ -83,6 +83,8 @@ type Manager struct {
 	channels        map[string]string // sessionId -> channel
 	sentDocs        map[string]sentDoc
 	tools           map[string]ToolCallView
+	replays         map[string][]Event
+	cancellations   map[string]uint64
 	permissions     map[string]pendingPermission
 	writes          map[string]pendingWrite
 	seq             int
@@ -105,7 +107,7 @@ type pendingWrite struct {
 }
 
 func NewManager(host Host) *Manager {
-	m := &Manager{host: host}
+	m := &Manager{host: host, cancellations: map[string]uint64{}}
 	m.resetLocked()
 	return m
 }
@@ -235,6 +237,7 @@ func (m *Manager) launch() (*AgentInfo, error) {
 	defer cancel()
 	var init struct {
 		AgentCapabilities struct {
+			LoadSession        bool `json:"loadSession"`
 			PromptCapabilities struct {
 				EmbeddedContext bool `json:"embeddedContext"`
 			} `json:"promptCapabilities"`
@@ -272,7 +275,7 @@ func (m *Manager) launch() (*AgentInfo, error) {
 		}
 		return nil, m.failLaunch(err)
 	}
-	info := &AgentInfo{Name: profile.Name, AuthMethods: init.AuthMethods}
+	info := &AgentInfo{Name: profile.Name, AuthMethods: init.AuthMethods, LoadSession: init.AgentCapabilities.LoadSession}
 	if info.AuthMethods == nil {
 		info.AuthMethods = []AuthMethod{}
 	}
@@ -359,8 +362,9 @@ func (m *Manager) handle(method string, params json.RawMessage, isNotification b
 }
 
 type contentBlock struct {
-	Type string `json:"type"`
-	Text string `json:"text"`
+	Type string       `json:"type"`
+	Text string       `json:"text"`
+	Meta *displayMeta `json:"_meta,omitempty"`
 }
 
 type sessionUpdate struct {
@@ -379,25 +383,89 @@ type sessionUpdate struct {
 
 func (m *Manager) forwardUpdate(channel string, u sessionUpdate) {
 	switch u.SessionUpdate {
-	case "agent_message_chunk", "agent_thought_chunk":
+	case "agent_message_chunk", "agent_thought_chunk", "user_message_chunk":
 		var block contentBlock
 		if json.Unmarshal(u.Content, &block) == nil && block.Type == "text" && block.Text != "" {
 			typ := "message"
 			if u.SessionUpdate == "agent_thought_chunk" {
 				typ = "thought"
 			}
-			m.host.Emit(Event{Type: typ, Channel: channel, Text: block.Text})
+			if u.SessionUpdate == "user_message_chunk" {
+				typ = "user"
+			}
+			m.emitUpdate(Event{Type: typ, Channel: channel, Text: block.Text, Display: block.Meta})
 		}
 	case "tool_call", "tool_call_update":
 		tool := m.mergeTool(u)
-		m.host.Emit(Event{Type: "tool", Channel: channel, Tool: &tool})
+		m.emitUpdate(Event{Type: "tool", Channel: channel, Tool: &tool})
 	case "plan":
 		entries := make([]PlanEntry, 0, len(u.Entries))
 		for _, e := range u.Entries {
 			entries = append(entries, PlanEntry{Content: e.Content, Status: e.Status})
 		}
-		m.host.Emit(Event{Type: "plan", Channel: channel, Entries: &entries})
+		m.emitUpdate(Event{Type: "plan", Channel: channel, Entries: &entries})
 	}
+}
+
+// Loading history is side-effect free: return a complete replay to the caller
+// instead of mixing its chunks with live UI events from another conversation.
+func (m *Manager) emitUpdate(e Event) {
+	m.mu.Lock()
+	if replay, ok := m.replays[e.Channel]; ok {
+		m.replays[e.Channel] = append(replay, e)
+		m.mu.Unlock()
+		return
+	}
+	m.mu.Unlock()
+	// Agents may echo a live user prompt; the UI already added that message.
+	if e.Type != "user" {
+		m.host.Emit(e)
+	}
+}
+
+func (m *Manager) LoadSession(channel, sessionID, cwd string) ([]Event, error) {
+	info, err := m.Start()
+	if err != nil {
+		return nil, err
+	}
+	if !info.LoadSession {
+		return nil, errors.New("此 Agent 不支持加载历史会话，请新建对话")
+	}
+	if sessionID == "" {
+		return nil, errors.New("此对话尚未建立 Agent 会话，请新建对话")
+	}
+	m.mu.Lock()
+	conn := m.conn
+	old := m.sessions[channel]
+	delete(m.channels, old)
+	m.channels[sessionID] = channel
+	m.replays[channel] = []Event{}
+	// Tool IDs are scoped to a session; don't merge with a different session's tools.
+	m.tools = map[string]ToolCallView{}
+	m.mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), InitTimeout)
+	defer cancel()
+	if conn == nil {
+		err = errors.New("Agent 未连接")
+	} else {
+		err = conn.Request(ctx, "session/load", map[string]any{"sessionId": sessionID, "cwd": cwd, "mcpServers": []any{}}, nil)
+	}
+	m.mu.Lock()
+	replay := m.replays[channel]
+	delete(m.replays, channel)
+	if err != nil || m.conn != conn {
+		delete(m.channels, sessionID)
+		delete(m.sessions, channel)
+		m.mu.Unlock()
+		if err == nil {
+			err = errors.New("Agent 已断开")
+		}
+		return nil, err
+	}
+	m.sessions[channel] = sessionID
+	delete(m.sentDocs, sessionID)
+	m.mu.Unlock()
+	return displayReplay(replay), nil
 }
 
 func (m *Manager) mergeTool(u sessionUpdate) ToolCallView {
@@ -453,7 +521,10 @@ func (m *Manager) requestPermission(params json.RawMessage) (any, error) {
 		channel = "chat"
 	}
 	// 内联 AI 只需要文本结果，不允许执行任何操作
-	if channel != "chat" {
+	m.mu.Lock()
+	_, replaying := m.replays[channel]
+	m.mu.Unlock()
+	if channel != "chat" || replaying || !ok {
 		for _, o := range p.Options {
 			if strings.HasPrefix(o.Kind, "reject") {
 				return map[string]any{"outcome": permissionOutcome{Outcome: "selected", OptionID: o.OptionID}}, nil
@@ -527,7 +598,10 @@ func (m *Manager) writeTextFile(params json.RawMessage) (any, error) {
 	if !ok {
 		channel = "chat"
 	}
-	if channel != "chat" {
+	m.mu.Lock()
+	_, replaying := m.replays[channel]
+	m.mu.Unlock()
+	if channel != "chat" || replaying || !ok {
 		return nil, errors.New("内联 AI 不允许修改文件，请直接在回复中输出结果")
 	}
 	path, _ := filepath.Abs(p.Path)
@@ -583,6 +657,9 @@ func (m *Manager) propose(channel string, p WriteProposal) decision {
 
 // Prompt 在 channel 对应的会话中提问，阻塞到这一轮回答结束
 func (m *Manager) Prompt(input PromptInput) (string, error) {
+	m.mu.Lock()
+	cancelVersion := m.cancellations[input.Channel]
+	m.mu.Unlock()
 	if _, err := m.Start(); err != nil {
 		return "", err
 	}
@@ -591,6 +668,10 @@ func (m *Manager) Prompt(input PromptInput) (string, error) {
 	sessionID := ""
 	if !input.Fresh {
 		sessionID = m.sessions[input.Channel]
+	}
+	if input.SessionID != "" && sessionID != input.SessionID {
+		m.mu.Unlock()
+		return "", errors.New("会话尚未加载或 Agent 已重启，请从历史对话中重新加载")
 	}
 	m.mu.Unlock()
 	if conn == nil {
@@ -601,12 +682,19 @@ func (m *Manager) Prompt(input PromptInput) (string, error) {
 		var res struct {
 			SessionID string `json:"sessionId"`
 		}
-		if err := conn.Request(context.Background(), "session/new", map[string]any{"cwd": m.host.Cwd(), "mcpServers": []any{}}, &res); err != nil {
+		cwd := input.WorkingDirectory
+		if cwd == "" {
+			cwd = m.host.Cwd()
+		}
+		if err := conn.Request(context.Background(), "session/new", map[string]any{"cwd": cwd, "mcpServers": []any{}}, &res); err != nil {
 			msg := m.describeError(err)
 			m.host.Emit(Event{Type: "error", Channel: input.Channel, Error: msg})
 			return "", errors.New(msg)
 		}
 		sessionID = res.SessionID
+		if sessionID == "" {
+			return "", errors.New("Agent 返回了空会话 ID")
+		}
 		m.mu.Lock()
 		if old, ok := m.sessions[input.Channel]; ok {
 			delete(m.channels, old)
@@ -614,6 +702,18 @@ func (m *Manager) Prompt(input PromptInput) (string, error) {
 		m.sessions[input.Channel] = sessionID
 		m.channels[sessionID] = input.Channel
 		m.mu.Unlock()
+	}
+	if input.SessionCreated != nil {
+		if err := input.SessionCreated(sessionID); err != nil {
+			return "", err
+		}
+	}
+	m.mu.Lock()
+	cancelled := m.cancellations[input.Channel] != cancelVersion
+	m.mu.Unlock()
+	if cancelled {
+		m.host.Emit(Event{Type: "done", Channel: input.Channel, StopReason: "cancelled"})
+		return "cancelled", nil
 	}
 	blocks := m.buildPrompt(sessionID, input, isNew)
 	var res struct {
@@ -665,11 +765,20 @@ func (m *Manager) buildPrompt(sessionID string, input PromptInput, isNew bool) [
 		parts = append(parts, "用户选中的文本：\n\"\"\"\n"+input.Selection+"\n\"\"\"")
 	}
 	parts = append(parts, input.Text)
-	return append([]map[string]any{{"type": "text", "text": strings.Join(parts, "\n\n")}}, docBlocks...)
+	block := map[string]any{"type": "text", "text": strings.Join(parts, "\n\n")}
+	if input.Channel == "chat" {
+		display := input.Title
+		if display == "" {
+			display = input.Text
+		}
+		block["_meta"] = displayMeta{Text: &display, Selection: input.Selection}
+	}
+	return append([]map[string]any{block}, docBlocks...)
 }
 
 func (m *Manager) Cancel(channel string) {
 	m.mu.Lock()
+	m.cancellations[channel]++
 	sessionID := m.sessions[channel]
 	for id, p := range m.permissions {
 		if p.channel == channel {
@@ -833,6 +942,7 @@ func (m *Manager) resetLocked() {
 	m.channels = map[string]string{}
 	m.sentDocs = map[string]sentDoc{}
 	m.tools = map[string]ToolCallView{}
+	m.replays = map[string][]Event{}
 	for _, p := range m.permissions {
 		p.ch <- nil
 	}

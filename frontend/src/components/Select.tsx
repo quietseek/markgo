@@ -154,6 +154,8 @@ export function Select<T extends string>({
   onChange,
   placeholder = '请选择',
   title,
+  ariaLabel,
+  disabled = false,
   className = ''
 }: {
   value: T
@@ -161,6 +163,8 @@ export function Select<T extends string>({
   onChange(value: T): void
   placeholder?: string
   title?: string
+  ariaLabel?: string
+  disabled?: boolean
   className?: string
 }) {
   const [open, setOpen] = useState(false)
@@ -169,8 +173,10 @@ export function Select<T extends string>({
   const menu = useRef<HTMLDivElement>(null)
   const style = useMenuPosition(open, trigger, options.length)
   const current = options.find((o) => o.value === value)
+  useEffect(() => { if (disabled) setOpen(false) }, [disabled])
 
   const show = () => {
+    if (disabled) return
     setActive(Math.max(0, options.findIndex((o) => o.value === value)))
     setOpen(true)
   }
@@ -214,6 +220,8 @@ export function Select<T extends string>({
         type="button"
         className={`select-trigger${open ? ' open' : ''} ${className}`}
         title={title}
+        aria-label={ariaLabel}
+        disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => (open ? setOpen(false) : show())}

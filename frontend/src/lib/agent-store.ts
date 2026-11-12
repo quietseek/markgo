@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { AgentEvent, AgentInfo, AgentStatus, PermissionView, ToolCallView, WriteProposal } from '@shared/types'
+import type { AgentEvent, AgentInfo, AgentStatus, Conversation, PermissionView, ToolCallView, WriteProposal } from '@shared/types'
 import type { WritingBrief } from './writing'
 
 export type ChatItem =
@@ -7,6 +7,8 @@ export type ChatItem =
   | {
       id: number
       kind: 'agent'
+      /** Only adjacent chunks of the same kind share a row. */
+      segment?: 'message' | 'thought' | 'tool' | 'plan'
       text: string
       thought: string
       tools: ToolCallView[]
@@ -27,6 +29,12 @@ export type ChatItem =
     }
 
 export interface AgentState {
+  documentId?: string
+  conversation?: Conversation
+  conversations: Conversation[]
+  loading: boolean
+  historyError?: string
+  restorePending?: boolean
   status: AgentStatus
   info?: AgentInfo
   error?: string
@@ -46,7 +54,7 @@ export interface WritingSession {
   title?: string
 }
 
-let state: AgentState = { status: 'idle', items: [], running: false, proposals: [] }
+let state: AgentState = { status: 'idle', items: [], running: false, proposals: [], conversations: [], loading: false }
 let seq = 0
 const listeners = new Set<() => void>()
 const set = (next: Partial<AgentState>) => {
@@ -61,30 +69,56 @@ export function onChannel(channel: string, cb: (e: AgentEvent) => void) {
   return () => channelListeners.delete(channel)
 }
 
-function updateLastAgent(fn: (item: Extract<ChatItem, { kind: 'agent' }>) => Extract<ChatItem, { kind: 'agent' }>) {
+type AgentItem = Extract<ChatItem, { kind: 'agent' }>
+
+function endSegments(items: ChatItem[]): ChatItem[] {
+  return items.map((item) => item.kind === 'agent' && item.running ? { ...item, running: false } : item)
+}
+
+function updateAgentSegment(segment: NonNullable<AgentItem['segment']>, fn: (item: AgentItem) => AgentItem) {
   const items = [...state.items]
-  for (let i = items.length - 1; i >= 0; i--) {
-    const it = items[i]
-    if (it.kind === 'agent') {
-      items[i] = fn(it)
+  const last = items.at(-1)
+  // Reuse the empty reply placeholder or an adjacent segment. Never reach back
+  // across thoughts, tools, permissions or writes to append later prose.
+  if (last?.kind === 'agent' && (last.segment === undefined || last.segment === segment)) {
+    items[items.length - 1] = fn({ ...last, segment })
+    set({ items })
+    return
+  }
+  const draft = state.writing?.phase === 'drafting' ? (state.writing.title ?? '') : undefined
+  const created = fn({ id: ++seq, kind: 'agent', segment, text: '', thought: '', tools: [], plan: [], running: state.running, draft })
+  set({ items: [...endSegments(items), created] })
+}
+
+function updateTool(tool: ToolCallView) {
+  // Status updates belong to the original tool card, even when later text has
+  // arrived. Tool IDs are scoped to the current user turn here.
+  for (let i = state.items.length - 1; i >= 0; i--) {
+    const item = state.items[i]
+    if (item.kind === 'user') break
+    if (item.kind === 'agent' && item.tools.some((t) => t.id === tool.id)) {
+      const items = [...state.items]
+      items[i] = { ...item, tools: item.tools.map((t) => t.id === tool.id ? tool : t) }
       set({ items })
       return
     }
-    if (it.kind === 'user') break
   }
-  // 当前轮次还没有 Agent 条目（例如先收到权限请求）时新建
-  const draft = state.writing?.phase === 'drafting' ? (state.writing.title ?? '') : undefined
-  const created = fn({ id: ++seq, kind: 'agent', text: '', thought: '', tools: [], plan: [], running: true, draft })
-  set({ items: [...state.items, created] })
+  updateAgentSegment('tool', (item) => ({ ...item, tools: [...item.tools, tool] }))
 }
 
 /** 最近一次 AI 写作初稿回复的原文（流式累积） */
 export function lastDraftText(items: ChatItem[] = state.items): string {
+  const parts: string[] = []
+  let found = false
   for (let i = items.length - 1; i >= 0; i--) {
     const it = items[i]
-    if (it.kind === 'agent' && it.draft !== undefined) return it.text
+    if (it.kind === 'user' && found) break
+    if (it.kind === 'agent' && it.draft !== undefined) {
+      found = true
+      parts.push(it.text)
+    }
   }
-  return ''
+  return parts.reverse().join('')
 }
 
 export function handleAgentEvent(e: AgentEvent) {
@@ -114,7 +148,7 @@ export function handleAgentEvent(e: AgentEvent) {
     set({
       proposals: [...state.proposals, proposal],
       items: [
-        ...state.items,
+        ...endSegments(state.items),
         { id: ++seq, kind: 'write', path: proposal.path, source: proposal.source, duringTurn: proposal.duringTurn, state: 'pending' }
       ]
     })
@@ -126,23 +160,19 @@ export function handleAgentEvent(e: AgentEvent) {
   }
   switch (e.type) {
     case 'message':
-      updateLastAgent((a) => ({ ...a, text: a.text + e.text }))
+      updateAgentSegment('message', (a) => ({ ...a, text: a.text + e.text }))
       break
     case 'thought':
-      updateLastAgent((a) => ({ ...a, thought: a.thought + e.text }))
+      updateAgentSegment('thought', (a) => ({ ...a, thought: a.thought + e.text }))
       break
     case 'tool':
-      updateLastAgent((a) => {
-        const idx = a.tools.findIndex((t) => t.id === e.tool.id)
-        const tools = idx >= 0 ? a.tools.map((t, i) => (i === idx ? e.tool : t)) : [...a.tools, e.tool]
-        return { ...a, tools }
-      })
+      updateTool(e.tool)
       break
     case 'plan':
-      updateLastAgent((a) => ({ ...a, plan: e.entries }))
+      updateAgentSegment('plan', (a) => ({ ...a, plan: e.entries }))
       break
     case 'permission':
-      set({ items: [...state.items, { id: ++seq, kind: 'permission', permission: e.permission }] })
+      set({ items: [...endSegments(state.items), { id: ++seq, kind: 'permission', permission: e.permission }] })
       break
     case 'done':
       finishTurn()
@@ -154,8 +184,8 @@ export function handleAgentEvent(e: AgentEvent) {
 }
 
 function finishTurn(error?: string) {
-  updateLastAgent((a) => ({ ...a, running: false, error: error ?? a.error }))
-  set({ running: false })
+  if (error) updateAgentSegment('message', (a) => ({ ...a, error }))
+  set({ items: endSegments(state.items), running: false })
 }
 
 export function addUserMessage(text: string, selection?: string) {
@@ -194,7 +224,93 @@ export function resolveProposal(requestId: string, result: 'accepted' | 'rejecte
 }
 
 export function clearChat() {
-  set({ items: state.items.filter((it) => it.kind === 'write' && it.state === 'pending'), running: false, writing: undefined })
+  set({ items: state.items.filter((it) => it.kind === 'write' && it.state === 'pending'), running: false, writing: undefined, conversation: undefined, historyError: undefined, restorePending: false })
+}
+
+export function deactivateChatDocument() {
+  clearChat()
+  set({ documentId: undefined, conversations: [], restorePending: false })
+}
+
+export function setChatLoading(loading: boolean) { set({ loading }) }
+
+export function restoreRecentConversation(agentId: string) {
+  if (!state.restorePending || chatBusy()) return
+  set({ restorePending: false })
+  const recent = state.conversations.find((c) => c.agentId === agentId)
+  if (recent) void restoreConversation(recent)
+}
+
+export function chatBusy() {
+  return state.running || state.loading || state.proposals.length > 0
+}
+
+export function rememberConversation(conversation: Conversation) {
+  set({ conversation, conversations: [conversation, ...state.conversations.filter((c) => c.id !== conversation.id)] })
+}
+
+export async function refreshConversations() {
+  if (!state.documentId) return
+  const documentId = state.documentId
+  const conversations = await window.markgo.history.list(documentId)
+  if (state.documentId === documentId) set({ conversations })
+}
+
+// Apply replay only after session/load succeeds; partial failed replays never
+// appear as a successfully restored conversation or trigger writing workflows.
+export function replayConversation(events: AgentEvent[]) {
+  set({ items: [], writing: undefined, running: false })
+  for (const event of events) {
+    if (event.type === 'user') {
+      const items = state.items.map((it) => it.kind === 'agent' ? { ...it, running: false } : it)
+      const last = items.at(-1)
+      if (last?.kind === 'user') items[items.length - 1] = { ...last, text: last.text + event.text, selection: event.selection ?? last.selection }
+      else items.push({ id: ++seq, kind: 'user', text: event.text, selection: event.selection })
+      set({ items })
+    } else if (['message', 'thought', 'tool', 'plan'].includes(event.type)) {
+      handleAgentEvent(event)
+    }
+  }
+  set({ items: state.items.map((it) => it.kind === 'agent' ? { ...it, running: false } : it), running: false })
+}
+
+export async function restoreConversation(conversation: Conversation) {
+  if (chatBusy()) return
+  clearChat()
+  set({ loading: true, conversation, historyError: undefined })
+  try {
+    const result = await window.markgo.history.load(conversation.id)
+    replayConversation(result.events)
+    rememberConversation(result.conversation)
+  } catch (err) {
+    set({ historyError: String(err instanceof Error ? err.message : err) })
+  } finally {
+    set({ loading: false })
+  }
+}
+
+export async function activateChatDocument(path: string, preserve = false) {
+  if (chatBusy()) throw new Error('请先结束当前 AI 对话并完成修改审阅，再切换文章')
+  set({ loading: true })
+  try {
+    const doc = await window.markgo.history.document(path)
+    if (state.documentId === doc.id) return
+    if (preserve && state.conversation) {
+      const conversation = await window.markgo.history.bind(state.conversation.id, path)
+      set({ documentId: doc.id, conversation })
+      await refreshConversations()
+      return
+    }
+    clearChat()
+    set({ documentId: doc.id, conversations: [] })
+    await refreshConversations()
+    set({ restorePending: true })
+  } catch (err) {
+    clearChat()
+    set({ documentId: undefined, conversations: [], historyError: String(err instanceof Error ? err.message : err) })
+  } finally {
+    set({ loading: false })
+  }
 }
 
 export function setWriting(writing: WritingSession | undefined) {

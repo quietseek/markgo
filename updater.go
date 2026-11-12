@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/quietseek/markgo/internal/platform"
 	"github.com/quietseek/markgo/internal/update"
 )
 
@@ -141,10 +142,17 @@ func installWindows(setup string) error {
 	q := func(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + "'" }
 	// 安装程序可能把应用迁移到新位置（旧版本装在 Program Files\quietseek 下），此时由安装程序负责重新打开
 	script := fmt.Sprintf(
-		"Wait-Process -Id %d -Timeout 30 -ErrorAction SilentlyContinue; try { Start-Process -FilePath %s -ArgumentList '/S' -Wait } finally { if (Test-Path -LiteralPath %s) { Start-Process -FilePath %s } }",
+		"Wait-Process -Id %d -Timeout 30 -ErrorAction SilentlyContinue; try { Start-Process -FilePath %s -ArgumentList '/S' -WindowStyle Hidden -Wait } finally { if (Test-Path -LiteralPath %s) { Start-Process -FilePath %s } }",
 		os.Getpid(), q(setup), q(exe), q(exe),
 	)
-	return exec.Command("powershell", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", script).Start()
+	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", script)
+	// -WindowStyle only takes effect after PowerShell starts; suppress creation
+	// of the console itself so Windows Terminal cannot flash during startup.
+	platform.HideConsole(cmd)
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	return cmd.Process.Release()
 }
 
 // macOS：挂载 dmg，用其中的 .app 替换当前的 .app 包

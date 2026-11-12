@@ -43,6 +43,8 @@ export interface AppSettings {
   darkTheme: string
   /** 编辑区顶部显示快捷操作栏 */
   showToolbar: boolean
+  /** 在当前窗口显示多个文档标签，默认关闭 */
+  showDocumentTabs: boolean
   /** 打字机模式：光标所在行保持在视口中部 */
   typewriter: boolean
   /** 编辑区宽度预设：默认 / 宽屏 / 铺满 */
@@ -180,7 +182,7 @@ export interface ImageGenProvider {
 }
 
 export const IMAGE_GEN_PROVIDERS: ImageGenProvider[] = [
-  { id: 'openai', name: 'OpenAI', baseUrl: 'https://api.openai.com/v1', protocol: 'openai', models: ['gpt-image-1', 'dall-e-3'] },
+  { id: 'openai', name: 'OpenAI', baseUrl: 'https://api.openai.com/v1', protocol: 'openai', models: ['gpt-image-2.5-flare', 'gpt-image-2.5-sunburst', 'gpt-image-2', 'gpt-image-1.5', 'gpt-image-1', 'dall-e-3'] },
   {
     id: 'doubao',
     name: '豆包（火山方舟）',
@@ -224,6 +226,20 @@ export interface ImageGenResult {
   error?: string
 }
 
+export interface ImageGenRequest {
+  prompt: string
+  mode: 'generate' | 'edit'
+  ratio: string
+  quality?: string
+  images: string[]
+}
+
+export interface ImageGenCapabilities {
+  maxImages: number
+  ratios: { value: string; size: string }[]
+  qualities: string[]
+}
+
 export interface WechatConfig {
   appId: string
   appSecret: string
@@ -238,6 +254,7 @@ export const defaultSettings: AppSettings = {
   imageUploadMode: 'picgo',
   typewriter: false,
   showToolbar: true,
+  showDocumentTabs: false,
   picgoServer: 'http://127.0.0.1:36677',
   localAssetsDir: 'assets',
   themeKey: 'claude',
@@ -450,6 +467,7 @@ export interface WechatDraftResult {
 export type AgentStatus = 'idle' | 'starting' | 'ready' | 'error'
 
 export interface AgentInfo {
+	loadSession?: boolean
   name: string
   version?: string
   /** Agent 声明的认证方式（未登录时用于提示） */
@@ -487,6 +505,7 @@ export interface WriteProposal {
 
 /** 主进程推给渲染进程的会话事件（按 channel 区分对话面板与内联 AI） */
 export type AgentEvent =
+	| { type: 'user'; channel: string; text: string; selection?: string }
   | { type: 'status'; status: AgentStatus; info?: AgentInfo; error?: string }
   | { type: 'message'; channel: string; text: string }
   | { type: 'thought'; channel: string; text: string }
@@ -498,6 +517,8 @@ export type AgentEvent =
   | { type: 'error'; channel: string; error: string }
 
 export interface PromptInput {
+	conversationId?: string
+	title?: string
   /** 'chat' 为侧边对话；内联 AI 每次使用独立 channel */
   channel: string
   text: string
@@ -511,7 +532,38 @@ export interface PromptInput {
   fresh?: boolean
 }
 
+export interface DocumentRecord {
+  id: string
+  path: string
+  title: string
+  slug: string
+  summary: string
+  category: string
+  status: string
+  theme: string
+  tags: string[]
+  updatedAt: string
+}
+
+export interface Conversation {
+  id: string
+  documentId: string
+  title: string
+  agentId: string
+  sessionId: string
+  workingDirectory: string
+  createdAt: string
+  updatedAt: string
+}
+
 export interface MarkGoApi {
+  history: {
+    document(path: string): Promise<DocumentRecord>
+    list(documentId: string): Promise<Conversation[]>
+    load(id: string): Promise<{ conversation: Conversation; events: AgentEvent[] }>
+    bind(id: string, path: string): Promise<Conversation>
+    delete(id: string): Promise<void>
+  }
   fonts: {
     list(): Promise<SystemFont[]>
   }
@@ -578,7 +630,9 @@ export interface MarkGoApi {
     /** 在文件管理器中显示本地图片；找不到时返回 false */
     reveal(src: string, docPath?: string): Promise<boolean>
     /** AI 生图：按「设置 → 图片处理 → AI 生图」的配置生成一张图片 */
-    generate(prompt: string): Promise<ImageGenResult>
+    generate(request: ImageGenRequest): Promise<ImageGenResult>
+    capabilities(provider: string, model: string): Promise<ImageGenCapabilities>
+    readReference(src: string, docPath?: string): Promise<ImageGenResult>
     /** 文件对象 -> 绝对路径（拖拽时使用） */
     pathForFile(file: File): string
   }
@@ -596,7 +650,7 @@ export interface MarkGoApi {
   ai: {
     start(): Promise<{ ok: boolean; info?: AgentInfo; error?: string }>
     stop(): Promise<void>
-    prompt(input: PromptInput): Promise<{ ok: boolean; stopReason?: string; error?: string }>
+    prompt(input: PromptInput): Promise<{ ok: boolean; stopReason?: string; error?: string; conversation?: Conversation }>
     cancel(channel: string): Promise<void>
     respondPermission(requestId: string, optionId: string | null): void
     /** 对写入提议的决定：接受时 content 为最终写入内容（可能是部分接受的结果） */
@@ -622,6 +676,8 @@ export interface MarkGoApi {
   window: {
     newWindow(): Promise<void>
     claimDocument(path: string): Promise<boolean>
+    setOpenDocuments(paths: string[]): Promise<void>
+    onDocumentsMoved(cb: (change: { from: string; to: string }) => void): () => void
     routeOpen(path: string, kind: 'file' | 'workspace', forceNew?: boolean): Promise<boolean>
     completeClose(saved: boolean): Promise<void>
     onCloseRequest(cb: () => void): () => void

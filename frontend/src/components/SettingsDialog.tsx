@@ -133,8 +133,11 @@ export function SettingsDialog({ settings, initialTab = 'general', onSave, onClo
                 <TyporaThemes draft={draft} set={set} />
               </Group>
               <Group title="窗口">
+                <Row label="文档标签页" desc="在同一窗口快速切换文档；关闭最后一个标签后显示示例文档">
+                  <Switch checked={draft.showDocumentTabs} onChange={(showDocumentTabs) => set({ showDocumentTabs })} />
+                </Row>
                 <Row label="打开新文件" desc="同一工作区内打开文件时使用；文件已打开时切换到对应窗口">
-                  <Segmented value={draft.openFileMode} options={[["current", "当前窗口"], ["new", "新窗口"]]} onChange={(openFileMode) => set({ openFileMode })} />
+                  {draft.showDocumentTabs ? <span className="muted">在标签页中打开</span> : <Segmented value={draft.openFileMode} options={[["current", "当前窗口"], ["new", "新窗口"]]} onChange={(openFileMode) => set({ openFileMode })} />}
                 </Row>
                 <Row label="打开不同工作区" desc="打开其他文件夹或工作区外的文件时使用；替换前自动保存当前文档">
                   <Segmented value={draft.openWorkspaceMode} options={[["current", "覆盖当前窗口"], ["new", "新建窗口"]]} onChange={(openWorkspaceMode) => set({ openWorkspaceMode })} />

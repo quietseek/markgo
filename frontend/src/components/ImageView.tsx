@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { NodeViewWrapper, type ReactNodeViewProps } from '@tiptap/react'
-import { CloudUpload, Download, ExternalLink, FolderOpen, ImageOff, Link2, RefreshCw, Trash2, Type } from 'lucide-react'
+import { CloudUpload, Download, ExternalLink, FolderOpen, ImageOff, Link2, RefreshCw, Trash2, Type, WandSparkles } from 'lucide-react'
 import { getAssetBase, isLocalSrc, isRemoteSrc, resolveDisplaySrc } from '../lib/assets'
 import { resolveToast, toast } from '../lib/toast'
 
 /** 图片：悬停 / 选中时显示操作条（上传到图床、下载到本地、替换、说明文字、复制地址、删除） */
-export function ImageView({ node, updateAttributes, deleteNode, selected }: ReactNodeViewProps) {
+export function ImageView({ node, updateAttributes, deleteNode, selected, editor, extension, getPos }: ReactNodeViewProps) {
   const src = (node.attrs.src as string) || ''
   const alt = (node.attrs.alt as string) || ''
   const [broken, setBroken] = useState(false)
@@ -76,6 +76,10 @@ export function ImageView({ node, updateAttributes, deleteNode, selected }: Reac
           <ToolBtn title="替换图片" onClick={replace} disabled={busy}>
             <RefreshCw size={14} />
           </ToolBtn>
+          {editor.isEditable && extension.options.onEditImage && <ToolBtn title="AI 改图" disabled={busy} onClick={() => {
+            const pos = getPos()
+            if (typeof pos === 'number') extension.options.onEditImage(pos)
+          }}><WandSparkles size={14} /><span>改图</span></ToolBtn>}
           <ToolBtn title={alt ? `图片说明：${alt}` : '图片说明（alt）'} onClick={() => setEditingAlt(true)} active={editingAlt}>
             <Type size={14} />
           </ToolBtn>

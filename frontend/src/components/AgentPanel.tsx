@@ -10,6 +10,8 @@ import {
   ChevronRight,
   Circle,
   FileDiff,
+  History,
+  Trash2,
   Loader2,
   PenLine,
   Plus,
@@ -22,10 +24,16 @@ import {
 import { WRITING_LENGTHS, type AppSettings, type ToolCallView, type WritingLength } from '@shared/types'
 import {
   addUserMessage,
+  chatBusy,
   clearChat,
   getAgentState,
   handleAgentEvent,
   markPermission,
+  rememberConversation,
+  refreshConversations,
+  restoreConversation,
+  restoreRecentConversation,
+  setChatLoading,
   setWriting,
   useAgentState,
   type ChatItem
@@ -35,6 +43,8 @@ import { renderAgentMarkdown } from '../lib/sanitize'
 import { countWords } from '../lib/render'
 import { basename } from '../lib/assets'
 import { Popover } from './LayoutControls'
+import { toast } from '../lib/toast'
+import { confirmDialog } from '../lib/confirm'
 
 const api = window.markgo
 
@@ -66,6 +76,11 @@ export function AgentPanel({ settings, docPath, getSelection, syncDoc, onSetting
   const listRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const agent = settings.ai.agents.find((a) => a.id === settings.ai.activeAgentId) || settings.ai.agents[0]
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const busy = state.running || state.loading || state.proposals.length > 0
+  useEffect(() => {
+    restoreRecentConversation(agent?.id ?? '')
+  }, [state.documentId, state.loading, state.restorePending, agent?.id])
 
   // 新内容到达时滚动到底部（用户向上翻阅时不打扰）
   const stick = useRef(true)
@@ -76,12 +91,19 @@ export function AgentPanel({ settings, docPath, getSelection, syncDoc, onSetting
 
   const send = async (text = input) => {
     const content = text.trim()
-    if (!content || state.running) return
+    if (!content || chatBusy() || state.historyError) return
     const selection = quote ?? undefined
     setInput('')
     setQuote(null)
     // 先保存：Agent 通常用自带工具直接读写磁盘，保证它读到的就是编辑器里的内容
-    await ask(content, { selection, docContent: await syncDoc() })
+    setChatLoading(true)
+    try {
+      await ask(content, { selection, docContent: await syncDoc() })
+    } catch (err) {
+      setInput(content)
+      setQuote(selection ?? null)
+      toast(String(err instanceof Error ? err.message : err), 'error')
+    } finally { setChatLoading(false) }
   }
 
   /** display：对话中显示的简短文字（写作流程的提示词较长） */
@@ -89,30 +111,40 @@ export function AgentPanel({ settings, docPath, getSelection, syncDoc, onSetting
     stick.current = true
     addUserMessage(opts.display ?? text, opts.selection)
     // 结果通过事件流回填；这里只兜底处理没有产生事件的失败
-    const fresh = freshNext.current
-    freshNext.current = false
-    const res = await api.ai.prompt({ channel: 'chat', text, docPath: opts.doc ?? docPath, docContent: opts.docContent, selection: opts.selection, fresh })
-    if (!res.ok && getAgentState().running) handleAgentEvent({ type: 'error', channel: 'chat', error: res.error || '请求失败' })
+    setChatLoading(true)
+    try {
+      const res = await api.ai.prompt({ channel: 'chat', text, docPath: opts.doc ?? docPath, docContent: opts.docContent, selection: opts.selection,
+        conversationId: getAgentState().conversation?.id, title: opts.display ?? text })
+      if (res.conversation) rememberConversation(res.conversation)
+      if (!res.ok) handleAgentEvent({ type: 'error', channel: 'chat', error: res.error || '请求失败' })
+    } catch (err) {
+      handleAgentEvent({ type: 'error', channel: 'chat', error: String(err instanceof Error ? err.message : err) })
+    } finally { setChatLoading(false) }
   }
 
   // ---------- 写作：话题 → 大纲讨论 → 写入新文档 ----------
   const [composing, setComposing] = useState(false)
   const writing = state.writing
   const startOutline = async (topic: string, styleId: string, length: WritingLength) => {
+    if (chatBusy()) return
     const style = settings.writing.styles.find((s) => s.id === styleId) || settings.writing.styles[0]
     const brief = { topic, style, length }
-    await newChat()
+    newChat()
     setComposing(false)
     setWriting({ brief, phase: 'outline' })
     const label = WRITING_LENGTHS.find((l) => l.key === length)?.label
-    await ask(outlinePrompt(brief, settings.writing), {
-      display: `写一篇文章：${topic}\n${style.name} · ${label}，先拟大纲`,
-      docContent: await syncDoc()
-    })
+    setChatLoading(true)
+    try {
+      await ask(outlinePrompt(brief, settings.writing), {
+        display: `写一篇文章：${topic}\n${style.name} · ${label}，先拟大纲`,
+        docContent: await syncDoc()
+      })
+    } catch (err) { toast(String(err), 'error') }
+    finally { setChatLoading(false) }
   }
   const lastReply = [...state.items].reverse().find((it) => it.kind === 'agent')
   const startDraft = async () => {
-    if (!writing) return
+    if (!writing || chatBusy()) return
     const replies = state.items.filter((it): it is Extract<ChatItem, { kind: 'agent' }> => it.kind === 'agent')
     const title = replies.map((r) => outlineTitle(r.text)).filter(Boolean).pop() || writing.brief.topic.slice(0, 30)
     const path = await onCreateDoc(title)
@@ -123,21 +155,19 @@ export function AgentPanel({ settings, docPath, getSelection, syncDoc, onSetting
   // 写作完成后退出写作流程（稍作等待：磁盘改动的检测略有延迟）
   const drafting = writing?.phase === 'drafting'
   useEffect(() => {
-    if (!drafting || state.running) return
+    if (!drafting || state.running || state.loading) return
     const timer = window.setTimeout(() => {
       const w = getAgentState().writing
       setWriting(undefined)
       if (w?.docPath) onDraftDone(w.docPath, w.title || '')
     }, 1500)
     return () => window.clearTimeout(timer)
-  }, [drafting, state.running])
+  }, [drafting, state.running, state.loading])
 
-  // “新对话”后的第一条消息新建 ACP 会话
-  const freshNext = useRef(false)
-  const newChat = async () => {
-    if (state.running) await api.ai.cancel('chat')
+  const newChat = () => {
+    if (chatBusy()) return
     clearChat()
-    freshNext.current = true
+    setHistoryOpen(false)
   }
 
   const statusText = { idle: '未连接', starting: '连接中…', ready: '已连接', error: '连接出错' }[state.status]
@@ -170,9 +200,11 @@ export function AgentPanel({ settings, docPath, getSelection, syncDoc, onSetting
                   key={a.id}
                   className={a.id === agent?.id ? 'active' : ''}
                   onClick={() => {
+                    if (busy) return
                     if (a.id !== agent?.id) onSwitchAgent(a.id)
                     close()
                   }}
+                  disabled={busy}
                 >
                   <span className="agent-avatar sm">{(a.name.trim()[0] || '?').toUpperCase()}</span>
                   {a.name}
@@ -193,16 +225,51 @@ export function AgentPanel({ settings, docPath, getSelection, syncDoc, onSetting
           )}
         </Popover>
         <span className="grow" />
-        <button className={`icon-btn sm${composing ? ' active' : ''}`} title="写文章" onClick={() => setComposing((v) => !v)}>
+        <button className={`icon-btn sm${historyOpen ? ' active' : ''}`} title="历史对话" aria-label="历史对话" onClick={() => setHistoryOpen((v) => !v)}>
+          <History size={15} />
+        </button>
+        <button disabled={busy} className={`icon-btn sm${composing ? ' active' : ''}`} title="写文章" onClick={() => setComposing((v) => !v)}>
           <PenLine size={15} />
         </button>
-        <button className="icon-btn sm" title="新对话" onClick={newChat}>
+        <button disabled={busy} className="icon-btn sm" title="新对话" onClick={newChat}>
           <Plus size={16} />
         </button>
         <button className="icon-btn sm" title="配置 Agent" onClick={onSettings}>
           <Blocks size={15} />
         </button>
       </div>
+
+      {historyOpen && <div className="conversation-history">
+        <div className="muted">当前文章的对话</div>
+        {state.conversations.length === 0 && <p className="muted">还没有历史对话</p>}
+        {state.conversations.map((c) => <div className={`conversation-entry${state.conversation?.id === c.id ? ' selected' : ''}`} key={c.id}>
+          <button disabled={busy} title={c.title} onClick={() => {
+            if (c.agentId !== agent?.id) { toast('请先切换到此对话使用的 Agent', 'info'); return }
+            setHistoryOpen(false)
+            setComposing(false)
+            void restoreConversation(c)
+          }}>
+            <span>{c.title || '未命名对话'}</span>
+            <small>{settings.ai.agents.find((a) => a.id === c.agentId)?.name ?? c.agentId} · {new Date(c.updatedAt).toLocaleDateString()}</small>
+          </button>
+          <button className="icon-btn sm" disabled={busy} title="移除对话记录" aria-label={`移除对话：${c.title}`} onClick={async () => {
+            if (!await confirmDialog({ title: '移除这段对话记录？', message: '仅移除 MarkGo 中的入口，Agent 自身保存的历史不受影响。', confirmText: '移除', danger: true })) return
+            if (chatBusy()) return
+            try {
+              await api.history.delete(c.id)
+              if (getAgentState().conversation?.id === c.id) clearChat()
+              await refreshConversations()
+            } catch (err) { toast(String(err), 'error') }
+          }}><Trash2 size={13} /></button>
+        </div>)}
+      </div>}
+      {state.conversation && <div className="conversation-title" title={state.conversation.title}>{state.conversation.title}</div>}
+      {state.loading && !state.running && <div className="conversation-title"><Loader2 size={13} className="spin" /> 正在加载…</div>}
+      {state.historyError && <div className="conversation-history">
+        <p className="agent-error">{state.historyError}</p>
+        {state.conversation && <button className="btn ghost" disabled={busy} onClick={() => void restoreConversation(state.conversation!)}>重试</button>}
+        <button className="btn ghost" disabled={busy} onClick={newChat}>新建对话</button>
+      </div>}
 
       <div
         className="agent-list"
@@ -223,7 +290,7 @@ export function AgentPanel({ settings, docPath, getSelection, syncDoc, onSetting
                 <PenLine size={12} /> 写文章
               </button>
               {QUICK_PROMPTS.map((q) => (
-                <button key={q.label} onClick={() => send(q.text)}>
+                <button key={q.label} disabled={busy || !!state.historyError} onClick={() => send(q.text)}>
                   {q.label}
                 </button>
               ))}
@@ -241,7 +308,7 @@ export function AgentPanel({ settings, docPath, getSelection, syncDoc, onSetting
           <button className="btn ghost" onClick={() => setWriting(undefined)}>
             退出
           </button>
-          <button className="btn primary" onClick={startDraft}>
+          <button className="btn primary" disabled={busy} onClick={startDraft}>
             开始写作
           </button>
         </div>
@@ -263,6 +330,7 @@ export function AgentPanel({ settings, docPath, getSelection, syncDoc, onSetting
           </div>
         )}
         <textarea
+          disabled={state.loading || !!state.historyError}
           ref={inputRef}
           value={input}
           rows={3}
@@ -293,7 +361,7 @@ export function AgentPanel({ settings, docPath, getSelection, syncDoc, onSetting
               <Square size={12} fill="currentColor" />
             </button>
           ) : (
-            <button className="send-btn" title="发送（Enter）" disabled={!input.trim()} onClick={() => send()}>
+            <button className="send-btn" title="发送（Enter）" disabled={!input.trim() || busy || !!state.historyError} onClick={() => send()}>
               <ArrowUp size={16} />
             </button>
           )}
@@ -394,7 +462,7 @@ function AgentMessage({ item }: { item: Extract<ChatItem, { kind: 'agent' }> }) 
   // 初稿正文流式写入编辑区，对话中只显示进度
   const html = useMemo(() => (isDraft ? '' : renderAgentMarkdown(item.text)), [item.text, isDraft])
   const [showThought, setShowThought] = useState(false)
-  const waiting = item.running && !item.text && !item.tools.length && !item.thought
+  const waiting = item.running && !item.text && !item.tools.length && !item.thought && !item.plan.length
   return (
     <div className="msg-agent">
       {item.thought && (

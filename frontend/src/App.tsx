@@ -13,9 +13,10 @@ import { Toasts } from './components/Toasts'
 import { AgentPanel } from './components/AgentPanel'
 import { LayoutControls, PublishActions } from './components/LayoutControls'
 import { EditorWidthSwitch, ImageModeSwitch } from './components/EditorWidthSwitch'
+import { DocumentTabs, documentKey, documentLabel, type DocumentTab } from './components/DocumentTabs'
 import { buildEditorThemeCss, resolveEditorTheme } from './lib/editor-theme'
 import { DiffReview } from './components/DiffReview'
-import { getAgentState, handleAgentEvent, lastDraftText, resolveProposal, useAgentState } from './lib/agent-store'
+import { activateChatDocument, chatBusy, clearChat, deactivateChatDocument, getAgentState, handleAgentEvent, lastDraftText, resolveProposal, useAgentState } from './lib/agent-store'
 import { extractDraft } from './lib/writing'
 import { basename, dirname, isInside } from './lib/assets'
 import { countWords, extractTitle, renderWechat } from './lib/render'
@@ -30,9 +31,7 @@ import { bodyWeight, typographyStyle } from './lib/typography'
 const api = window.markgo
 const isMac = api.platform === 'darwin'
 
-interface Doc {
-  path: string
-  isScratch: boolean
+interface Doc extends DocumentTab {
   /** 递增以强制重建编辑器（切换文件、外部重载） */
   version: number
   initial: string
@@ -44,6 +43,14 @@ export function App() {
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [tree, setTree] = useState<FileNode[]>([])
   const [doc, setDoc] = useState<Doc | null>(null)
+  const [tabs, setTabs] = useState<DocumentTab[]>([])
+  const tabsRef = useRef<DocumentTab[]>([])
+  const tabsEnabled = useRef(false)
+  tabsEnabled.current = settings?.showDocumentTabs ?? false
+  const commitTabs = useCallback((next: DocumentTab[]) => {
+    tabsRef.current = next
+    setTabs(next)
+  }, [])
   const [markdown, setMarkdown] = useState('')
   const [headings, setHeadings] = useState<HeadingInfo[]>([])
   const [sourceMode, setSourceMode] = useState(false)
@@ -72,6 +79,23 @@ export function App() {
   }, [])
 
   useEffect(() => api.settings.onChange(() => { void api.settings.get().then(setSettings) }), [])
+  useEffect(() => {
+    if (settings && !settings.showDocumentTabs) commitTabs(latest.current.doc ? [latest.current.doc] : [])
+  }, [settings?.showDocumentTabs, commitTabs])
+  useEffect(() => {
+    void api.window.setOpenDocuments(tabs.filter((tab) => !tab.isExample).map((tab) => tab.path)).catch((err) => toast(String(err), 'error'))
+  }, [tabs])
+  useEffect(() => api.window.onDocumentsMoved(({ from, to }) => {
+    const remap = (path: string) => documentKey(path) === documentKey(from) || documentKey(path).startsWith(documentKey(from) + '/') ? to + path.slice(from.length) : path
+    commitTabs(tabsRef.current.map((tab) => ({ ...tab, path: remap(tab.path) })))
+    const current = latest.current.doc
+    if (current && remap(current.path) !== current.path) {
+      const next = { ...current, path: remap(current.path) }
+      latest.current.doc = next
+      setDoc(next)
+      void api.settings.set({ lastFile: next.path })
+    }
+  }), [commitTabs])
 
   // ---------- 外观 ----------
   useEffect(() => {
@@ -93,7 +117,7 @@ export function App() {
   const flushSave = useCallback(async () => {
     window.clearTimeout(saveTimer.current)
     const { doc: d, markdown: previous, saveState: st } = latest.current
-    if (!d) return
+    if (!d || d.isExample) return
     if (st === 'saved' && !editorRef.current?.hasPendingChanges()) return saveQueue.current
     const md = editorRef.current?.getMarkdown() ?? previous
     latest.current = { doc: d, markdown: md, saveState: 'saving' }
@@ -138,9 +162,9 @@ export function App() {
    * 打开文档。external 为从桌面、文件管理器等外部打开：侧栏切换到文档所在的文件夹；
    * 应用内打开时，只有笔记库之外的文档才切换
    */
-  const loadDoc = useCallback(
-    async (path: string, isScratch = false, external = false) => {
-      const task = navigationQueue.current.catch(() => {}).then(async () => {
+  const loadDocNow = useCallback(
+    async (path: string, isScratch = false, external = false, preserveChat = false) => {
+        if (chatBusy()) throw new Error('请先结束当前 AI 对话并完成修改审阅，再切换文章')
         await flushSave()
         if (!(await api.window.claimDocument(path))) return false
         let content: string
@@ -148,11 +172,17 @@ export function App() {
           content = await api.fs.read(path)
         } catch (err) {
           await api.window.claimDocument(latest.current.doc?.path ?? '')
+          await api.window.setOpenDocuments(tabsRef.current.filter((tab) => !tab.isExample).map((tab) => tab.path))
           throw err
         }
         if (isScratch && !content.trim()) content = WELCOME_MD
-        setDoc((prev) => ({ path, isScratch, initial: content, version: (prev?.version || 0) + 1 }))
+        await activateChatDocument(path, preserveChat)
+        const next = { path, isScratch, initial: content, version: (latest.current.doc?.version || 0) + 1 }
+        latest.current = { doc: next, markdown: content, saveState: 'saved' }
+        setDoc(next)
         setMarkdown(content)
+        const opened = tabsRef.current.filter((tab) => !tab.isExample)
+        commitTabs(!tabsEnabled.current ? [next] : opened.some((tab) => documentKey(tab.path) === documentKey(path)) ? opened : [...opened, next])
         api.ai.markSaved(path, content)
         setSaveState('saved')
         setSourceMode(false)
@@ -163,12 +193,66 @@ export function App() {
           if (external ? ws !== dir : !ws || !isInside(path, ws)) await openWorkspace(dir)
         } else await api.settings.set({ lastFile: undefined })
         return true
-      })
-      navigationQueue.current = task
-      return task
     },
-    [flushSave, openWorkspace]
+    [flushSave, openWorkspace, commitTabs]
   )
+
+  const loadDoc = useCallback((path: string, isScratch = false, external = false, preserveChat = false) => {
+    const task = navigationQueue.current.catch(() => {}).then(() => loadDocNow(path, isScratch, external, preserveChat))
+    navigationQueue.current = task
+    return task
+  }, [loadDocNow])
+
+  const openExampleNow = useCallback(async () => {
+    if (chatBusy()) throw new Error('请先结束当前 AI 对话并完成修改审阅，再关闭文章')
+    await flushSave()
+    await api.window.claimDocument('')
+    const example: Doc = { path: '', isScratch: true, isExample: true, initial: WELCOME_MD, version: (latest.current.doc?.version || 0) + 1 }
+    deactivateChatDocument()
+    latest.current = { doc: example, markdown: WELCOME_MD, saveState: 'saved' }
+    setDoc(example)
+    setMarkdown(WELCOME_MD)
+    setSaveState('saved')
+    setSourceMode(false)
+    commitTabs([example])
+    await api.settings.set({ lastFile: undefined })
+  }, [flushSave, commitTabs])
+
+  const closeTab = useCallback((tab: DocumentTab) => {
+    const task = navigationQueue.current.catch(() => {}).then(async () => {
+      const current = latest.current.doc
+      const index = tabsRef.current.findIndex((item) => documentKey(item.path) === documentKey(tab.path))
+      if (index < 0 || !current) return
+      const remaining = tabsRef.current.filter((item) => documentKey(item.path) !== documentKey(tab.path))
+      if (documentKey(current.path) !== documentKey(tab.path)) { commitTabs(remaining); return }
+      if (remaining.length === 0) { await openExampleNow(); return }
+      const next = remaining[Math.min(index, remaining.length - 1)]
+      if (await loadDocNow(next.path, next.isScratch)) commitTabs(remaining)
+    })
+    navigationQueue.current = task
+    void task.catch((err) => toast(String(err instanceof Error ? err.message : err), 'error'))
+  }, [commitTabs, loadDocNow, openExampleNow])
+
+  const selectTab = useCallback((tab: DocumentTab) => {
+    if (documentKey(tab.path) === documentKey(latest.current.doc?.path ?? '')) return
+    void loadDoc(tab.path, tab.isScratch).catch((err) => toast(String(err instanceof Error ? err.message : err), 'error'))
+  }, [loadDoc])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!tabsEnabled.current || event.altKey || !(event.ctrlKey || event.metaKey)) return
+      const current = latest.current.doc
+      if (!current) return
+      if (event.key.toLowerCase() === 'w') { event.preventDefault(); closeTab(current) }
+      else if (event.key === 'Tab' && event.ctrlKey && tabsRef.current.length > 1) {
+        event.preventDefault()
+        const index = tabsRef.current.findIndex((tab) => documentKey(tab.path) === documentKey(current.path))
+        selectTab(tabsRef.current[(index + (event.shiftKey ? -1 : 1) + tabsRef.current.length) % tabsRef.current.length])
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [closeTab, selectTab])
 
   const openScratch = useCallback(async () => loadDoc(await api.fs.scratchPath(), true), [loadDoc])
 
@@ -207,6 +291,7 @@ export function App() {
   useEffect(() => {
     ;(async () => {
       const s = await api.settings.get()
+      tabsEnabled.current = s.showDocumentTabs
       setSettings(s)
       // 从桌面等外部打开时优先显示该文件，侧栏直接打开文档所在的文件夹
       const external = await api.app.takeOpenPath()
@@ -244,23 +329,32 @@ export function App() {
   useEffect(() => {
     const onUnload = () => {
       const { doc: d, markdown: md, saveState: st } = latest.current
-      if (d && st !== 'saved') api.fs.write(d.path, md)
+      if (d && !d.isExample && st !== 'saved') api.fs.write(d.path, md)
     }
     window.addEventListener('beforeunload', onUnload)
     return () => window.removeEventListener('beforeunload', onUnload)
   }, [])
 
   const saveAs = useCallback(async () => {
+    if (chatBusy()) { toast('请先结束当前 AI 对话并完成修改审阅', 'info'); return }
+    await flushSave()
+    const previous = latest.current.doc
+    const opened = tabsRef.current
     const md = editorRef.current?.getMarkdown() ?? latest.current.markdown
     const name = `${(extractTitle(md) || '未命名').replace(/[\\/:*?"<>|]/g, ' ').slice(0, 60)}.md`
     const target = await api.fs.saveAs(md, name)
     if (!target) return
-    if (latest.current.doc?.isScratch) await api.fs.write(latest.current.doc.path, '')
+    if (previous?.isScratch && !previous.isExample) await api.fs.write(previous.path, '')
     setSaveState('saved')
-    await loadDoc(target)
+    if (!await loadDoc(target)) return
+    if (previous && tabsEnabled.current) {
+      const replacement = { path: target, isScratch: false }
+      const next = opened.filter((tab) => documentKey(tab.path) !== documentKey(target)).map((tab) => documentKey(tab.path) === documentKey(previous.path) ? replacement : tab)
+      commitTabs(next.some((tab) => documentKey(tab.path) === documentKey(target)) ? next : [...next, replacement])
+    }
     refreshTree()
     toast('已保存', 'success')
-  }, [loadDoc, refreshTree])
+  }, [loadDoc, refreshTree, flushSave, commitTabs])
 
   const save = useCallback(async () => {
     if (latest.current.doc?.isScratch) return saveAs()
@@ -297,7 +391,7 @@ export function App() {
         await flushSave()
         const target = ws ? await api.fs.create(ws, title, 'file') : await api.fs.saveAs('', `${title.replace(/[\\/:*?"<>|]/g, ' ')}.md`)
         if (!target) return null
-        await loadDoc(target)
+        await loadDoc(target, false, false, true)
         refreshTree()
         return target
       } catch (err) {
@@ -310,12 +404,16 @@ export function App() {
 
   const renameEntry = useCallback(
     async (path: string, name: string) => {
+      if (chatBusy()) { toast('请先结束当前 AI 对话并完成修改审阅', 'info'); return }
       try {
         if (latest.current.doc?.path === path) await flushSave()
         const next = await api.fs.rename(path, name)
+        const oldKey = documentKey(path)
+        commitTabs(tabsRef.current.map((tab) => documentKey(tab.path) === oldKey || documentKey(tab.path).startsWith(oldKey + '/') ? { ...tab, path: next + tab.path.slice(path.length) } : tab))
         const cur = latest.current.doc
         if (cur && (cur.path === path || cur.path.startsWith(path + '/') || cur.path.startsWith(path + '\\'))) {
           const moved = next + cur.path.slice(path.length)
+          latest.current.doc = { ...cur, path: moved }
           setDoc({ ...cur, path: moved })
           api.settings.set({ lastFile: moved })
         }
@@ -324,7 +422,7 @@ export function App() {
         toast((err as Error).message, 'error')
       }
     },
-    [flushSave, refreshTree]
+    [flushSave, refreshTree, commitTabs]
   )
 
   /** 文件树右键导出：先打开该文档（打印为 PDF、排版 HTML 都按编辑区的内容生成），再显示导出对话框 */
@@ -345,14 +443,18 @@ export function App() {
   /** 拖动文件或文件夹到另一个文件夹 */
   const moveEntry = useCallback(
     async (path: string, destDir: string) => {
+      if (chatBusy()) { toast('请先结束当前 AI 对话并完成修改审阅', 'info'); return }
       try {
         const cur = latest.current.doc
         const affectsCurrent = cur && (cur.path === path || isInside(cur.path, path))
         if (affectsCurrent) await flushSave()
         const next = await api.fs.move(path, destDir)
         if (next === path) return
+        const oldKey = documentKey(path)
+        commitTabs(tabsRef.current.map((tab) => documentKey(tab.path) === oldKey || documentKey(tab.path).startsWith(oldKey + '/') ? { ...tab, path: next + tab.path.slice(path.length) } : tab))
         if (cur && affectsCurrent) {
           const moved = next + cur.path.slice(path.length)
+          latest.current.doc = { ...cur, path: moved }
           setDoc({ ...cur, path: moved })
           api.settings.set({ lastFile: moved })
         }
@@ -361,7 +463,7 @@ export function App() {
         toast((err as Error).message ?? String(err), 'error')
       }
     },
-    [flushSave, refreshTree]
+    [flushSave, refreshTree, commitTabs]
   )
 
   const deleteEntry = useCallback(
@@ -373,17 +475,26 @@ export function App() {
         danger: true
       })
       if (!ok) return
+      if (chatBusy()) { toast('请先结束当前 AI 对话并完成修改审阅', 'info'); return }
       const cur = latest.current.doc
-      if (cur && cur.path.startsWith(path)) {
+      const affected = (p: string) => documentKey(p) === documentKey(path) || documentKey(p).startsWith(documentKey(path) + '/')
+      if (cur && affected(cur.path)) {
         window.clearTimeout(saveTimer.current)
         setSaveState('saved')
         latest.current.saveState = 'saved'
       }
       await api.fs.remove(path)
-      if (cur && cur.path.startsWith(path)) await openScratch()
+      const remaining = tabsRef.current.filter((tab) => !affected(tab.path))
+      commitTabs(remaining)
+      if (cur && affected(cur.path)) {
+        latest.current = { ...latest.current, doc: null, saveState: 'saved' }
+        if (tabsEnabled.current && remaining.length) await loadDoc(remaining[0].path, remaining[0].isScratch)
+        else if (tabsEnabled.current) await openExampleNow()
+        else await openScratch()
+      }
       refreshTree()
     },
-    [openScratch, refreshTree]
+    [openScratch, refreshTree, commitTabs, loadDoc, openExampleNow]
   )
 
   // ---------- 公众号 ----------
@@ -467,9 +578,14 @@ export function App() {
 
   useEffect(() => api.ai.onEvent(handleAgentEvent), [])
 
+  useEffect(() => {
+    const current = getAgentState()
+    if (!chatBusy() && current.conversation && settings?.ai.activeAgentId !== current.conversation.agentId) clearChat()
+  }, [settings?.ai.activeAgentId, agent.running, agent.loading])
+
   // 让 Agent 读取到编辑器中的实时内容（包括尚未保存的修改）
   useEffect(() => {
-    if (doc) api.ai.setActiveDoc(doc.path, markdown)
+    if (doc) api.ai.setActiveDoc(doc.isExample ? null : doc.path, doc.isExample ? '' : markdown)
   }, [doc, markdown])
 
   const proposal = agent.proposals[0]
@@ -602,9 +718,9 @@ export function App() {
 
   if (!settings || !doc) return <div className="app-loading" />
 
-  const title = doc.isScratch ? '未命名草稿' : basename(doc.path).replace(/\.(md|markdown|txt)$/i, '')
+  const title = documentLabel(doc)
   const showSidebar = settings.showSidebar && !focusMode
-  const showAgent = settings.showAgent && !focusMode
+  const showAgent = settings.showAgent && !focusMode && !doc.isExample
   // 所选按钮样式与平台原生一致时由系统绘制，否则自绘（自绘按钮的样式与位置即时生效）
   const customControls = api.window.nativeControls
     ? null
@@ -683,6 +799,7 @@ export function App() {
           data-custom-code={settings.editorCodeFont?.trim() ? '' : undefined}
           style={typographyStyle(settings, !editorThemeKey && !typora)}
         >
+          {settings.showDocumentTabs && !focusMode && <DocumentTabs tabs={tabs} activePath={doc.path} dirty={saveState !== 'saved'} onSelect={selectTab} onClose={closeTab} />}
           {proposal && (
             <DiffReview
               key={proposal.requestId}
@@ -710,13 +827,13 @@ export function App() {
             initialMarkdown={doc.initial}
             sourceMode={sourceMode}
             typewriter={settings.typewriter}
-            showToolbar={settings.showToolbar}
+            showToolbar={settings.showToolbar && !doc.isExample}
             imageGen={settings.imageGen}
             onOpenImageSettings={() => setDialog('settings-image')}
             onChange={onEditorChange}
             onHeadings={setHeadings}
             hideFrontMatter={!!editorThemeKey}
-            readOnly={draftActive}
+            readOnly={draftActive || doc.isExample}
           />
           <footer className="statusbar">
             <button
@@ -732,8 +849,9 @@ export function App() {
             <ImageModeSwitch value={settings.imageUploadMode} onChange={(imageUploadMode) => updateSettings({ imageUploadMode })} />
             <span className="grow" />
             <span className="muted" title={doc.path}>
-              {doc.isScratch ? '草稿自动保存在应用数据目录 · ⌘S 另存为' : { saved: '已保存', saving: '保存中…', unsaved: '编辑中' }[saveState]}
+              {doc.isExample ? '示例文档 · 另存为后可编辑' : doc.isScratch ? '草稿自动保存在应用数据目录 · ⌘S 另存为' : { saved: '已保存', saving: '保存中…', unsaved: '编辑中' }[saveState]}
             </span>
+            {doc.isExample && <button className="btn sm ghost" onClick={() => void saveAs()}>另存为</button>}
             <PublishActions onCopy={copyToWechat} onPublish={openPublish} />
             <button className="icon-btn sm" title={`导出为 PDF、Word、HTML 等${isMac ? ' ⇧⌘P' : ' Ctrl+Shift+P'}`} onClick={() => handlers.current.export()}>
               <FileOutput size={14} />
@@ -742,6 +860,7 @@ export function App() {
             <button
               className={`icon-btn sm has-dot${showAgent ? ' on active' : ''}`}
               title="AI 助手 ⌘J"
+              disabled={doc.isExample}
               onClick={() => handlers.current['toggle-ai']()}
             >
               <Sparkles size={15} />

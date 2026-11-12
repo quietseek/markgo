@@ -5,6 +5,7 @@ package acp
 // 与前端 src/shared/types.ts 中的同名类型一一对应
 
 type AgentInfo struct {
+	LoadSession bool         `json:"loadSession"`
 	Name        string       `json:"name"`
 	Version     string       `json:"version,omitempty"`
 	AuthMethods []AuthMethod `json:"authMethods"`
@@ -54,6 +55,8 @@ type PlanEntry struct {
 
 // Event 推给前端的会话事件（按 Channel 区分对话面板与内联 AI）
 type Event struct {
+	Selection  string          `json:"selection,omitempty"`
+	Display    *displayMeta    `json:"-"`
 	Type       string          `json:"type"`
 	Channel    string          `json:"channel,omitempty"`
 	Status     string          `json:"status,omitempty"`
@@ -68,6 +71,12 @@ type Event struct {
 }
 
 type PromptInput struct {
+	ConversationID   string `json:"conversationId,omitempty"`
+	Title            string `json:"title,omitempty"`
+	SessionID        string `json:"-"`
+	WorkingDirectory string `json:"-"`
+	// Called before prompting, so the session survives even if generation fails.
+	SessionCreated func(string) error `json:"-"`
 	// "chat" 为侧边对话；内联 AI 每次使用独立 channel
 	Channel string `json:"channel"`
 	Text    string `json:"text"`

@@ -10,7 +10,9 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"net/url"
 	"strings"
 	"time"
@@ -32,6 +34,11 @@ var errTimeout = errors.New("timeout")
 
 // Generate 根据提示词生成一张图片，返回 data URL（供应商返回的链接通常有时效，插入前再按图床设置保存）
 func Generate(cfg settings.ImageGenConfig, prompt string) Result {
+	return GenerateWithOptions(cfg, Request{Prompt: prompt})
+}
+
+func GenerateWithOptions(cfg settings.ImageGenConfig, input Request) Result {
+	prompt := strings.TrimSpace(input.Prompt)
 	var provider *settings.ImageGenProvider
 	for i := range settings.ImageGenProviders {
 		if settings.ImageGenProviders[i].ID == cfg.Provider {
@@ -53,6 +60,26 @@ func Generate(cfg settings.ImageGenConfig, prompt string) Result {
 	case strings.TrimSpace(prompt) == "":
 		return Result{Error: "请输入图片描述"}
 	}
+	capabilities := GetCapabilities(cfg.Provider, cfg.Model)
+	if err := capabilities.validate(input); err != nil {
+		return Result{Error: err.Error()}
+	}
+	refs := make([]referenceImage, 0, len(input.Images))
+	for _, dataURL := range input.Images {
+		ref, err := parseReference(dataURL)
+		if err != nil {
+			return Result{Error: err.Error()}
+		}
+		refs = append(refs, ref)
+	}
+	size := capabilities.size(input, refs)
+	if len(refs) > 0 {
+		if input.Mode == "edit" {
+			prompt = "请按照以下要求修改第一张图片，保留未要求改变的主体与细节。其余图片（如有）仅作为参考。\n\n" + prompt
+		} else {
+			prompt = "请根据以下描述创作新图片，附图仅用于参考风格、配色与构图。\n\n" + prompt
+		}
+	}
 	seconds := cfg.Timeout
 	if seconds <= 0 {
 		seconds = 180
@@ -62,9 +89,9 @@ func Generate(cfg settings.ImageGenConfig, prompt string) Result {
 	var image string
 	var err error
 	if provider != nil && provider.Protocol == "dashscope" {
-		image, err = dashscope(ctx, baseURL, cfg.APIKey, cfg.Model, prompt)
+		image, err = dashscope(ctx, baseURL, cfg.APIKey, cfg.Model, prompt, size)
 	} else {
-		image, err = openai(ctx, baseURL, cfg.APIKey, cfg.Model, prompt)
+		image, err = openai(ctx, baseURL, cfg, prompt, size, input.Quality, refs)
 	}
 	if err == nil && !strings.HasPrefix(image, "data:") {
 		image, err = toDataURL(ctx, image)
@@ -80,7 +107,9 @@ func Generate(cfg settings.ImageGenConfig, prompt string) Result {
 
 func request(ctx context.Context, method, rawURL string, headers map[string]string, body any, out any) error {
 	var reader io.Reader
-	if body != nil {
+	if stream, ok := body.(io.Reader); ok {
+		reader = stream
+	} else if body != nil {
 		raw, _ := json.Marshal(body)
 		reader = bytes.NewReader(raw)
 	}
@@ -103,12 +132,15 @@ func request(ctx context.Context, method, rawURL string, headers map[string]stri
 		return fmt.Errorf("无法连接生图接口（%s）：%v", host, err)
 	}
 	defer res.Body.Close()
-	raw, err := io.ReadAll(res.Body)
+	raw, err := io.ReadAll(io.LimitReader(res.Body, (64<<20)+1))
 	if err != nil {
 		if ctx.Err() != nil {
 			return errTimeout
 		}
 		return err
+	}
+	if len(raw) > 64<<20 {
+		return errors.New("生图接口返回的内容过大")
 	}
 	if res.StatusCode >= 300 {
 		return fmt.Errorf("生图失败：%s", errorMessage(raw, res.StatusCode))
@@ -149,7 +181,7 @@ func errorMessage(raw []byte, status int) string {
 //
 //	POST {base}/images/generations  {"model", "prompt"}
 //	-> {"data": [{"url"} | {"b64_json"}]}，硅基流动另有 {"images": [{"url"}]}
-func openai(ctx context.Context, baseURL, apiKey, model, prompt string) (string, error) {
+func openai(ctx context.Context, baseURL string, cfg settings.ImageGenConfig, prompt, size, quality string, refs []referenceImage) (string, error) {
 	type item struct {
 		URL     string `json:"url"`
 		B64JSON string `json:"b64_json"`
@@ -158,14 +190,71 @@ func openai(ctx context.Context, baseURL, apiKey, model, prompt string) (string,
 		Data   []item `json:"data"`
 		Images []item `json:"images"`
 	}
-	headers := map[string]string{"Content-Type": "application/json", "Authorization": "Bearer " + apiKey}
-	if err := request(ctx, http.MethodPost, baseURL+"/images/generations", headers, map[string]any{"model": model, "prompt": prompt, "n": 1}, &data); err != nil {
+	headers := map[string]string{"Content-Type": "application/json", "Authorization": "Bearer " + cfg.APIKey}
+	endpoint := baseURL + "/images/generations"
+	fields := map[string]any{"model": cfg.Model, "prompt": prompt, "n": 1}
+	if size != "" {
+		key := "size"
+		if cfg.Provider == "siliconflow" {
+			key = "image_size"
+		}
+		fields[key] = size
+	}
+	if quality != "" {
+		fields["quality"] = quality
+	}
+	var body any = fields
+	if seedream(cfg.Provider, cfg.Model) {
+		delete(fields, "n")
+		fields["response_format"] = "b64_json"
+		if strings.HasPrefix(cfg.Model, "doubao-seedream-4-") || strings.HasPrefix(cfg.Model, "doubao-seedream-5-0-lite") {
+			fields["sequential_image_generation"] = "disabled"
+		}
+		if len(refs) > 0 {
+			images := make([]string, 0, len(refs))
+			for _, ref := range refs {
+				images = append(images, ref.dataURL())
+			}
+			fields["image"] = images
+		}
+	} else if len(refs) > 0 {
+		endpoint = baseURL + "/images/edits"
+		var buf bytes.Buffer
+		writer := multipart.NewWriter(&buf)
+		for key, value := range fields {
+			if err := writer.WriteField(key, fmt.Sprint(value)); err != nil {
+				return "", err
+			}
+		}
+		for i, ref := range refs {
+			header := make(textproto.MIMEHeader)
+			header.Set("Content-Disposition", fmt.Sprintf(`form-data; name="image[]"; filename="reference-%d.%s"`, i+1, ref.ext))
+			header.Set("Content-Type", ref.mime)
+			part, err := writer.CreatePart(header)
+			if err != nil {
+				return "", err
+			}
+			if _, err = part.Write(ref.raw); err != nil {
+				return "", err
+			}
+		}
+		if err := writer.Close(); err != nil {
+			return "", err
+		}
+		headers["Content-Type"] = writer.FormDataContentType()
+		body = &buf
+	}
+	if err := request(ctx, http.MethodPost, endpoint, headers, body, &data); err != nil {
 		return "", err
 	}
 	items := append(data.Data, data.Images...)
 	if len(items) > 0 {
 		if items[0].B64JSON != "" {
-			return "data:image/png;base64," + items[0].B64JSON, nil
+			raw, err := base64.StdEncoding.DecodeString(items[0].B64JSON)
+			if err != nil {
+				return "", errors.New("生图接口返回了无效的图片数据")
+			}
+			return imageDataURL(raw)
 		}
 		if items[0].URL != "" {
 			return items[0].URL, nil
@@ -178,7 +267,7 @@ func openai(ctx context.Context, baseURL, apiKey, model, prompt string) (string,
 //
 //	POST {base}/services/aigc/text2image/image-synthesis（X-DashScope-Async: enable）-> output.task_id
 //	GET  {base}/tasks/{task_id} -> output.task_status / output.results[0].url
-func dashscope(ctx context.Context, baseURL, apiKey, model, prompt string) (string, error) {
+func dashscope(ctx context.Context, baseURL, apiKey, model, prompt, size string) (string, error) {
 	auth := "Bearer " + apiKey
 	var created struct {
 		Output struct {
@@ -186,7 +275,11 @@ func dashscope(ctx context.Context, baseURL, apiKey, model, prompt string) (stri
 		} `json:"output"`
 	}
 	headers := map[string]string{"Authorization": auth, "Content-Type": "application/json", "X-DashScope-Async": "enable"}
-	body := map[string]any{"model": model, "input": map[string]any{"prompt": prompt}, "parameters": map[string]any{"n": 1}}
+	parameters := map[string]any{"n": 1}
+	if size != "" {
+		parameters["size"] = size
+	}
+	body := map[string]any{"model": model, "input": map[string]any{"prompt": prompt}, "parameters": parameters}
 	if err := request(ctx, http.MethodPost, baseURL+"/services/aigc/text2image/image-synthesis", headers, body, &created); err != nil {
 		return "", err
 	}
@@ -246,13 +339,20 @@ func toDataURL(ctx context.Context, rawURL string) (string, error) {
 	if res.StatusCode >= 300 {
 		return "", fmt.Errorf("下载生成的图片失败（HTTP %d）", res.StatusCode)
 	}
-	raw, err := io.ReadAll(res.Body)
+	raw, err := io.ReadAll(io.LimitReader(res.Body, (32<<20)+1))
 	if err != nil {
 		return "", err
 	}
-	mt, _, _ := mime.ParseMediaType(res.Header.Get("Content-Type"))
-	if mt == "" {
-		mt = "image/png"
+	return imageDataURL(raw)
+}
+
+func imageDataURL(raw []byte) (string, error) {
+	if len(raw) > 32<<20 {
+		return "", errors.New("生成的图片超过 32 MB，请选择较小尺寸")
+	}
+	mt, _, _ := mime.ParseMediaType(http.DetectContentType(raw))
+	if mt != "image/png" && mt != "image/jpeg" && mt != "image/webp" {
+		return "", errors.New("生图接口没有返回有效的 PNG、JPEG 或 WebP 图片")
 	}
 	return "data:" + mt + ";base64," + base64.StdEncoding.EncodeToString(raw), nil
 }

@@ -99,6 +99,7 @@ type AppSettings struct {
 	LightTheme        string         `json:"lightTheme"`
 	DarkTheme         string         `json:"darkTheme"`
 	ShowToolbar       bool           `json:"showToolbar"`
+	ShowDocumentTabs  bool           `json:"showDocumentTabs"`
 	Typewriter        bool           `json:"typewriter"`
 	EditorWidth       string         `json:"editorWidth"`
 	EditorFont        string         `json:"editorFont"`
@@ -201,6 +202,7 @@ func Defaults() AppSettings {
 		EditorTheme:       "default",
 		Appearance:        "system",
 		ShowToolbar:       true,
+		ShowDocumentTabs:  false,
 		EditorWidth:       "full",
 		EditorFont:        "sans",
 		EditorFontSize:    14,

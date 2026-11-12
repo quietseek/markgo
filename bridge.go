@@ -18,6 +18,7 @@ import (
 
 	"github.com/quietseek/markgo/internal/acp"
 	"github.com/quietseek/markgo/internal/files"
+	"github.com/quietseek/markgo/internal/history"
 	"github.com/quietseek/markgo/internal/imagegen"
 	"github.com/quietseek/markgo/internal/images"
 	"github.com/quietseek/markgo/internal/platform"
@@ -29,12 +30,16 @@ import (
 // Bridge 绑定到前端的服务：前端 window.markgo 的每个方法都对应这里的一个方法
 // （见 frontend/src/bridge.ts）
 type Bridge struct {
-	app      *application.App
-	window   *application.WebviewWindow
-	store    *settings.Store
-	acp      *acp.Manager
-	uploader *images.Uploader
-	wechat   *wechat.Client
+	historyOnce sync.Once
+	history     *history.Store
+	historyErr  error
+	chatMu      sync.Mutex
+	app         *application.App
+	window      *application.WebviewWindow
+	store       *settings.Store
+	acp         *acp.Manager
+	uploader    *images.Uploader
+	wechat      *wechat.Client
 
 	// 本次启动是否使用系统原生窗口按钮（与平台习惯一致时），否则由前端绘制；切换需重启
 	nativeControls bool
@@ -57,7 +62,8 @@ type Bridge struct {
 	settingsMu    sync.Mutex
 	workspace     string // guarded by openMu; window-local, unlike persisted last-used defaults
 	lastFile      string
-	document      string // claimed by this window while loading/editing
+	document      string   // claimed by this window while loading/editing
+	openDocuments []string // includes inactive tabs; guarded by openMu
 	scratch       string
 	fresh         bool
 	allowClose    atomic.Bool
@@ -252,6 +258,9 @@ func (b *Bridge) shutdown() {
 	for _, session := range b.sessions() {
 		session.acp.Dispose()
 	}
+	if b.history != nil {
+		b.history.Close()
+	}
 }
 
 // ---------- 打开文件 ----------
@@ -403,22 +412,66 @@ func (b *Bridge) ListTree(root string) []files.FileNode {
 
 func (b *Bridge) ReadFile(p string) (string, error) {
 	raw, err := os.ReadFile(p)
+	if err == nil {
+		b.indexDocument(p, string(raw))
+	}
 	return string(raw), err
 }
 
 func (b *Bridge) WriteFile(p, content string) error {
-	return os.WriteFile(p, []byte(content), 0o644)
+	if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+		return err
+	}
+	b.indexDocument(p, content)
+	return nil
 }
 
 func (b *Bridge) CreateEntry(dir, name, kind string) (string, error) {
 	return files.CreateEntry(dir, name, kind)
 }
 
-func (b *Bridge) RenameEntry(p, name string) (string, error) { return files.RenameEntry(p, name) }
+func (b *Bridge) RenameEntry(p, name string) (string, error) {
+	s, err := b.historyStore()
+	if err != nil {
+		return "", err
+	}
+	next, err := files.RenameEntry(p, name)
+	if err != nil {
+		return "", err
+	}
+	if err = s.MoveDocuments(p, next); err != nil {
+		return "", errors.Join(err, os.Rename(next, p))
+	}
+	b.moveDocumentClaims(p, next)
+	return next, nil
+}
 
-func (b *Bridge) MoveEntry(p, destDir string) (string, error) { return files.MoveEntry(p, destDir) }
+func (b *Bridge) MoveEntry(p, destDir string) (string, error) {
+	s, err := b.historyStore()
+	if err != nil {
+		return "", err
+	}
+	next, err := files.MoveEntry(p, destDir)
+	if err != nil {
+		return "", err
+	}
+	if err = s.MoveDocuments(p, next); err != nil {
+		return "", errors.Join(err, os.Rename(next, p))
+	}
+	b.moveDocumentClaims(p, next)
+	return next, nil
+}
 
-func (b *Bridge) RemoveEntry(p string) error { return platform.MoveToTrash(p) }
+func (b *Bridge) RemoveEntry(p string) error {
+	s, err := b.historyStore()
+	if err != nil {
+		return err
+	}
+	if err = platform.MoveToTrash(p); err != nil {
+		return err
+	}
+	return s.RemoveDocuments(p)
+}
 
 func (b *Bridge) Reveal(p string) error { return b.app.Env.OpenFileManager(p, true) }
 
@@ -463,6 +516,21 @@ func (b *Bridge) SaveAs(ctx context.Context, content, suggestedName string) (str
 		b.ClaimDocument(ctx, previous)
 		return "", err
 	}
+	// Saving a scratch document gives that same document a permanent path.
+	scratch := b.scratch
+	if scratch == "" {
+		scratch = filepath.Join(b.store.Dir(), "scratch.md")
+	}
+	if previous != "" && pathKey(previous) == pathKey(scratch) && content != "" {
+		s, err := b.historyStore()
+		if err == nil {
+			err = s.MoveDocuments(previous, p)
+		}
+		if err != nil {
+			return p, err
+		}
+	}
+	b.indexDocument(p, content)
 	return p, nil
 }
 
@@ -523,8 +591,16 @@ func (b *Bridge) DownloadImage(src, docPath string) images.UploadResult {
 	return b.uploader.DownloadToAssets(src, docPath)
 }
 
-func (b *Bridge) GenerateImage(prompt string) imagegen.Result {
-	return imagegen.Generate(b.store.Get().ImageGen, prompt)
+func (b *Bridge) GenerateImage(input imagegen.Request) imagegen.Result {
+	return imagegen.GenerateWithOptions(b.store.Get().ImageGen, input)
+}
+
+func (b *Bridge) ImageGenCapabilities(provider, model string) imagegen.Capabilities {
+	return imagegen.GetCapabilities(provider, model)
+}
+
+func (b *Bridge) ReadImageReference(src, docPath string) imagegen.Result {
+	return imagegen.LoadReference(src, docPath)
 }
 
 // RevealImage 在文件管理器中显示本地图片；找不到时返回 false
@@ -577,13 +653,17 @@ func (b *Bridge) AiStop(ctx context.Context) {
 }
 
 type promptResult struct {
-	OK         bool   `json:"ok"`
-	StopReason string `json:"stopReason,omitempty"`
-	Error      string `json:"error,omitempty"`
+	Conversation *history.Conversation `json:"conversation,omitempty"`
+	OK           bool                  `json:"ok"`
+	StopReason   string                `json:"stopReason,omitempty"`
+	Error        string                `json:"error,omitempty"`
 }
 
 func (b *Bridge) AiPrompt(ctx context.Context, input acp.PromptInput) promptResult {
 	b = b.session(ctx)
+	if input.Channel == "chat" {
+		return b.promptChat(input)
+	}
 
 	stop, err := b.acp.Prompt(input)
 	if err != nil {
