@@ -687,6 +687,7 @@ export interface MarkGoApi {
     setDark(dark: boolean): void
     minimize(): void
     toggleMaximize(): void
+    toggleFullscreen(): void
     close(): void
     /** 本次启动是否使用系统原生窗口按钮（切换需重启） */
     nativeControls: boolean

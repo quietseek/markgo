@@ -142,7 +142,7 @@ var (
 	darkBg  = application.NewRGB(0x1b, 0x1c, 0x1f)
 )
 
-func (b *Bridge) createWindow() {
+func (b *Bridge) createWindow(screen *application.Screen) {
 	hidden := application.ButtonEnabled
 	if isMac && !b.nativeControls {
 		hidden = application.ButtonHidden
@@ -155,6 +155,8 @@ func (b *Bridge) createWindow() {
 		MinWidth:  760,
 		MinHeight: 520,
 		URL:       "/",
+		Screen:    screen,
+		Hidden:    true,
 		// Windows / Linux 使用无边框窗口，标题栏与窗口按钮由前端绘制
 		Frameless:           !isMac,
 		BackgroundColour:    lightBg,
@@ -166,6 +168,21 @@ func (b *Bridge) createWindow() {
 			InvisibleTitleBarHeight: 44,
 		},
 		Windows: application.WindowsWindow{DisableMenu: true},
+	})
+	// Screen information is available after the native window has been created.
+	// Size it before showing it, and leave user resizing alone on runtime reloads.
+	var initialSize sync.Once
+	w.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) {
+		initialSize.Do(func() {
+			current, err := w.GetScreen()
+			if err == nil && current != nil {
+				width, height, minWidth, minHeight := initialWindowSize(current.WorkArea.Width, current.WorkArea.Height)
+				w.SetMinSize(minWidth, minHeight)
+				w.SetSize(width, height)
+				w.SetScreen(current)
+			}
+			w.Show()
+		})
 	})
 	w.OnWindowEvent(events.Common.WindowMaximise, func(*application.WindowEvent) { emitTo(w, "window:maximized", true) })
 	w.OnWindowEvent(events.Common.WindowUnMaximise, func(*application.WindowEvent) { emitTo(w, "window:maximized", false) })
@@ -222,6 +239,13 @@ func (b *Bridge) ToggleMaximize(ctx context.Context) {
 
 	if b.window != nil {
 		b.window.ToggleMaximise()
+	}
+}
+
+func (b *Bridge) ToggleFullscreen(ctx context.Context) {
+	b = b.session(ctx)
+	if b.window != nil {
+		b.window.ToggleFullscreen()
 	}
 }
 

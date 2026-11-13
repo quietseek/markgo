@@ -222,6 +222,7 @@ export async function installBridge(): Promise<void> {
       setDark: (dark) => void call('SetDark', dark),
       minimize: () => void call('Minimize'),
       toggleMaximize: () => void call('ToggleMaximize'),
+      toggleFullscreen: () => void call('ToggleFullscreen'),
       close: () => void call('CloseWindow'),
       nativeControls,
       onMaximizeChange: (cb) => on<boolean>('window:maximized', cb)

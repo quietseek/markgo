@@ -80,6 +80,16 @@ func (b *Bridge) sessionSettings() settings.AppSettings {
 	return cfg
 }
 
+// WorkArea is measured in logical pixels, so display scaling and taskbars are
+// already accounted for. On very small displays, relax the normal minimums.
+func initialWindowSize(workWidth, workHeight int) (width, height, minWidth, minHeight int) {
+	if workWidth <= 0 || workHeight <= 0 {
+		return 1320, 860, 760, 520
+	}
+	minWidth, minHeight = min(760, workWidth), min(520, workHeight)
+	return max(minWidth, workWidth*85/100), max(minHeight, workHeight*85/100), minWidth, minHeight
+}
+
 func (b *Bridge) newWindow(file, workspace string) *Bridge {
 	r := b.owner
 	s := newBridge(r.store)
@@ -87,7 +97,11 @@ func (b *Bridge) newWindow(file, workspace string) *Bridge {
 	s.workspace, s.lastFile, s.pending = workspace, "", file
 	s.fresh = true
 	s.scratch = filepath.Join(r.store.Dir(), "scratch-"+windowToken()+".md")
-	s.createWindow()
+	var screen *application.Screen
+	if b.window != nil {
+		screen, _ = b.window.GetScreen()
+	}
+	s.createWindow(screen)
 	return s
 }
 

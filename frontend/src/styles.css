@@ -110,10 +110,14 @@ textarea {
   align-items: center;
   gap: 8px;
   padding: 0 10px;
-  -webkit-app-region: drag;
-  --wails-draggable: drag;
+  --wails-draggable: no-drag;
   user-select: none;
   border-bottom: 1px solid transparent;
+}
+/* Arm native dragging while pressed. On release, let React handle dblclick
+   instead of Wails applying the macOS titlebar maximise/minimise preference. */
+.titlebar:active {
+  --wails-draggable: drag;
 }
 .app.mac.ctl-native .titlebar {
   padding-left: 84px;

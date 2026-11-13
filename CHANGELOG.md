@@ -4,6 +4,29 @@
 
 介绍页顶部的「新版本」提示取自版本小节里的 `<!-- 亮点：... -->`（在 GitHub Release 中不显示），没有写就截取第一条说明的开头。
 
+## v0.7.2
+
+<!-- 亮点：顶部双击切换全屏，窗口初始大小随屏幕自适应 -->
+
+### 新增功能
+
+- 双击顶部标题或空白区域即可进入 / 退出全屏；按住顶部拖动仍可移动窗口，顶部按钮不会误触发全屏切换。
+
+### 优化改进
+
+- 初始窗口宽高改为所在屏幕可用区域的约 85%，自动居中，并考虑显示缩放、任务栏和小屏幕的尺寸限制。
+- 从已有窗口新建时，在来源窗口所在屏幕打开；初始尺寸只在窗口创建时设置，不影响后续手动调整。
+
+### 下载地址
+
+| 系统 | 安装包 |
+| --- | --- |
+| macOS（Apple 芯片与 Intel 通用） | [MarkGo-0.7.2-mac-universal.dmg](https://github.com/quietseek/markgo/releases/download/v0.7.2/MarkGo-0.7.2-mac-universal.dmg) |
+| Windows 10 / 11 | [MarkGo-0.7.2-win-x64-setup.exe](https://github.com/quietseek/markgo/releases/download/v0.7.2/MarkGo-0.7.2-win-x64-setup.exe) |
+| Linux（Debian / Ubuntu） | [MarkGo-0.7.2-linux-amd64.deb](https://github.com/quietseek/markgo/releases/download/v0.7.2/MarkGo-0.7.2-linux-amd64.deb) |
+
+> Windows 需要 WebView2 运行时（系统通常已自带，安装程序会自动补装）；Linux 需要 GTK 4 与 WebKitGTK 6.0（Ubuntu 24.04+ / Debian 13+）。
+
 ## v0.7.1
 
 <!-- 亮点：大纲位置可配置，更新检查告别 GitHub API 限流 -->

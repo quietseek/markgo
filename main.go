@@ -22,7 +22,7 @@ import (
 )
 
 // Version 应用版本，发布时与 build/config.yml、frontend/package.json 保持一致
-const Version = "0.7.1"
+const Version = "0.7.2"
 
 const appName = "MarkGo"
 
@@ -87,7 +87,7 @@ func main() {
 		app.Menu.SetApplicationMenu(buildAppMenu(app, b))
 	}
 
-	b.createWindow()
+	b.createWindow(nil)
 
 	if err := app.Run(); err != nil {
 		log.Fatal(err)

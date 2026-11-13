@@ -736,7 +736,13 @@ export function App() {
 
   return (
     <div className={`app ${isMac ? 'mac' : 'win'} ctl-${customControls ? 'custom' : 'native'}${focusMode ? ' focus' : ''}`}>
-      <header className="titlebar">
+      <header
+        className="titlebar"
+        onDoubleClick={(event) => {
+          if (event.button !== 0 || (event.target as Element).closest('button, input, a, select, textarea, [role="button"]')) return
+          api.window.toggleFullscreen()
+        }}
+      >
         <div className="titlebar-left">
           {customControls === 'traffic-left' && <WindowControls variant="traffic" />}
           <button
