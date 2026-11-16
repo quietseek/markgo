@@ -68,6 +68,7 @@ type Bridge struct {
 	scratch       string
 	fresh         bool
 	allowClose    atomic.Bool
+	hidePending   atomic.Bool
 	quitPending   map[uint]bool
 	quitCancelled bool
 }
@@ -186,6 +187,11 @@ func (b *Bridge) createWindow(screen *application.Screen) {
 	})
 	w.OnWindowEvent(events.Common.WindowMaximise, func(*application.WindowEvent) { emitTo(w, "window:maximized", true) })
 	w.OnWindowEvent(events.Common.WindowUnMaximise, func(*application.WindowEvent) { emitTo(w, "window:maximized", false) })
+	if isMac {
+		w.OnWindowEvent(events.Mac.WindowDidExitFullScreen, func(*application.WindowEvent) {
+			application.InvokeSync(func() { finishBackgroundClose(w, &b.hidePending) })
+		})
+	}
 	b.window = w
 	b.owner.windowsMu.Lock()
 	b.owner.windows[w.ID()] = b
@@ -203,6 +209,9 @@ func (b *Bridge) createWindow(screen *application.Screen) {
 func (b *Bridge) showWindow() {
 	if b.window == nil {
 		return
+	}
+	if isMac {
+		application.InvokeSync(func() { b.hidePending.Store(false) })
 	}
 	if b.window.IsMinimised() {
 		b.window.Restore()

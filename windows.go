@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"sync/atomic"
 
 	"github.com/quietseek/markgo/internal/settings"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -314,6 +315,25 @@ func (b *Bridge) openExternal(path string) {
 	}
 }
 
+func hideWindowToBackground(w application.Window, closing *atomic.Bool) {
+	if closing.Load() {
+		return
+	}
+	if isMac && w.IsFullscreen() {
+		if closing.CompareAndSwap(false, true) {
+			w.UnFullscreen()
+		}
+		return
+	}
+	w.Hide()
+}
+
+func finishBackgroundClose(w application.Window, closing *atomic.Bool) {
+	if closing.Swap(false) {
+		w.Hide()
+	}
+}
+
 // Acknowledge saving before closing. Failure leaves the window and its document
 // intact. The final window alone uses the close-to-background preference.
 func (b *Bridge) CompleteClose(ctx context.Context, saved bool) {
@@ -351,7 +371,7 @@ func (b *Bridge) CompleteClose(ctx context.Context, saved bool) {
 	last := len(r.windows) == 1
 	if last && r.store.Get().CloseAction == "background" {
 		r.windowsMu.Unlock()
-		s.window.Hide()
+		hideWindowToBackground(s.window, &s.hidePending)
 		return
 	}
 	if last {
