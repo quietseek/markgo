@@ -238,7 +238,15 @@ func (b *Bridge) ToggleMaximize(ctx context.Context) {
 	b = b.session(ctx)
 
 	if b.window != nil {
-		b.window.ToggleMaximise()
+		toggleWindowMaximize(b.window)
+	}
+}
+
+func toggleWindowMaximize(w application.Window) {
+	if isMac && w.IsFullscreen() {
+		w.UnFullscreen()
+	} else {
+		w.ToggleMaximise()
 	}
 }
 
