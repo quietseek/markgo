@@ -33,6 +33,9 @@ func List() []Font {
 		}
 	case "darwin":
 		dirs = []string{"/System/Library/Fonts", "/Library/Fonts"}
+		// PingFang and other CJK system fonts ship as mobile assets, not under /System/Library/Fonts.
+		assets, _ := filepath.Glob("/System/Library/AssetsV2/com_apple_MobileAsset_Font*")
+		dirs = append(dirs, assets...)
 		if home != "" {
 			dirs = append(dirs, filepath.Join(home, "Library", "Fonts"))
 		}
