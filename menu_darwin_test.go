@@ -16,6 +16,8 @@ func TestMacEditingMenuShortcuts(t *testing.T) {
 	}{
 		{"复制", application.Copy, "Cmd+C"},
 		{"粘贴", application.Paste, "Cmd+V"},
+		{"剪切", application.Cut, "Cmd+X"},
+		{"全选", application.SelectAll, "Cmd+A"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			item := menu.FindByRole(tc.role)
