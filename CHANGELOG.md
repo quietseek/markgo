@@ -4,6 +4,31 @@
 
 介绍页顶部的「新版本」提示取自版本小节里的 `<!-- 亮点：... -->`（在 GitHub Release 中不显示），没有写就截取第一条说明的开头。
 
+## v0.7.3
+
+<!-- 亮点：编辑区支持原生 HTML，macOS 快捷键与全屏体验修复 -->
+
+### 修复问题
+
+- 编辑区支持原生 HTML：`<div align>`、`<details>`、`<kbd>`、带宽度的 `<img>` 等按渲染效果显示，双击即可编辑源码；此前这些 HTML 会在保存时丢失，现在原样保留。
+- macOS 下 ⌘C / ⌘V / ⌘X / ⌘A 快捷键恢复可用。
+- macOS 全屏时点击绿色按钮可正常退出全屏；全屏状态下关闭窗口不再留下黑屏。
+- macOS 字体列表补全苹方等系统中文字体。
+
+### 优化改进
+
+- 应用图标按 macOS 规范留出边距，在程序坞和启动台中与其他应用大小一致。
+
+### 下载地址
+
+| 系统 | 安装包 |
+| --- | --- |
+| macOS（Apple 芯片与 Intel 通用） | [MarkGo-0.7.3-mac-universal.dmg](https://github.com/quietseek/markgo/releases/download/v0.7.3/MarkGo-0.7.3-mac-universal.dmg) |
+| Windows 10 / 11 | [MarkGo-0.7.3-win-x64-setup.exe](https://github.com/quietseek/markgo/releases/download/v0.7.3/MarkGo-0.7.3-win-x64-setup.exe) |
+| Linux（Debian / Ubuntu） | [MarkGo-0.7.3-linux-amd64.deb](https://github.com/quietseek/markgo/releases/download/v0.7.3/MarkGo-0.7.3-linux-amd64.deb) |
+
+> Windows 需要 WebView2 运行时（系统通常已自带，安装程序会自动补装）；Linux 需要 GTK 4 与 WebKitGTK 6.0（Ubuntu 24.04+ / Debian 13+）。
+
 ## v0.7.2
 
 <!-- 亮点：顶部双击切换全屏，窗口初始大小随屏幕自适应 -->
