@@ -56,6 +56,7 @@ import { resolveToast, toast } from '../lib/toast'
 import { CONTINUE_ACTION, INLINE_ACTIONS, InlineAiCard, type InlineAiAction, type InlineAiRequest } from './InlineAi'
 import { CodeBlockView } from './CodeBlockView'
 import { FrontMatterView } from './FrontMatterView'
+import { HtmlView } from './HtmlView'
 import { EditorToolbar } from './EditorToolbar'
 import { ImageView } from './ImageView'
 import { ImageGenDialog } from './ImageGenDialog'
@@ -67,6 +68,7 @@ import { MultilineBlockMath, StrictInlineMath, looksLikeLatex } from '../lib/mat
 import { Search, TyporaKeymap } from '../lib/editor-ext'
 import { FrontMatter } from '../lib/front-matter'
 import { Subscript, Superscript } from '../lib/sub-sup'
+import { HtmlBlock, HtmlInline } from '../lib/html-node'
 
 const lowlight = createLowlight(common)
 const bubbleMenuKey = new PluginKey('markgoBubbleMenu')
@@ -84,6 +86,18 @@ const CodeBlock = CodeBlockLowlight.extend({
 const FrontMatterBlock = FrontMatter.extend({
   addNodeView() {
     return ReactNodeViewRenderer(FrontMatterView)
+  }
+})
+
+/** 原生 HTML：显示渲染效果，双击编辑源码 */
+const HtmlBlockNode = HtmlBlock.extend({
+  addNodeView() {
+    return ReactNodeViewRenderer(HtmlView)
+  }
+})
+const HtmlInlineNode = HtmlInline.extend({
+  addNodeView() {
+    return ReactNodeViewRenderer(HtmlView, { as: 'span' })
   }
 })
 
@@ -321,6 +335,8 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
       Search,
       Markdown.configure({ markedOptions: { gfm: true } }),
       FrontMatterBlock,
+      HtmlBlockNode,
+      HtmlInlineNode,
       LocalImage.configure({ allowBase64: true, onEditImage: (pos) => editImageRef.current(pos) }),
       Highlight,
       Subscript,
@@ -773,6 +789,8 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor(
             !ed.isActive('inlineMath') &&
             !ed.isActive('blockMath') &&
             !ed.isActive('frontMatter') &&
+            !ed.isActive('htmlBlock') &&
+            !ed.isActive('htmlInline') &&
             !aiOpen.current
           }
         >

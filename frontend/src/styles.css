@@ -3535,6 +3535,91 @@ textarea {
   color: var(--text-muted);
 }
 
+/* ---------- 原生 HTML ---------- */
+.prose-editor .html-block {
+  position: relative;
+  margin: 0.6em 0;
+  border-radius: 6px;
+}
+.prose-editor .html-block:hover,
+.prose-editor .html-block.selected {
+  outline: 1px dashed var(--border-strong);
+  outline-offset: 4px;
+}
+.prose-editor .html-block.selected {
+  outline-style: solid;
+}
+.prose-editor .html-render > :first-child { margin-top: 0; }
+.prose-editor .html-render > :last-child { margin-bottom: 0; }
+.prose-editor .html-render img { display: inline; vertical-align: middle; max-width: 100%; }
+.prose-editor .html-render summary { cursor: pointer; }
+.prose-editor .html-empty {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--surface-active);
+  font-family: var(--font);
+  font-size: 11.5px;
+  color: var(--text-muted);
+  cursor: default;
+  vertical-align: middle;
+}
+.prose-editor .html-edit {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.prose-editor .html-block:hover .html-edit { opacity: 1; }
+.prose-editor .html-edit:hover { color: var(--text-strong); }
+.prose-editor .html-inline { position: relative; }
+.prose-editor .html-inline.selected .html-render,
+.prose-editor .html-inline.selected .html-empty {
+  outline: 2px solid var(--border-strong);
+  border-radius: 3px;
+}
+.prose-editor .html-popover {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  width: min(420px, 70vw);
+}
+.prose-editor .html-source {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 6px 8px;
+  resize: none;
+  outline: none;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text-strong);
+  white-space: pre-wrap;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+.html-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
 /* ---------- 元信息（Front Matter） ---------- */
 /* 套用排版主题时编辑区即发布效果的预览，元信息不显示（发布与复制本来也不带） */
 .mk-themed .prose-editor .front-matter {
@@ -4407,6 +4492,7 @@ textarea {
   .table-menu,
   .slash-menu,
   .front-matter,
+  .html-edit,
   .code-block-head,
   .image-toolbar,
   .mermaid-export,
